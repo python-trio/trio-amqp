@@ -9,24 +9,8 @@ Package: python3-aioamqp
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}
 Description: AMQP implementation using asyncio
- aioamqp
- =======
+ The aioamqp library is a pure-Python implementation of the AMQP 0.9.1 protocol.
  .
- .. image:: https://badge.fury.io/py/aioamqp.svg
-     :target: http://badge.fury.io/py/aioamqp
- .. image:: https://travis-ci.org/Polyconseil/aioamqp.svg?branch=master
-     :target: https://travis-ci.org/Polyconseil/aioamqp
- .
- .
- ``aioamqp`` library is a pure-Python implementation of the `AMQP 0.9.1 protocol`_.
- .
- Built on top on Python's asynchronous I/O support introduced in `PEP 3156`_, it provides an API based on coroutines, making it easy to write highly concurrent applications.
- .
- Bug reports, patches and suggestions welcome! Just open an issue_ or send a `pull request`_.
- .
- tests
- -----
- .
- Tests require an instance of RabbitMQ. You can start a new instance using docker::
- .
-
+ Built on top on Python's asynchronous I/O support introduced in PEP 3156,
+ it provides an API based on coroutines, making it easy to write
+ highly concurrent applications.

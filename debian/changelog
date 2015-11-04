@@ -1,3 +1,9 @@
+aioamqp (0.4.0-2) smurf; urgency=medium
+
+  * clean up the description
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Wed, 04 Nov 2015 04:45:07 +0100
+
 aioamqp (0.4.0-1) smurf; urgency=low
 
   * source package automatically created by stdeb 0.8.2
