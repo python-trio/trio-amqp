@@ -9,6 +9,11 @@ from .protocol import AmqpProtocol
 from .version import __version__
 from .version import __packagename__
 
+# Compatibility with py3 < 3.4.3
+try:
+    asyncio.ensure_future
+except AttributeError:
+    asyncio.ensure_future = getattr(asyncio,'async')
 
 @asyncio.coroutine
 def connect(host='localhost', port=None, login='guest', password='guest',
