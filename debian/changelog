@@ -1,3 +1,9 @@
+aioamqp (0.4.0+git1-e4f41cff5-1) smurf; urgency=medium
+
+  * Rebased.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Fri, 20 Nov 2015 06:34:38 +0100
+
 aioamqp (0.4.0-2) smurf; urgency=medium
 
   * clean up the description
