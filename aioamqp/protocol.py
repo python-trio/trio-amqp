@@ -137,7 +137,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         yield from self.dispatch_frame()
 
         # for now, we read server's responses asynchronously
-        self.worker = asyncio.async(self.run(), loop=self._loop)
+        self.worker = asyncio.ensure_future(self.run(), loop=self._loop)
 
     def stop(self):
         self.is_open = False
@@ -208,7 +208,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
         if self._on_error_callback:
             if asyncio.iscoroutinefunction(self._on_error_callback):
-                asyncio.async(self._on_error_callback(exception), loop=self._loop)
+                asyncio.ensure_future(self._on_error_callback(exception), loop=self._loop)
             else:
                 self._on_error_callback(exceptions.ChannelClosed(exception))
 
