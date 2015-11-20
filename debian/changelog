@@ -1,3 +1,9 @@
+aioamqp (0.4.0+git4-66bdd1165-1) smurf; urgency=medium
+
+  * Merged.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Fri, 20 Nov 2015 08:28:11 +0100
+
 aioamqp (0.4.0+git3-f65efa3e2-1) smurf; urgency=medium
 
   * Merged.
