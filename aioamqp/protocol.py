@@ -55,7 +55,10 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         self.writer = writer
 
     def connection_lost(self, exc):
-        logger.warning("Connection lost exc=%r", exc)
+        if exc:
+            logger.exception("Connection lost", exc=exc)
+        else:
+            logger.debug("Connection lost")
         self.connection_closed.set()
         self.is_open = False
         self._close_channels(exception=exc)
