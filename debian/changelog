@@ -1,3 +1,9 @@
+aioamqp (0.6.0+git1-a2ce7e451-1) smurf; urgency=medium
+
+  * Upstream merge
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Sun, 07 Feb 2016 01:09:30 +0100
+
 aioamqp (0.4.0+git4-66bdd1165-3) smurf; urgency=medium
 
   * Don't warn when a connection ends normally.

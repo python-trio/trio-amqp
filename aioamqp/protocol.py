@@ -20,16 +20,39 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
     See http://docs.python.org/3.4/library/asyncio-protocol.html#protocols for more information
     on asyncio's protocol API.
+
     """
 
     CHANNEL_FACTORY = amqp_channel.Channel
 
     def __init__(self, *args, **kwargs):
+        """Defines our new protocol instance
+
+        Args:
+            channel_max: int, specifies highest channel number that the server permits.
+                              Usable channel numbers are in the range 1..channel-max.
+                              Zero indicates no specified limit.
+            frame_max: int, the largest frame size that the server proposes for the connection,
+                            including frame header and end-byte. The client can negotiate a lower value.
+                            Zero means that the server does not impose any specific limit
+                            but may reject very large frames if it cannot allocate resources for them.
+            heartbeat: int, the delay, in seconds, of the connection heartbeat that the server wants.
+                            Zero means the server does not want a heartbeat.
+            loop: Asyncio.Eventloop: specify the eventloop to use.
+            client_properties: dict, client-props to tune the client identification
+        """
         self._loop = kwargs.get('loop') or asyncio.get_event_loop()
         super().__init__(asyncio.StreamReader(loop=self._loop), self.client_connected, loop=self._loop)
         self._on_error_callback = kwargs.get('on_error')
-        self.product = kwargs.get('product', version.__packagename__)
-        self.product_version = kwargs.get('product_version', version.__version__)
+
+        self.client_properties = kwargs.get('client_properties', {})
+        self.connection_tunning = {}
+        if 'channel_max' in kwargs:
+            self.connection_tunning['channel_max'] = kwargs.get('channel_max')
+        if 'frame_max' in kwargs:
+            self.connection_tunning['frame_max'] = kwargs.get('frame_max')
+        if 'heartbeat' in kwargs:
+            self.connection_tunning['heartbeat'] = kwargs.get('heartbeat')
 
         self.connecting = asyncio.Future(loop=self._loop)
         self.connection_closed = asyncio.Event(loop=self._loop)
@@ -43,7 +66,8 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         self.reader = None
         self.writer = None
         self.worker = None
-        self.heartbeat = None
+        self.server_heartbeat = None
+        self._heartbeat_waiter = asyncio.Event(loop=self._loop)
         self.channels = {}
         self.server_frame_max = None
         self.server_channel_max = None
@@ -56,7 +80,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
     def connection_lost(self, exc):
         if exc:
-            logger.exception("Connection lost", exc=exc)
+            logger.exception("Connection lost")
         else:
             logger.debug("Connection lost")
         self.connection_closed.set()
@@ -113,9 +137,10 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
                 'connection.blocked': False,
             },
             'copyright': 'BSD',
-            'product': self.product,
-            'product_version': self.product_version,
+            'product': version.__package__,
+            'product_version': version.__version__,
         }
+        client_properties.update(self.client_properties)
         auth = {
             'LOGIN': login,
             'PASSWORD': password,
@@ -128,12 +153,17 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         yield from self.dispatch_frame()
 
         tune_ok = {
-            'channel_max': self.server_channel_max,
-            'frame_max': self.server_frame_max,
-            'heartbeat': self.heartbeat,
+            'channel_max': self.connection_tunning.get('channel_max', self.server_channel_max),
+            'frame_max': self.connection_tunning.get('frame_max', self.server_frame_max),
+            'heartbeat': self.connection_tunning.get('heartbeat', self.server_heartbeat),
         }
         # "tune" the connexion with max channel, max frame, heartbeat
         yield from self.tune_ok(**tune_ok)
+
+        # update connection tunning values
+        self.server_frame_max = tune_ok['frame_max']
+        self.server_channel_max = tune_ok['channel_max']
+        self.server_heartbeat = tune_ok['heartbeat']
 
         # open a virtualhost
         yield from self.open(virtualhost, capabilities='', insist=insist)
@@ -171,10 +201,13 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         }
         if not frame:
             frame = yield from self.get_frame()
-            #print("frame.channel {} class_id {}".format(frame.channel, frame.class_id))
+
+        # we received a frame. It can be a heartbeat or another frame.
+        # it means we still have some traffic from the server
+        self._heartbeat_waiter.set()
 
         if frame.frame_type == amqp_constants.TYPE_HEARTBEAT:
-            yield from self.reply_to_heartbeat(frame)
+            yield from self.send_heartbeat()
             return
 
         if frame.channel is not 0:
@@ -234,8 +267,28 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
                 logger.exception('error on dispatch')
 
     @asyncio.coroutine
-    def reply_to_heartbeat(self, frame):
-        logger.debug("replyin' to heartbeat")
+    def heartbeat(self):
+        """User method to force a heartbeat to the server
+        usefull to check if the connexion is closed
+
+        Raises:
+            asyncio.TimeoutError
+
+        """
+        self._heartbeat_waiter.clear()
+        yield from self.send_heartbeat()
+        yield from asyncio.wait_for(
+            self._heartbeat_waiter.wait(),
+            timeout=self.server_heartbeat * 2,
+        )
+
+
+    @asyncio.coroutine
+    def send_heartbeat(self):
+        """Sends an heartbeat message.
+        It can be an ack for the server or the client willing to check for the
+        connexion timeout
+        """
         frame = amqp_frame.AmqpRequest(self.writer, amqp_constants.TYPE_HEARTBEAT, 0)
         request = amqp_frame.AmqpEncoder()
         frame.write_frame(request)
@@ -283,7 +336,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         decoder = amqp_frame.AmqpDecoder(frame.payload)
         self.server_channel_max = decoder.read_short()
         self.server_frame_max = decoder.read_long()
-        self.heartbeat = decoder.read_short()
+        self.server_heartbeat = decoder.read_short()
 
     @asyncio.coroutine
     def tune_ok(self, channel_max, frame_max, heartbeat):
@@ -293,7 +346,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         encoder = amqp_frame.AmqpEncoder()
         encoder.write_short(channel_max)
         encoder.write_long(frame_max)
-        encoder.write_short(heartbeat or 0)
+        encoder.write_short(heartbeat)
 
         frame.write_frame(encoder)
 

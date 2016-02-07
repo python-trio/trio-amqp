@@ -14,6 +14,11 @@ from .. import exceptions
 class QosTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
     @testing.coroutine
+    def test_basic_qos_default_args(self):
+        result = yield from self.channel.basic_qos()
+        self.assertTrue(result)
+
+    @testing.coroutine
     def test_basic_qos(self):
         result = yield from self.channel.basic_qos(
             prefetch_size=0,
@@ -47,7 +52,7 @@ class BasicCancelTestCase(testcase.RabbitTestCase, unittest.TestCase):
     def test_basic_cancel(self):
 
         @asyncio.coroutine
-        def callback(body, envelope, properties):
+        def callback(channel, body, envelope, properties):
             pass
 
         queue_name = 'queue_name'
@@ -55,7 +60,7 @@ class BasicCancelTestCase(testcase.RabbitTestCase, unittest.TestCase):
         yield from self.channel.queue_declare(queue_name)
         yield from self.channel.exchange_declare(exchange_name, type_name='direct')
         yield from self.channel.queue_bind(queue_name, exchange_name, routing_key='')
-        result = yield from self.channel.basic_consume(queue_name, callback=callback)
+        result = yield from self.channel.basic_consume(callback, queue_name=queue_name)
         result = yield from self.channel.basic_cancel(result['consumer_tag'])
 
         result = yield from self.channel.publish("payload", exchange_name, routing_key='')
@@ -111,45 +116,116 @@ class BasicGetTestCase(testcase.RabbitTestCase, unittest.TestCase):
 class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
 
+    @asyncio.coroutine
+    def publish(self, queue_name, exchange_name, routing_key, payload):
+        yield from self.channel.queue_declare(queue_name, exclusive=False, no_wait=False)
+        yield from self.channel.exchange_declare(exchange_name, type_name='fanout')
+        yield from self.channel.queue_bind(queue_name, exchange_name, routing_key=routing_key)
+        yield from self.channel.publish(payload, exchange_name, queue_name)
+
+
+
     @testing.coroutine
     def test_ack_message(self):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
         routing_key = ''
-        yield from self.channel.queue_declare(queue_name, exclusive=False, no_wait=False)
-        yield from self.channel.exchange_declare(exchange_name, type_name='fanout')
-        yield from self.channel.queue_bind(queue_name, exchange_name, routing_key=routing_key)
-        yield from self.channel.publish("payload", exchange_name, queue_name)
+
+        yield from self.publish(
+            queue_name, exchange_name, routing_key, "payload"
+        )
 
         qfuture = asyncio.Future(loop=self.loop)
 
         @asyncio.coroutine
-        def qcallback(body, envelope, properties):
+        def qcallback(channel, body, envelope, properties):
             qfuture.set_result(envelope)
 
-        yield from self.channel.basic_consume(queue_name, callback=qcallback)
+        yield from self.channel.basic_consume(qcallback, queue_name=queue_name)
         envelope = yield from qfuture
 
         yield from qfuture
         yield from self.channel.basic_client_ack(envelope.delivery_tag)
 
     @testing.coroutine
-    def test_basic_reject(self):
+    def test_basic_nack(self):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
         routing_key = ''
-        yield from self.channel.queue_declare(queue_name, exclusive=False, no_wait=False)
-        yield from self.channel.exchange_declare(exchange_name, type_name='fanout')
-        yield from self.channel.queue_bind(queue_name, exchange_name, routing_key=routing_key)
-        yield from self.channel.publish("payload", exchange_name, queue_name)
+
+        yield from self.publish(
+            queue_name, exchange_name, routing_key, "payload"
+        )
 
         qfuture = asyncio.Future(loop=self.loop)
 
         @asyncio.coroutine
-        def qcallback(body, envelope, properties):
+        def qcallback(channel, body, envelope, properties):
+            yield from self.channel.basic_client_nack(
+                envelope.delivery_tag, multiple=True, requeue=False
+            )
+            qfuture.set_result(True)
+
+        yield from self.channel.basic_consume(qcallback, queue_name=queue_name)
+        yield from qfuture
+
+    @testing.coroutine
+    def test_basic_nack(self):
+        queue_name = 'queue_name'
+        exchange_name = 'exchange_name'
+        routing_key = ''
+
+        yield from self.publish(
+            queue_name, exchange_name, routing_key, "payload"
+        )
+
+        qfuture = asyncio.Future(loop=self.loop)
+
+        @asyncio.coroutine
+        def qcallback(channel, body, envelope, properties):
+            yield from self.channel.basic_client_nack(envelope.delivery_tag, requeue=False)
+            qfuture.set_result(True)
+
+        yield from self.channel.basic_consume(qcallback, queue_name=queue_name)
+        yield from qfuture
+
+    @testing.coroutine
+    def test_basic_nack_requeue(self):
+        queue_name = 'queue_name'
+        exchange_name = 'exchange_name'
+        routing_key = ''
+
+        yield from self.publish(
+            queue_name, exchange_name, routing_key, "payload"
+        )
+
+        qfuture = asyncio.Future(loop=self.loop)
+
+        @asyncio.coroutine
+        def qcallback(channel, body, envelope, properties):
+            yield from self.channel.basic_client_nack(envelope.delivery_tag, requeue=True)
+            qfuture.set_result(True)
+
+        yield from self.channel.basic_consume(qcallback, queue_name=queue_name)
+        yield from qfuture
+
+
+    @testing.coroutine
+    def test_basic_reject(self):
+        queue_name = 'queue_name'
+        exchange_name = 'exchange_name'
+        routing_key = ''
+        yield from self.publish(
+            queue_name, exchange_name, routing_key, "payload"
+        )
+
+        qfuture = asyncio.Future(loop=self.loop)
+
+        @asyncio.coroutine
+        def qcallback(channel, body, envelope, properties):
             qfuture.set_result(envelope)
 
-        yield from self.channel.basic_consume(queue_name, callback=qcallback)
+        yield from self.channel.basic_consume(qcallback, queue_name=queue_name)
         envelope = yield from qfuture
 
         yield from self.channel.basic_reject(envelope.delivery_tag)

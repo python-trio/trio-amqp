@@ -18,7 +18,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.consume_future = asyncio.Future(loop=self.loop)
 
     @asyncio.coroutine
-    def callback(self, body, envelope, properties):
+    def callback(self, channel, body, envelope, properties):
         self.consume_future.set_result((body, envelope, properties))
 
     @asyncio.coroutine
@@ -52,7 +52,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         yield from asyncio.sleep(2, loop=self.loop)
         # start consume
         with self.assertRaises(exceptions.ConfigurationError):
-            yield from channel.basic_consume("q", callback=badcallback)
+            yield from channel.basic_consume(badcallback, queue_name="q")
 
     @testing.coroutine
     def test_consume(self):
@@ -74,7 +74,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
         yield from asyncio.sleep(2, loop=self.loop)
         # start consume
-        yield from channel.basic_consume("q", callback=self.callback)
+        yield from channel.basic_consume(self.callback, queue_name="q")
         # required ?
         yield from asyncio.sleep(2, loop=self.loop)
 
@@ -107,7 +107,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertEqual(1, queues["q"]['messages'])
 
         # start consume
-        yield from channel.basic_consume("q", callback=self.callback)
+        yield from channel.basic_consume(self.callback, queue_name="q")
 
         yield from asyncio.sleep(1, loop=self.loop)
 
@@ -133,19 +133,19 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         q1_future = asyncio.Future(loop=self.loop)
 
         @asyncio.coroutine
-        def q1_callback(body, envelope, properties):
+        def q1_callback(channel, body, envelope, properties):
             q1_future.set_result((body, envelope, properties))
 
         q2_future = asyncio.Future(loop=self.loop)
 
         @asyncio.coroutine
-        def q2_callback(body, envelope, properties):
+        def q2_callback(channel, body, envelope, properties):
             q2_future.set_result((body, envelope, properties))
 
         # start consumers
-        result = yield from channel.basic_consume("q1", callback=q1_callback)
+        result = yield from channel.basic_consume(q1_callback, queue_name="q1")
         ctag_q1 = result['consumer_tag']
-        result = yield from channel.basic_consume("q2", callback=q2_callback)
+        result = yield from channel.basic_consume(q2_callback, queue_name="q2")
         ctag_q2 = result['consumer_tag']
 
         # put message in q1
@@ -171,10 +171,10 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
     def test_duplicate_consumer_tag(self):
         yield from self.channel.queue_declare("q1", exclusive=True, no_wait=False)
         yield from self.channel.queue_declare("q2", exclusive=True, no_wait=False)
-        yield from self.channel.basic_consume("q1", consumer_tag='tag', callback=self.callback)
+        yield from self.channel.basic_consume(self.callback, queue_name="q1", consumer_tag='tag')
 
         with self.assertRaises(exceptions.ChannelClosed) as cm:
-            yield from self.channel.basic_consume("q2", consumer_tag='tag', callback=self.callback)
+            yield from self.channel.basic_consume(self.callback, queue_name="q2", consumer_tag='tag')
 
         self.assertEqual(cm.exception.code, 530)
 
@@ -198,9 +198,9 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         sync_future = asyncio.Future(loop=self.loop)
 
         @asyncio.coroutine
-        def callback(body, envelope, properties):
+        def callback(channel, body, envelope, properties):
             self.assertTrue(sync_future.done())
             pass
 
-        result = yield from channel.basic_consume("q", callback=callback)
+        result = yield from channel.basic_consume(callback, queue_name="q")
         sync_future.set_result(True)

@@ -60,6 +60,8 @@ class Channel:
 
     def connection_closed(self, server_code=None, server_reason=None, exception=None):
         for future in self._futures.values():
+            if future.done():
+                continue
             if exception is None:
                 kwargs = {}
                 if server_code is not None:
@@ -99,6 +101,7 @@ class Channel:
             (amqp_constants.CLASS_BASIC, amqp_constants.BASIC_CANCEL): self.server_basic_cancel,
             (amqp_constants.CLASS_BASIC, amqp_constants.BASIC_ACK): self.basic_server_ack,
             (amqp_constants.CLASS_BASIC, amqp_constants.BASIC_NACK): self.basic_server_nack,
+            (amqp_constants.CLASS_BASIC, amqp_constants.BASIC_RECOVER_OK): self.basic_recover_ok,
 
             (amqp_constants.CLASS_CONFIRM, amqp_constants.CONFIRM_SELECT_OK): self.confirm_select_ok,
         }
@@ -343,11 +346,30 @@ class Channel:
 #
 
     @asyncio.coroutine
-    def queue_declare(self, queue_name, passive=False, durable=False,
+    def queue_declare(self, queue_name=None, passive=False, durable=False,
                       exclusive=False, auto_delete=False, no_wait=False, arguments=None, timeout=None):
+        """Create or check a queue on the broker
+           Args:
+               queue_name:     str, the queue to receive message from.
+                               The server generate a queue_name if not specified.
+               passive:        bool, if set, the server will reply with
+                               Declare-Ok if the queue already exists with the same name, and
+                               raise an error if not. Checks for the same parameter as well.
+               durable:        bool: If set when creating a new queue, the queue
+                               will be marked as durable. Durable queues remain active when a
+               server restarts.
+               exclusive:      bool, request exclusive consumer access,
+                               meaning only this consumer can access the queue
+               no_wait:        bool, if set, the server will not respond to the method
+               arguments:      dict, AMQP arguments to be passed when creating
+               the queue.
+               timeout:        int, wait for the server to respond after `timeout`
+        """
         if arguments is None:
             arguments = {}
 
+        if not queue_name:
+            queue_name = ''
         frame = amqp_frame.AmqpRequest(self.protocol.writer, amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_QUEUE, amqp_constants.QUEUE_DECLARE)
@@ -382,6 +404,14 @@ class Channel:
 
     @asyncio.coroutine
     def queue_delete(self, queue_name, if_unused=False, if_empty=False, no_wait=False, timeout=None):
+        """Delete a queue in RabbitMQ
+            Args:
+               queue_name:     str, the queue to receive message from
+               if_unused:      bool, the queue is deleted if it has no consumers. Raise if not.
+               if_empty:       bool, the queue is deleted if it has no messages. Raise if not.
+               no_wait:        bool, if set, the server will not respond to the method
+               timeout:        int, wait for the server to respond after `timeout`
+        """
         frame = amqp_frame.AmqpRequest(self.protocol.writer, amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_QUEUE, amqp_constants.QUEUE_DELETE)
@@ -547,7 +577,23 @@ class Channel:
         yield from self.protocol.writer.drain()
 
     @asyncio.coroutine
-    def basic_qos(self, prefetch_size, prefetch_count, connection_global, timeout=None):
+    def basic_qos(self, prefetch_size=0, prefetch_count=0, connection_global=None, timeout=None):
+        """Specifies quality of service.
+
+        Args:
+            prefetch_size:      int, request that messages be sent in advance so
+                                that when the client finishes processing a message, the
+                                following message is already held locally
+            prefetch_count:     int: Specifies a prefetch window in terms of
+                                whole messages. This field may be used in combination with the
+                                prefetch-size field; a message will only be sent in advance if
+                                both prefetch windows (and those at the channel and connection
+                                level) allow it
+            connection_global:  bool: global=false means that the QoS
+                                settings should apply per-consumer channel; and global=true to mean
+                                that the QoS settings should apply per-channel.
+            timeout:            int, wait for the server to respond after `timeout`
+        """
         frame = amqp_frame.AmqpRequest(
             self.protocol.writer, amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
@@ -569,10 +615,6 @@ class Channel:
 
 
     @asyncio.coroutine
-    def basic_client_nack(self, *args, **kwargs):
-        pass
-
-    @asyncio.coroutine
     def basic_server_nack(self, frame, delivery_tag=None):
         if delivery_tag is None:
             decoder = amqp_frame.AmqpDecoder(frame.payload)
@@ -582,28 +624,30 @@ class Channel:
         fut.set_exception(exceptions.PublishFailed(delivery_tag))
 
     @asyncio.coroutine
-    def basic_recover_async(self):
-        pass
+    def basic_consume(self, callback, queue_name='', consumer_tag='', no_local=False, no_ack=False,
+                      exclusive=False, no_wait=False, arguments=None, timeout=None):
+        """Starts the consumption of message into a queue.
+        the callback will be called each time we're receiving a message.
 
-    @asyncio.coroutine
-    def basic_recover(self, *args, **kwargs):
-        pass
-
-    @asyncio.coroutine
-    def basic_recover_ok(self, frame):
-        pass
-
-    @asyncio.coroutine
-    def basic_consume(self, queue_name='', consumer_tag='', no_local=False, no_ack=False, exclusive=False,
-                      no_wait=False, callback=None, arguments=None, on_cancel=None, timeout=None):
+            Args:
+                callback:       coroutine, the called callback
+                queue_name:     str, the queue to receive message from
+                consumer_tag:   str, optional consumer tag
+                no_local:       bool, if set the server will not send messages
+                                to the connection that published them.
+                no_ack:         bool, if set the server does not expect
+                                acknowledgements for messages
+                exclusive:      bool, request exclusive consumer access,
+                                meaning only this consumer can access the queue
+                no_wait:        bool, if set, the server will not respond to the method
+                arguments:      dict, AMQP arguments to be passed to the server
+                timeout:        int, wait for the server to respond after `timeout`
+        """
         # If a consumer tag was not passed, create one
         consumer_tag = consumer_tag or 'ctag%i.%s' % (self.channel_id, uuid.uuid4().hex)
 
         if arguments is None:
             arguments = {}
-
-        if callback is None or not asyncio.iscoroutinefunction(callback):
-            raise exceptions.ConfigurationError("basic_consume requires a coroutine callback")
 
         frame = amqp_frame.AmqpRequest(
             self.protocol.writer, amqp_constants.TYPE_METHOD, self.channel_id)
@@ -669,7 +713,8 @@ class Channel:
         if event:
             yield from event.wait()
             del self._ctag_events[consumer_tag]
-        yield from callback(body, envelope, properties)
+
+        yield from callback(self, body, envelope, properties)
 
     @asyncio.coroutine
     def server_basic_cancel(self, frame):
@@ -764,6 +809,18 @@ class Channel:
         yield from self._write_frame(frame, request, no_wait=False, timeout=timeout)
 
     @asyncio.coroutine
+    def basic_client_nack(self, delivery_tag, multiple=False, requeue=True, timeout=None):
+        frame = amqp_frame.AmqpRequest(
+            self.protocol.writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame.declare_method(
+            amqp_constants.CLASS_BASIC, amqp_constants.BASIC_NACK)
+        request = amqp_frame.AmqpEncoder()
+        request.write_long_long(delivery_tag)
+        request.write_bits(multiple, requeue)
+        yield from self._write_frame(frame, request, no_wait=False, timeout=timeout)
+
+
+    @asyncio.coroutine
     def basic_server_ack(self, frame):
         decoder = amqp_frame.AmqpDecoder(frame.payload)
         delivery_tag = decoder.read_long_long()
@@ -781,6 +838,39 @@ class Channel:
         request.write_long_long(delivery_tag)
         request.write_bits(requeue)
         yield from self._write_frame(frame, request, no_wait=False, timeout=timeout)
+
+    @asyncio.coroutine
+    def basic_recover_async(self, requeue=True, timeout=None):
+        frame = amqp_frame.AmqpRequest(
+            self.protocol.writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame.declare_method(
+            amqp_constants.CLASS_BASIC, amqp_constants.BASIC_RECOVER_ASYNC)
+        request = amqp_frame.AmqpEncoder()
+        request.write_bits(requeue)
+        yield from self._write_frame(frame, request, no_wait=False, timeout=timeout)
+
+    @asyncio.coroutine
+    def basic_recover(self, requeue=True, timeout=None):
+        frame = amqp_frame.AmqpRequest(
+            self.protocol.writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame.declare_method(
+            amqp_constants.CLASS_BASIC, amqp_constants.BASIC_RECOVER)
+        request = amqp_frame.AmqpEncoder()
+        request.write_bits(requeue)
+        future = self._set_waiter('basic_recover')
+
+        try:
+            yield from self._write_frame(frame, request, no_wait=False, timeout=timeout)
+        except Exception as exc:
+            future.set_exception(exc)
+        return (yield from future)
+
+    @asyncio.coroutine
+    def basic_recover_ok(self, frame):
+        future = self._get_waiter('basic_recover')
+        future.set_result(True)
+        logger.debug("Cancel ok")
+
 
 #
 ## convenient aliases
