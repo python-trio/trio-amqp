@@ -14,6 +14,11 @@ from .. import exceptions
 class QosTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
     @testing.coroutine
+    def test_basic_qos_default_args(self):
+        result = yield from self.channel.basic_qos()
+        self.assertTrue(result)
+
+    @testing.coroutine
     def test_basic_qos(self):
         result = yield from self.channel.basic_qos(
             prefetch_size=0,
@@ -47,7 +52,7 @@ class BasicCancelTestCase(testcase.RabbitTestCase, unittest.TestCase):
     def test_basic_cancel(self):
 
         @asyncio.coroutine
-        def callback(body, envelope, properties):
+        def callback(channel, body, envelope, properties):
             pass
 
         queue_name = 'queue_name'
@@ -55,7 +60,7 @@ class BasicCancelTestCase(testcase.RabbitTestCase, unittest.TestCase):
         yield from self.channel.queue_declare(queue_name)
         yield from self.channel.exchange_declare(exchange_name, type_name='direct')
         yield from self.channel.queue_bind(queue_name, exchange_name, routing_key='')
-        result = yield from self.channel.basic_consume(queue_name, callback=callback)
+        result = yield from self.channel.basic_consume(callback, queue_name=queue_name)
         result = yield from self.channel.basic_cancel(result['consumer_tag'])
 
         result = yield from self.channel.publish("payload", exchange_name, routing_key='')
@@ -124,10 +129,10 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
         qfuture = asyncio.Future(loop=self.loop)
 
         @asyncio.coroutine
-        def qcallback(body, envelope, properties):
+        def qcallback(channel, body, envelope, properties):
             qfuture.set_result(envelope)
 
-        yield from self.channel.basic_consume(queue_name, callback=qcallback)
+        yield from self.channel.basic_consume(qcallback, queue_name=queue_name)
         envelope = yield from qfuture
 
         yield from qfuture
@@ -146,10 +151,10 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
         qfuture = asyncio.Future(loop=self.loop)
 
         @asyncio.coroutine
-        def qcallback(body, envelope, properties):
+        def qcallback(channel, body, envelope, properties):
             qfuture.set_result(envelope)
 
-        yield from self.channel.basic_consume(queue_name, callback=qcallback)
+        yield from self.channel.basic_consume(qcallback, queue_name=queue_name)
         envelope = yield from qfuture
 
         yield from self.channel.basic_reject(envelope.delivery_tag)

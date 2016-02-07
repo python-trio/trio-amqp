@@ -8,8 +8,6 @@ from .. import exceptions
 
 class CloseTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
-    _multiprocess_can_split_ = True
-
     def setUp(self):
         super().setUp()
         self.consume_future = asyncio.Future(loop=self.loop)
@@ -62,4 +60,4 @@ class CloseTestCase(testcase.RabbitTestCase, unittest.TestCase):
         yield from self.channel.queue_declare("q")
         yield from channel.close()
         with self.assertRaises(exceptions.ChannelClosed):
-            yield from channel.basic_consume(callback=self.callback)
+            yield from channel.basic_consume(self.callback)
