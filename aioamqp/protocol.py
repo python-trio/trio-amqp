@@ -113,7 +113,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
     @asyncio.coroutine
     def close_ok(self, frame):
         self.stop()
-        logger.info("Recv close ok")
+        logger.debug("Recv close ok")
 
     @asyncio.coroutine
     def start_connection(self, host, port, login, password, virtualhost, ssl=False,
@@ -370,7 +370,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
     @asyncio.coroutine
     def open_ok(self, frame):
         self.is_open = True
-        logger.info("Recv open ok")
+        logger.debug("Recv open ok")
 
     #
     ## aioamqp public methods
