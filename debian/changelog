@@ -1,4 +1,4 @@
-aioamqp (0.6.0+git2-a2ce7e451-3) smurf; urgency=medium
+aioamqp (0.6.0+git2-a2ce7e451-1) smurf; urgency=medium
 
   * Log a closed connection with debug, not info
 
