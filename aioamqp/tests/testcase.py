@@ -8,6 +8,7 @@ import inspect
 import logging
 import os
 import time
+import uuid
 
 import pyrabbit.api
 
@@ -75,14 +76,14 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
     """TestCase with a rabbit running in background"""
 
     RABBIT_TIMEOUT = 1.0
-    VHOST = '/test-aioamqp'
+    VHOST = 'test-aioamqp'
 
     def setUp(self):
         super().setUp()
         self.host = os.environ.get('AMQP_HOST', 'localhost')
         self.port = os.environ.get('AMQP_PORT', 5672)
-        self.vhost = os.environ.get('AMQP_VHOST', self.VHOST)
-        self.http_client = pyrabbit.api.Client('localhost:15672', 'guest', 'guest')
+        self.vhost = os.environ.get('AMQP_VHOST', self.VHOST + str(uuid.uuid4()))
+        self.http_client = pyrabbit.api.Client('localhost:15672/api/', 'guest', 'guest')
 
         self.amqps = []
         self.channels = []
@@ -105,7 +106,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
 
         @asyncio.coroutine
         def go():
-            transport, protocol = yield from self.create_amqp()
+            _transport, protocol = yield from self.create_amqp()
             channel = yield from self.create_channel(amqp=protocol)
             self.channels.append(channel)
         self.loop.run_until_complete(go())
@@ -119,17 +120,19 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
             for exchange_name, channel in self.exchanges.values():
                 logger.debug('Delete exchange %s', self.full_name(exchange_name))
                 yield from self.safe_exchange_delete(exchange_name, channel)
-            for channel in self.channels:
-                logger.debug('Delete channel %s', channel)
-                yield from channel.close(no_wait=True)
-                del channel
             for amqp in self.amqps:
                 logger.debug('Delete amqp %s', amqp)
                 yield from amqp.close()
                 del amqp
             for transport in self.transports:
-                self.transport.close()
+                transport.close()
         self.loop.run_until_complete(go())
+
+        try:
+            self.http_client.delete_vhost(self.vhost)
+        except Exception:  # pylint: disable=broad-except
+            pass
+
         super().tearDown()
 
     @property
@@ -195,10 +198,6 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
             queues[queue_name] = queue_info
         return queues
 
-    def list_exchanges(self, vhost=None, name=None):
-        """Return the list of the exchanges"""
-        return self.http_client.get_exchanges(vhost, name)
-
     @asyncio.coroutine
     def safe_queue_delete(self, queue_name, channel=None):
         """Delete the queue but does not raise any exception if it fails
@@ -211,7 +210,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
             yield from channel.queue_delete(full_queue_name, no_wait=False, timeout=1.0)
         except asyncio.TimeoutError:
             logger.warning('Timeout on queue %s deletion', full_queue_name, exc_info=True)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             logger.error('Unexpected error on queue %s deletion', full_queue_name, exc_info=True)
 
     @asyncio.coroutine
@@ -226,7 +225,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
             yield from channel.exchange_delete(full_exchange_name, no_wait=False, timeout=1.0)
         except asyncio.TimeoutError:
             logger.warning('Timeout on exchange %s deletion', full_exchange_name, exc_info=True)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             logger.error('Unexpected error on exchange %s deletion', full_exchange_name, exc_info=True)
 
     def full_name(self, name):
@@ -290,4 +289,3 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         self.amqps.append(protocol)
         self.transports.append(transport)
         return transport, protocol
-

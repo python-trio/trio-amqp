@@ -10,9 +10,28 @@ from . import constants as amqp_constants
 from . import frame as amqp_frame
 from . import exceptions
 from . import version
+from .compat import ensure_future
 
 
 logger = logging.getLogger(__name__)
+
+
+class _StreamWriter(asyncio.StreamWriter):
+
+    def write(self, data):
+        ret = super().write(data)
+        self._protocol._heartbeat_timer_send_reset()
+        return ret
+
+    def writelines(self, data):
+        ret = super().writelines(data)
+        self._protocol._heartbeat_timer_send_reset()
+        return ret
+
+    def write_eof(self):
+        ret = super().write_eof()
+        self._protocol._heartbeat_timer_send_reset()
+        return ret
 
 
 class AmqpProtocol(asyncio.StreamReaderProtocol):
@@ -42,7 +61,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
             client_properties: dict, client-props to tune the client identification
         """
         self._loop = kwargs.get('loop') or asyncio.get_event_loop()
-        super().__init__(asyncio.StreamReader(loop=self._loop), self.client_connected, loop=self._loop)
+        super().__init__(asyncio.StreamReader(loop=self._loop), loop=self._loop)
         self._on_error_callback = kwargs.get('on_error')
 
         self.client_properties = kwargs.get('client_properties', {})
@@ -63,20 +82,19 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         self.server_properties = None
         self.server_mechanisms = None
         self.server_locales = None
-        self.reader = None
-        self.writer = None
         self.worker = None
         self.server_heartbeat = None
-        self._heartbeat_waiter = asyncio.Event(loop=self._loop)
+        self._heartbeat_timer_recv = None
+        self._heartbeat_timer_send = None
         self.channels = {}
         self.server_frame_max = None
         self.server_channel_max = None
         self.channels_ids_ceil = 0
         self.channels_ids_free = set()
 
-    def client_connected(self, reader, writer):
-        self.reader = reader
-        self.writer = writer
+    def connection_made(self, transport):
+        super().connection_made(transport)
+        self._stream_writer = _StreamWriter(transport, self, self._stream_reader, self._loop)
 
     def connection_lost(self, exc):
         if exc:
@@ -88,10 +106,14 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         self._close_channels(exception=exc)
         super().connection_lost(exc)
 
+    def data_received(self, data):
+        self._heartbeat_timer_recv_reset()
+        super().data_received(data)
+
     @asyncio.coroutine
     def close(self, no_wait=False, timeout=None):
         """Close connection (and all channels)"""
-        frame = amqp_frame.AmqpRequest(self.writer, amqp_constants.TYPE_METHOD, 0)
+        frame = amqp_frame.AmqpRequest(self._stream_writer, amqp_constants.TYPE_METHOD, 0)
         frame.declare_method(
             amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE)
         encoder = amqp_frame.AmqpEncoder(frame.payload)
@@ -126,7 +148,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
             # TODO
             logger.warning('only AMQPLAIN login_method is supported, falling back to AMQPLAIN')
 
-        self.writer.write(amqp_constants.PROTOCOL_HEADER)
+        self._stream_writer.write(amqp_constants.PROTOCOL_HEADER)
 
         # Wait 'start' method from the server
         yield from self.dispatch_frame()
@@ -165,14 +187,23 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         self.server_channel_max = tune_ok['channel_max']
         self.server_heartbeat = tune_ok['heartbeat']
 
+        if self.server_heartbeat > 0:
+            self._heartbeat_timer_recv_reset()
+            self._heartbeat_timer_send_reset()
+
         # open a virtualhost
         yield from self.open(virtualhost, capabilities='', insist=insist)
 
         # wait for open-ok
-        yield from self.dispatch_frame()
+        frame = yield from self.get_frame()
+        yield from self.dispatch_frame(frame)
+        if (frame.frame_type == amqp_constants.TYPE_METHOD and
+                frame.class_id == amqp_constants.CLASS_CONNECTION and
+                frame.method_id == amqp_constants.CONNECTION_CLOSE):
+            raise exceptions.AmqpClosedConnection()
 
         # for now, we read server's responses asynchronously
-        self.worker = asyncio.ensure_future(self.run(), loop=self._loop)
+        self.worker = ensure_future(self.run(), loop=self._loop)
 
     def stop(self):
         self.is_open = False
@@ -184,8 +215,9 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         """Read the frame, and only decode its header
 
         """
-        frame = amqp_frame.AmqpResponse(self.reader)
+        frame = amqp_frame.AmqpResponse(self._stream_reader)
         yield from frame.read_frame()
+
         return frame
 
     @asyncio.coroutine
@@ -202,23 +234,19 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         if not frame:
             frame = yield from self.get_frame()
 
-        # we received a frame. It can be a heartbeat or another frame.
-        # it means we still have some traffic from the server
-        self._heartbeat_waiter.set()
-
         if frame.frame_type == amqp_constants.TYPE_HEARTBEAT:
-            yield from self.send_heartbeat()
             return
 
         if frame.channel is not 0:
-            try:
-                yield from self.channels[frame.channel].dispatch_frame(frame)
-            except KeyError:
+            channel = self.channels.get(frame.channel)
+            if channel is not None:
+                yield from channel.dispatch_frame(frame)
+            else:
                 logger.info("Unknown channel %s", frame.channel)
             return
 
         if (frame.class_id, frame.method_id) not in method_dispatch:
-            logger.info("frame {} {} is not handled".format(frame.class_id, frame.method_id))
+            logger.info("frame %s %s is not handled", frame.class_id, frame.method_id)
             return
         yield from method_dispatch[(frame.class_id, frame.method_id)](frame)
 
@@ -246,7 +274,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
         if self._on_error_callback:
             if asyncio.iscoroutinefunction(self._on_error_callback):
-                asyncio.ensure_future(self._on_error_callback(exception), loop=self._loop)
+                ensure_future(self._on_error_callback(exception), loop=self._loop)
             else:
                 self._on_error_callback(exceptions.ChannelClosed(exception))
 
@@ -263,35 +291,53 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
                 self.stop_now.set_result(None)
 
                 self._close_channels(exception=exc)
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 logger.exception('error on dispatch')
 
     @asyncio.coroutine
     def heartbeat(self):
-        """User method to force a heartbeat to the server
-        usefull to check if the connexion is closed
+        """ deprecated heartbeat coroutine
 
-        Raises:
-            asyncio.TimeoutError
-
+        This coroutine is now a no-op as the heartbeat is handled directly by
+        the rest of the AmqpProtocol class.  This is kept around for backwards
+        compatibility purposes only.
         """
-        self._heartbeat_waiter.clear()
-        yield from self.send_heartbeat()
-        yield from asyncio.wait_for(
-            self._heartbeat_waiter.wait(),
-            timeout=self.server_heartbeat * 2,
-        )
+        yield from self.stop_now
 
-
-    @asyncio.coroutine
     def send_heartbeat(self):
         """Sends an heartbeat message.
         It can be an ack for the server or the client willing to check for the
         connexion timeout
         """
-        frame = amqp_frame.AmqpRequest(self.writer, amqp_constants.TYPE_HEARTBEAT, 0)
+        frame = amqp_frame.AmqpRequest(self._stream_writer, amqp_constants.TYPE_HEARTBEAT, 0)
         request = amqp_frame.AmqpEncoder()
         frame.write_frame(request)
+
+    def _heartbeat_timer_recv_timeout(self):
+        # 4.2.7 If a peer detects no incoming traffic (i.e. received octets) for
+        # two heartbeat intervals or longer, it should close the connection
+        # without following the Connection.Close/Close-Ok handshaking, and log
+        # an error.
+        # TODO(rcardona) raise a "timeout" exception somewhere
+        self._stream_writer.close()
+
+    def _heartbeat_timer_recv_reset(self):
+        if self.server_heartbeat is None:
+            return
+        if self._heartbeat_timer_recv is not None:
+            self._heartbeat_timer_recv.cancel()
+        self._heartbeat_timer_recv = self._loop.call_later(
+            self.server_heartbeat * 2,
+            self._heartbeat_timer_recv_timeout)
+
+    def _heartbeat_timer_send_reset(self):
+        if self.server_heartbeat is None:
+            return
+        if self._heartbeat_timer_send is not None:
+            self._heartbeat_timer_send.cancel()
+        self._heartbeat_timer_send = self._loop.call_later(
+            self.server_heartbeat,
+            self.send_heartbeat)
 
     # Amqp specific methods
     @asyncio.coroutine
@@ -307,7 +353,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
     @asyncio.coroutine
     def start_ok(self, client_properties, mechanism, auth, locale):
-        frame = amqp_frame.AmqpRequest(self.writer, amqp_constants.TYPE_METHOD, 0)
+        frame = amqp_frame.AmqpRequest(self._stream_writer, amqp_constants.TYPE_METHOD, 0)
         frame.declare_method(
             amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_START_OK)
         request = amqp_frame.AmqpEncoder()
@@ -340,7 +386,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
     @asyncio.coroutine
     def tune_ok(self, channel_max, frame_max, heartbeat):
-        frame = amqp_frame.AmqpRequest(self.writer, amqp_constants.TYPE_METHOD, 0)
+        frame = amqp_frame.AmqpRequest(self._stream_writer, amqp_constants.TYPE_METHOD, 0)
         frame.declare_method(
             amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_TUNE_OK)
         encoder = amqp_frame.AmqpEncoder()
@@ -357,7 +403,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
     @asyncio.coroutine
     def open(self, virtual_host, capabilities='', insist=False):
         """Open connection to virtual host."""
-        frame = amqp_frame.AmqpRequest(self.writer, amqp_constants.TYPE_METHOD, 0)
+        frame = amqp_frame.AmqpRequest(self._stream_writer, amqp_constants.TYPE_METHOD, 0)
         frame.declare_method(
             amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_OPEN)
         encoder = amqp_frame.AmqpEncoder()

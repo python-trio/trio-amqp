@@ -5,23 +5,15 @@ import asyncio
 from . import testcase
 from . import testing
 
-from .. import exceptions
-
 
 class ConnectionLostTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
     _multiprocess_can_split_ = True
 
-    def setUp(self):
-        super().setUp()
-        self.callback_called = False
-
-    def tearDown(self):
-        super().setUp()
-        self.callback_called = False
-
     @testing.coroutine
     def test_connection_lost(self):
+
+        self.callback_called = False
 
         def callback(*args, **kwargs):
             self.callback_called = True

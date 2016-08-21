@@ -1,2 +1,2 @@
-__version__ = '0.6.0.2'
+__version__ = '0.8.0.1'
 __packagename__ = 'aioamqp'

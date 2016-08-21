@@ -1,3 +1,9 @@
+aioamqp (0.8.0.1-1) smurf; urgency=medium
+
+  * Merged upstream
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Sun, 21 Aug 2016 21:58:21 +0200
+
 aioamqp (0.6.0+git2-a2ce7e451-1) smurf; urgency=medium
 
   * Log a closed connection with debug, not info

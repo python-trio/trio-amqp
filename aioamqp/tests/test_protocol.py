@@ -11,7 +11,7 @@ from . import testcase
 from .. import exceptions
 from .. import connect as amqp_connect
 from .. import from_url as amqp_from_url
-from .. import protocol
+from ..protocol import AmqpProtocol
 
 
 class ProtocolTestCase(testcase.RabbitTestCase, unittest.TestCase):
@@ -19,7 +19,7 @@ class ProtocolTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
     @testing.coroutine
     def test_connect(self):
-        transport, protocol = yield from amqp_connect(loop=self.loop)
+        _transport, protocol = yield from amqp_connect(virtualhost=self.vhost, loop=self.loop)
         self.assertTrue(protocol.is_open)
         yield from protocol.close()
 
@@ -29,7 +29,8 @@ class ProtocolTestCase(testcase.RabbitTestCase, unittest.TestCase):
             'program': 'aioamqp-tests',
             'program_version': '0.1.1',
         }
-        transport, protocol = yield from amqp_connect(
+        _transport, protocol = yield from amqp_connect(
+            virtualhost=self.vhost,
             client_properties=client_properties,
             loop=self.loop,
         )
@@ -50,8 +51,8 @@ class ProtocolTestCase(testcase.RabbitTestCase, unittest.TestCase):
     def test_connection_from_url(self):
         with mock.patch('aioamqp.connect') as connect:
             @asyncio.coroutine
-            def func(*x,**y):
-                return 1,2
+            def func(*x, **y):
+                return 1, 2
             connect.side_effect = func
             yield from amqp_from_url('amqp://tom:pass@example.com:7777/myvhost', loop=self.loop)
             connect.assert_called_once_with(
@@ -61,7 +62,7 @@ class ProtocolTestCase(testcase.RabbitTestCase, unittest.TestCase):
                 ssl=False,
                 login='tom',
                 host='example.com',
-                protocol_factory=protocol.AmqpProtocol,
+                protocol_factory=AmqpProtocol,
                 virtualhost='myvhost',
                 port=7777,
                 verify_ssl=True,
