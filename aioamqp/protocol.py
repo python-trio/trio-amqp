@@ -129,8 +129,6 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
     @asyncio.coroutine
     def wait_closed(self, timeout=None):
         yield from asyncio.wait_for(self.connection_closed.wait(), timeout=timeout, loop=self._loop)
-        self.writer.close()
-        # stream readers don't have a close() method
 
     @asyncio.coroutine
     def close_ok(self, frame):
