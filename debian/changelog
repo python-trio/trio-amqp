@@ -1,3 +1,9 @@
+aioamqp (0.8.0.4-1) smurf; urgency=medium
+
+  * Merge upstream
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Sat, 24 Sep 2016 00:44:08 +0200
+
 aioamqp (0.8.0.3-1) smurf; urgency=medium
 
   * Merged proposed Upstream changes
