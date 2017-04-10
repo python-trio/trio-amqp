@@ -16,7 +16,7 @@ from . import testing
 from .. import connect as aioamqp_connect
 from .. import exceptions
 from ..channel import Channel
-from ..protocol import AmqpProtocol
+from ..protocol import AmqpProtocol, OPEN
 
 
 logger = logging.getLogger(__name__)
@@ -121,13 +121,11 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
                 logger.debug('Delete exchange %s', self.full_name(exchange_name))
                 yield from self.safe_exchange_delete(exchange_name, channel)
             for amqp in self.amqps:
-                if not amqp.is_open:
+                if amqp.state != OPEN:
                     continue
                 logger.debug('Delete amqp %s', amqp)
                 yield from amqp.close()
                 del amqp
-            for transport in self.transports:
-                transport.close()
         self.loop.run_until_complete(go())
 
         try:
@@ -140,10 +138,6 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
     @property
     def amqp(self):
         return self.amqps[0]
-
-    @property
-    def transport(self):
-        return self.transports[0]
 
     @property
     def channel(self):
@@ -289,5 +283,4 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         transport, protocol = yield from aioamqp_connect(host=self.host, port=self.port, virtualhost=vhost,
             protocol_factory=protocol_factory, loop=self.loop)
         self.amqps.append(protocol)
-        self.transports.append(transport)
         return transport, protocol

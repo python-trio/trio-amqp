@@ -16,6 +16,9 @@ from .compat import ensure_future
 logger = logging.getLogger(__name__)
 
 
+CONNECTING, OPEN, CLOSING, CLOSED = range(4)
+
+
 class _StreamWriter(asyncio.StreamWriter):
 
     def write(self, data):
@@ -76,7 +79,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         self.connecting = asyncio.Future(loop=self._loop)
         self.connection_closed = asyncio.Event(loop=self._loop)
         self.stop_now = asyncio.Future(loop=self._loop)
-        self.is_open = False
+        self.state = CONNECTING
         self.version_major = None
         self.version_minor = None
         self.server_properties = None
@@ -102,7 +105,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         else:
             logger.debug("Connection lost")
         self.connection_closed.set()
-        self.is_open = False
+        self.state = CLOSED
         self._close_channels(exception=exc)
         self._heartbeat_stop()
         super().connection_lost(exc)
@@ -112,8 +115,30 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         super().data_received(data)
 
     @asyncio.coroutine
+    def ensure_open(self):
+        # Raise a suitable exception if the connection isn't open.
+        # Handle cases from the most common to the least common.
+
+        if self.state == OPEN:
+            return
+
+        if self.state == CLOSED:
+            raise exceptions.AmqpClosedConnection()
+
+        # If the closing handshake is in progress, let it complete.
+        if self.state == CLOSING:
+            yield from self.wait_closed()
+            raise exceptions.AmqpClosedConnection()
+
+        # Control may only reach this point in buggy third-party subclasses.
+        assert self.state == CONNECTING
+        raise exceptions.AioamqpException("connection isn't established yet.")
+
+    @asyncio.coroutine
     def close(self, no_wait=False, timeout=None):
         """Close connection (and all channels)"""
+        yield from self.ensure_open()
+        self.state = CLOSING
         frame = amqp_frame.AmqpRequest(self._stream_writer, amqp_constants.TYPE_METHOD, 0)
         frame.declare_method(
             amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE)
@@ -134,8 +159,8 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
     @asyncio.coroutine
     def close_ok(self, frame):
-        self.stop()
-        logger.debug("Recv close ok")
+        logger.info("Recv close ok")
+        self._stream_writer.close()
 
     @asyncio.coroutine
     def start_connection(self, host, port, login, password, virtualhost, ssl=False,
@@ -204,11 +229,6 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
         # for now, we read server's responses asynchronously
         self.worker = ensure_future(self.run(), loop=self._loop)
-
-    def stop(self):
-        self.is_open = False
-        self.connection_closed.set()
-        self.stop_now.set_result(None)
 
     @asyncio.coroutine
     def get_frame(self):
@@ -340,7 +360,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
             self.send_heartbeat)
 
     def _heartbeat_stop(self):
-        self.server_heartbeat = 0
+        self.server_heartbeat = None
         if self._heartbeat_timer_recv is not None:
             self._heartbeat_timer_recv.cancel()
         if self._heartbeat_timer_send is not None:
@@ -373,17 +393,26 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
     @asyncio.coroutine
     def server_close(self, frame):
         """The server is closing the connection"""
+        self.state = CLOSING
         response = amqp_frame.AmqpDecoder(frame.payload)
         reply_code = response.read_short()
         reply_text = response.read_shortstr()
         class_id = response.read_short()
         method_id = response.read_short()
+<<<<<<< HEAD
         self._stop_heartbeat()
         self.stop()
+||||||| merged common ancestors
+        self.stop()
+=======
+>>>>>>> 87730980d
         logger.warning("Server closed connection: %s, code=%s, class_id=%s, method_id=%s",
             reply_text, reply_code, class_id, method_id)
         self._close_channels(reply_code, reply_text)
+        self._close_ok()
+        self._stream_writer.close()
 
+<<<<<<< HEAD
     def _stop_heartbeat(self):
         # prevent new timers from being created by overlapping traffic
         self.server_heartbeat = 0
@@ -393,6 +422,15 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         if self._heartbeat_timer_send is not None:
             self._heartbeat_timer_send.cancel()
             self._heartbeat_timer_send = None
+||||||| merged common ancestors
+=======
+    def _close_ok(self):
+        frame = amqp_frame.AmqpRequest(self._stream_writer, amqp_constants.TYPE_METHOD, 0)
+        frame.declare_method(
+            amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK)
+        request = amqp_frame.AmqpEncoder()
+        frame.write_frame(request)
+>>>>>>> 87730980d
 
     @asyncio.coroutine
     def tune(self, frame):
@@ -432,8 +470,16 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
     @asyncio.coroutine
     def open_ok(self, frame):
+<<<<<<< HEAD
         self.is_open = True
         logger.debug("Recv open ok")
+||||||| merged common ancestors
+        self.is_open = True
+        logger.info("Recv open ok")
+=======
+        self.state = OPEN
+        logger.info("Recv open ok")
+>>>>>>> 87730980d
 
     #
     ## aioamqp public methods
@@ -444,6 +490,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         """Factory to create a new channel
 
         """
+        yield from self.ensure_open()
         try:
             channel_id = self.channels_ids_free.pop()
         except KeyError:

@@ -108,6 +108,7 @@ class Channel:
 
     @asyncio.coroutine
     def _write_frame(self, frame, request, no_wait, timeout=None, no_check_open=False):
+        yield from self.protocol.ensure_open()
         if not self.is_open and not no_check_open:
             raise exceptions.ChannelClosed()
         frame.write_frame(request)
@@ -660,8 +661,9 @@ class Channel:
 
     @asyncio.coroutine
     def server_basic_cancel(self, frame):
-        """From the server, means the server won't send anymore messages to this consumer."""
-        consumer_tag = frame.arguments['consumer_tag']
+        # https://www.rabbitmq.com/consumer-cancel.html
+        consumer_tag = frame.payload_decoder.read_shortstr()
+        _no_wait = frame.payload_decoder.read_bit()
         self.cancelled_consumers.add(consumer_tag)
         logger.info("consume cancelled received")
 
