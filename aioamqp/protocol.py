@@ -305,6 +305,8 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
     def run(self):
         while not self.stop_now.done():
             try:
+                if self._stream_reader is None:
+                    raise exceptions.AmqpClosedConnection
                 yield from self.dispatch_frame()
             except exceptions.AmqpClosedConnection as exc:
                 logger.debug("Closed connection")
