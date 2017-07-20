@@ -83,7 +83,9 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         self.host = os.environ.get('AMQP_HOST', 'localhost')
         self.port = os.environ.get('AMQP_PORT', 5672)
         self.vhost = os.environ.get('AMQP_VHOST', self.VHOST + str(uuid.uuid4()))
-        self.http_client = pyrabbit.api.Client('localhost:15672/api/', 'guest', 'guest')
+        self.http_client = pyrabbit.api.Client(
+            'localhost:15672/api/', 'guest', 'guest', timeout=20
+        )
 
         self.amqps = []
         self.channels = []
@@ -182,7 +184,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
 
     def list_queues(self, vhost=None, fully_qualified_name=False):
         # wait for the http client to get the correct state of the queue
-        time.sleep(int(os.environ.get('AMQP_REFRESH_TIME', 3)))
+        time.sleep(int(os.environ.get('AMQP_REFRESH_TIME', 6)))
         queues_list = self.http_client.get_queues(vhost=vhost or self.vhost)
         queues = {}
         for queue_info in queues_list:
@@ -203,7 +205,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         channel = channel or self.channel
         full_queue_name = self.full_name(queue_name)
         try:
-            yield from channel.queue_delete(full_queue_name, no_wait=False, timeout=1.0)
+            yield from channel.queue_delete(full_queue_name, no_wait=False)
         except asyncio.TimeoutError:
             logger.warning('Timeout on queue %s deletion', full_queue_name, exc_info=True)
         except Exception:  # pylint: disable=broad-except
@@ -218,7 +220,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         channel = channel or self.channel
         full_exchange_name = self.full_name(exchange_name)
         try:
-            yield from channel.exchange_delete(full_exchange_name, no_wait=False, timeout=1.0)
+            yield from channel.exchange_delete(full_exchange_name, no_wait=False)
         except asyncio.TimeoutError:
             logger.warning('Timeout on exchange %s deletion', full_exchange_name, exc_info=True)
         except Exception:  # pylint: disable=broad-except
@@ -227,14 +229,12 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
     def full_name(self, name):
         if self.is_full_name(name):
             return name
-        else:
-            return self.id() + '.' + name
+        return self.id() + '.' + name
 
     def local_name(self, name):
         if self.is_full_name(name):
             return name[len(self.id()) + 1:]  # +1 because of the '.'
-        else:
-            return name
+        return name
 
     def is_full_name(self, name):
         return name.startswith(self.id())

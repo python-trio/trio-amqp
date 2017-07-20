@@ -56,13 +56,13 @@ DUMP_FRAMES = False
 
 class AmqpEncoder:
 
-    def __init__(self, writer=None):
+    def __init__(self):
         self.payload = io.BytesIO()
 
     def write_table(self, data_dict):
 
         self.write_long(0)                  # the table length (set later)
-        if data_dict is not None and len(data_dict):
+        if data_dict:
             start = self.payload.tell()
             for key, value in data_dict.items():
                 self.write_shortstr(key)
@@ -336,7 +336,6 @@ class AmqpRequest:
         self.class_id = None
         self.weight = None
         self.method_id = None
-        self.payload = None
         self.next_body_size = None
 
     def declare_class(self, class_id, weight=0):
@@ -350,10 +349,8 @@ class AmqpRequest:
         self.class_id = class_id
         self.method_id = method_id
 
-    def write_frame(self, encoder=None):
-        payload = None
-        if encoder is not None:
-            payload = encoder.payload
+    def write_frame(self, encoder):
+        payload = encoder.payload
         content_header = ''
         transmission = io.BytesIO()
         if self.frame_type == amqp_constants.TYPE_METHOD:
@@ -373,8 +370,7 @@ class AmqpRequest:
         transmission.write(header)
         if content_header:
             transmission.write(content_header)
-        if payload:
-            transmission.write(payload.getvalue())
+        transmission.write(payload.getvalue())
         transmission.write(amqp_constants.FRAME_END)
         return self.writer.write(transmission.getvalue())
 
@@ -408,6 +404,8 @@ class AmqpResponse:
     @asyncio.coroutine
     def read_frame(self):
         """Decode the frame"""
+        if not self.reader:
+            raise exceptions.AmqpClosedConnection()
         try:
             data = yield from self.reader.readexactly(7)
         except (asyncio.IncompleteReadError, socket.error) as ex:
