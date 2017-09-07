@@ -1,3 +1,9 @@
+aioamqp (0.10.0+git1-cbb137920-3) smurf; urgency=medium
+
+  * Excessive logging
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 07 Sep 2017 05:54:24 +0200
+
 aioamqp (0.10.0+git1-cbb137920-2) smurf; urgency=medium
 
   * Clean up worker

@@ -193,7 +193,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
     @asyncio.coroutine
     def close_ok(self, frame):
-        logger.info("Recv close ok")
+        logger.debug("Recv close ok")
         self._stream_writer.close()
 
     @asyncio.coroutine
