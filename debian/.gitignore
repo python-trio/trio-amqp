@@ -3,3 +3,4 @@
 /*.debhelper
 /*.substvars
 /python3-aioamqp
+/debhelper-build-stamp
