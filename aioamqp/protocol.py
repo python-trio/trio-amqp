@@ -185,6 +185,11 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
                 yield from asyncio.wait_for(self._heartbeat_worker, timeout=timeout, loop=self._loop)
             except asyncio.CancelledError:
                 pass
+        if self.worker is not None:
+            try:
+                yield from asyncio.wait_for(self.worker, timeout=timeout, loop=self._loop)
+            except Exception as exc:
+                logger.exception("Worker")
 
     @asyncio.coroutine
     def close_ok(self, frame):

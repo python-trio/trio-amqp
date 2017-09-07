@@ -1,3 +1,9 @@
+aioamqp (0.10.0+git1-cbb137920-2) smurf; urgency=medium
+
+  * Clean up worker
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 07 Sep 2017 05:50:26 +0200
+
 aioamqp (0.10.0+git1-cbb137920-1) smurf; urgency=medium
 
   * Merge aioamqp-0.10.0
