@@ -401,13 +401,12 @@ class AmqpResponse:
         self.payload_decoder = None
         self.header_decoder = None
 
-    @asyncio.coroutine
-    def read_frame(self):
+    async def read_frame(self):
         """Decode the frame"""
         if not self.reader:
             raise exceptions.AmqpClosedConnection()
         try:
-            data = yield from self.reader.readexactly(7)
+            data = await self.reader.readexactly(7)
         except (asyncio.IncompleteReadError, socket.error) as ex:
             raise exceptions.AmqpClosedConnection() from ex
 
@@ -416,7 +415,7 @@ class AmqpResponse:
         self.frame_type = self.header_decoder.read_octet()
         self.channel = self.header_decoder.read_short()
         self.frame_length = self.header_decoder.read_long()
-        payload_data = yield from self.reader.readexactly(self.frame_length)
+        payload_data = await self.reader.readexactly(self.frame_length)
 
         if self.frame_type == amqp_constants.TYPE_METHOD:
             self.payload = io.BytesIO(payload_data)
@@ -475,7 +474,7 @@ class AmqpResponse:
 
         else:
             raise ValueError("Message type {:x} not known".format(self.frame_type))
-        self.frame_end = yield from self.reader.readexactly(1)
+        self.frame_end = await self.reader.readexactly(1)
         assert self.frame_end == amqp_constants.FRAME_END
 
     def __str__(self):

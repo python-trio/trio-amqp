@@ -15,14 +15,13 @@ def fib(n):
         return fib(n-1) + fib(n-2)
 
 
-@asyncio.coroutine
-def on_request(channel, body, envelope, properties):
+async def on_request(channel, body, envelope, properties):
     n = int(body)
 
     print(" [.] fib(%s)" % n)
     response = fib(n)
 
-    yield from channel.basic_publish(
+    await channel.basic_publish(
         payload=str(response),
         exchange_name='',
         routing_key=properties.reply_to,
@@ -31,19 +30,18 @@ def on_request(channel, body, envelope, properties):
         },
     )
 
-    yield from channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
+    await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
     
 
-@asyncio.coroutine
-def rpc_server():
+async def rpc_server():
 
-    transport, protocol = yield from trio_amqp.connect()
+    transport, protocol = await trio_amqp.connect()
 
-    channel = yield from protocol.channel()
+    channel = await protocol.channel()
 
-    yield from channel.queue_declare(queue_name='rpc_queue')
-    yield from channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
-    yield from channel.basic_consume(on_request, queue_name='rpc_queue')
+    await channel.queue_declare(queue_name='rpc_queue')
+    await channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
+    await channel.basic_consume(on_request, queue_name='rpc_queue')
     print(" [x] Awaiting RPC requests")
 
 
