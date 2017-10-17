@@ -1,7 +1,7 @@
 Examples
 ========
 
-    Those examples are ported from the `RabbitMQ tutorial <http://www.rabbitmq.com/getstarted.html>`_. They are specific to `aioamqp` and uses `coroutines` exclusievely. Please read both documentation together, as the official documentation explain how to use the AMQP protocol correctly.
+    Those examples are ported from the `RabbitMQ tutorial <http://www.rabbitmq.com/getstarted.html>`_. They are specific to `trio_amqp` and uses `coroutines` exclusievely. Please read both documentation together, as the official documentation explain how to use the AMQP protocol correctly.
 
     Do not hesitate to use RabbitMQ `Shiny management interfaces <https://www.rabbitmq.com/management.html>`_, it really helps to understand which message is stored in which queues, and which consumer unqueues what queue.
 

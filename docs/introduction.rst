@@ -13,8 +13,8 @@ If your are using Python 3.3 you'll have to install asyncio from pypi, but async
 Installation
 ------------
 
-You can install the most recent aioamqp release from pypi using pip or easy_install:
+You can install the most recent trio_amqp release from pypi using pip or easy_install:
 
  .. code-block:: shell
 
-    pip install aioamqp
+    pip install trio_amqp

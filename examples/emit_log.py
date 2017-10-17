@@ -7,7 +7,7 @@
 """
 
 import asyncio
-import aioamqp
+import trio_amqp
 
 import sys
 
@@ -15,8 +15,8 @@ import sys
 @asyncio.coroutine
 def exchange_routing():
     try:
-        transport, protocol = yield from aioamqp.connect('localhost', 5672)
-    except aioamqp.AmqpClosedConnection:
+        transport, protocol = yield from trio_amqp.connect('localhost', 5672)
+    except trio_amqp.AmqpClosedConnection:
         print("closed connections")
         return
 

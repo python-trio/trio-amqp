@@ -85,17 +85,17 @@ qthelp:
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
 	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/aioamqp.qhcp"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/trio_amqp.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/aioamqp.qhc"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/trio_amqp.qhc"
 
 devhelp:
 	$(SPHINXBUILD) -b devhelp $(ALLSPHINXOPTS) $(BUILDDIR)/devhelp
 	@echo
 	@echo "Build finished."
 	@echo "To view the help file:"
-	@echo "# mkdir -p $$HOME/.local/share/devhelp/aioamqp"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/aioamqp"
+	@echo "# mkdir -p $$HOME/.local/share/devhelp/trio_amqp"
+	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/trio_amqp"
 	@echo "# devhelp"
 
 epub:

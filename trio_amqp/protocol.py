@@ -514,7 +514,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         logger.debug("Recv open ok")
 
     #
-    ## aioamqp public methods
+    ## trio_amqp public methods
     #
 
     @asyncio.coroutine

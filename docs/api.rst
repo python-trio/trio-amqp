@@ -1,16 +1,16 @@
 API
 ===
 
-.. module:: aioamqp
+.. module:: trio_amqp
     :synopsis: public Jinja2 API
 
 
 Basics
 ------
 
-There are two principal objects when using aioamqp:
+There are two principal objects when using trio_amqp:
 
- * The protocol object, used to begin a connection to aioamqp,
+ * The protocol object, used to begin a connection to trio_amqp,
  * The channel object, used when creating a new channel to effectively use an AMQP channel.
 
 
@@ -40,30 +40,29 @@ Starting a connection to AMQP really mean instanciate a new asyncio Protocol sub
 
 .. code::
 
-    import asyncio
-    import aioamqp
+    import trio
+    import trio_amqp
 
-    @asyncio.coroutine
-    def connect():
+    async def connect():
         try:
-            transport, protocol = yield from aioamqp.connect()  # use default parameters
-        except aioamqp.AmqpClosedConnection:
+            transport, protocol = await trio_amqp.connect()  # use default parameters
+        except trio_amqp.AmqpClosedConnection:
             print("closed connections")
             return
 
         print("connected !")
-        yield from asyncio.sleep(1)
+        await trio.sleep(1)
 
         print("close connection")
-        yield from protocol.close()
+        await protocol.close()
         transport.close()
 
-    asyncio.get_event_loop().run_until_complete(connect())
+    trio.run(connect)
 
 In this example, we just use the method "start_connection" to begin a communication with the server, which deals with credentials and connection tunning.
 
 If you're not using the default event loop (e.g. because you're using
-aioamqp from a different thread), call aioamqp.connect(loop=your_loop).
+trio_amqp from a different thread), call trio_amqp.connect(loop=your_loop).
 
 
 The `AmqpProtocol` uses the `kwargs` arguments to configure the connection to the AMQP Broker:
@@ -89,18 +88,16 @@ Handling errors
 
 The connect() method has an extra 'on_error' kwarg option. This on_error is a callback or a coroutine function which is called with an exception as the argument::
 
-    import asyncio
+    import trio
     import socket
-    import aioamqp
+    import trio_amqp
 
-    @asyncio.coroutine
-    def error_callback(exception):
+    async def error_callback(exception):
         print(exception)
 
-    @asyncio.coroutine
-    def connect():
+    async def connect():
         try:
-            transport, protocol = yield from aioamqp.connect(
+            transport, protocol = await trio_amqp.connect(
                 host='nonexistant.com',
                 on_error=error_callback,
                 client_properties={
@@ -109,11 +106,11 @@ The connect() method has an extra 'on_error' kwarg option. This on_error is a ca
                 },
 
             )
-        except aioamqp.AmqpClosedConnection:
+        except trio_amqp.AmqpClosedConnection:
             print("closed connections")
             return
 
-    asyncio.get_event_loop().run_until_complete(connect())
+    trio.run(connect)
 
 
 
@@ -122,13 +119,13 @@ Publishing messages
 
 A channel is the main object when you want to send message to an exchange, or to consume message from a queue::
 
-    channel = yield from protocol.channel()
+    channel = await protocol.channel()
 
 
 When you want to produce some content, you declare a queue then publish message into it::
 
-    yield from channel.queue_declare("my_queue")
-    yield from channel.publish("aioamqp hello", '', "my_queue")
+    await channel.queue_declare("my_queue")
+    await channel.publish("trio_amqp hello", '', "my_queue")
 
 Note: we're pushing message to "my_queue" queue, through the default amqp exchange.
 
@@ -139,14 +136,13 @@ Consuming messages
 When consuming message, you connect to the same queue you previously created::
 
     import asyncio
-    import aioamqp
+    import trio_amqp
 
-    @asyncio.coroutine
-    def callback(channel, body, envelope, properties):
+    async def callback(channel, body, envelope, properties):
         print(body)
 
-    channel = yield from protocol.channel()
-    yield from channel.basic_consume(callback, queue_name="my_queue")
+    channel = await protocol.channel()
+    await channel.basic_consume(callback, queue_name="my_queue")
 
 The ``basic_consume`` method tells the server to send us the messages, and will call ``callback`` with amqp response arguments.
 
@@ -204,7 +200,7 @@ Here is an example to create a randomly named queue with special arguments `x-ma
 
  .. code-block:: python
 
-        result = yield from channel.queue_declare(
+        result = await channel.queue_declare(
             queue_name='', durable=True, arguments={'x-max-priority': 4}
         )
 
@@ -237,11 +233,11 @@ This simple example creates a `queue`, an `exchange` and bind them together.
 
  .. code-block:: python
 
-        channel = yield from protocol.channel()
-        yield from channel.queue_declare(queue_name='queue')
-        yield from channel.exchange_declare(exchange_name='exchange')
+        channel = await protocol.channel()
+        await channel.queue_declare(queue_name='queue')
+        await channel.exchange_declare(exchange_name='exchange')
 
-        yield from channel.queue_bind('queue', 'exchange', routing_key='')
+        await channel.queue_bind('queue', 'exchange', routing_key='')
 
 
 .. py:method:: Channel.queue_unbind(queue_name, exchange_name, routing_key, arguments, timeout)
@@ -288,8 +284,8 @@ Note: the `internal` flag is deprecated and not used in this library.
 
  .. code-block:: python
 
-        channel = yield from protocol.channel()
-        yield from channel.exchange_declare(exchange_name='exchange', auto_delete=True)
+        channel = await protocol.channel()
+        await channel.exchange_declare(exchange_name='exchange', auto_delete=True)
 
 
 .. py:method:: Channel.exchange_delete(exchange_name, if_unused, no_wait, timeout)

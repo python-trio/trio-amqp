@@ -1,16 +1,15 @@
-Source: aioamqp
+Source: trio-amqp
 Maintainer: Matthias Urlichs <matthias@urlichs.de>
 Section: python
 Priority: optional
 Build-Depends: python3-setuptools, python3-all, debhelper (>= 9)
 Standards-Version: 3.9.1
 
-Package: python3-aioamqp
+Package: python3-trio-amqp
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}
 Description: AMQP implementation using asyncio
- The aioamqp library is a pure-Python implementation of the AMQP 0.9.1 protocol.
+ The trio_amqp library is a pure-Python implementation of the AMQP 0.9.1 protocol.
  .
- Built on top on Python's asynchronous I/O support introduced in PEP 3156,
- it provides an API based on coroutines, making it easy to write
- highly concurrent applications.
+ Built on top on the Trio library, it provides an API based on coroutines,
+ making it easy to write highly concurrent applications.

@@ -1,9 +1,9 @@
 """
-    RPC server, aioamqp implementation of RPC examples from RabbitMQ tutorial
+    RPC server, trio_amqp implementation of RPC examples from RabbitMQ tutorial
 """
 
 import asyncio
-import aioamqp
+import trio_amqp
 
 
 def fib(n):
@@ -37,7 +37,7 @@ def on_request(channel, body, envelope, properties):
 @asyncio.coroutine
 def rpc_server():
 
-    transport, protocol = yield from aioamqp.connect()
+    transport, protocol = yield from trio_amqp.connect()
 
     channel = yield from protocol.channel()
 

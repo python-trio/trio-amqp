@@ -13,7 +13,7 @@ import uuid
 import pyrabbit.api
 
 from . import testing
-from .. import connect as aioamqp_connect
+from .. import connect as trio_amqp_connect
 from .. import exceptions
 from ..channel import Channel
 from ..protocol import AmqpProtocol, OPEN
@@ -76,7 +76,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
     """TestCase with a rabbit running in background"""
 
     RABBIT_TIMEOUT = 1.0
-    VHOST = 'test-aioamqp'
+    VHOST = 'test-trio_amqp'
 
     def setUp(self):
         super().setUp()
@@ -280,7 +280,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         def protocol_factory(*args, **kw):
             return ProxyAmqpProtocol(self, *args, **kw)
         vhost = vhost or self.vhost
-        transport, protocol = yield from aioamqp_connect(host=self.host, port=self.port, virtualhost=vhost,
+        transport, protocol = yield from trio_amqp_connect(host=self.host, port=self.port, virtualhost=vhost,
             protocol_factory=protocol_factory, loop=self.loop)
         self.amqps.append(protocol)
         return transport, protocol

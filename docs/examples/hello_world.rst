@@ -11,11 +11,11 @@ Creating a new connection:
  .. code-block:: python
 
     import asyncio
-    import aioamqp
+    import trio_amqp
 
     @asyncio.coroutine
     def connect():
-        transport, protocol = yield from aioamqp.connect()
+        transport, protocol = yield from trio_amqp.connect()
         channel = yield from protocol.channel()
 
     asyncio.get_event_loop().run_until_complete(connect())

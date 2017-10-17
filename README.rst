@@ -1,19 +1,9 @@
-aioamqp
-=======
+trio-amqp
+=========
 
-.. image:: https://badge.fury.io/py/aioamqp.svg
-    :target: http://badge.fury.io/py/aioamqp
-.. image:: https://travis-ci.org/Polyconseil/aioamqp.svg?branch=master
-    :target: https://travis-ci.org/Polyconseil/aioamqp
+The ``trio-amqp`` library is a pure-Python implementation of the `AMQP 0.9.1 protocol`_.
 
-.. image:: https://readthedocs.org/projects/aioamqp/badge/?version=latest
-    :alt: Documentation Status
-    :scale: 100%
-    :target: https://aioamqp.readthedocs.org/en/latest/?badge=latest
-
-``aioamqp`` library is a pure-Python implementation of the `AMQP 0.9.1 protocol`_.
-
-Built on top on Python's asynchronous I/O support introduced in `PEP 3156`_, it provides an API based on coroutines, making it easy to write highly concurrent applications.
+Built on top of Trio_, it provides an API based on coroutines, making it easy to write highly concurrent applications.
 
 Bug reports, patches and suggestions welcome! Just open an issue_ or send a `pull request`_.
 
@@ -32,6 +22,6 @@ Then you can run the tests with ``make test`` (requires ``nose``).
 
 
 .. _AMQP 0.9.1 protocol: https://www.rabbitmq.com/amqp-0-9-1-quickref.html
-.. _PEP 3156: http://www.python.org/dev/peps/pep-3156/
-.. _issue: https://github.com/Polyconseil/aioamqp/issues/new
-.. _pull request: https://github.com/Polyconseil/aioamqp/compare/
+.. _Trio: https://github.com/python-trio/trio
+.. _issue: https://github.com/python-trio/trio-amqp/issues/new
+.. _pull request: https://github.com/python-trio/trio-amqp/compare/

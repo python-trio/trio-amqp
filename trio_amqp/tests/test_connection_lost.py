@@ -2,7 +2,7 @@ import unittest
 import unittest.mock
 import asyncio
 
-from aioamqp.protocol import OPEN, CLOSED
+from trio_amqp.protocol import OPEN, CLOSED
 
 from . import testcase
 from . import testing

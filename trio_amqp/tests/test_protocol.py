@@ -26,7 +26,7 @@ class ProtocolTestCase(testcase.RabbitTestCase, unittest.TestCase):
     @testing.coroutine
     def test_connect_products_info(self):
         client_properties = {
-            'program': 'aioamqp-tests',
+            'program': 'trio_amqp-tests',
             'program_version': '0.1.1',
         }
         _transport, protocol = yield from amqp_connect(
@@ -49,7 +49,7 @@ class ProtocolTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
     @testing.coroutine
     def test_connection_from_url(self):
-        with mock.patch('aioamqp.connect') as connect:
+        with mock.patch('trio_amqp.connect') as connect:
             @asyncio.coroutine
             def func(*x, **y):
                 return 1, 2

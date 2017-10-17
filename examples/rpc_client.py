@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
 """
-    RPC client, aioamqp implementation of RPC examples from RabbitMQ tutorial
+    RPC client, trio_amqp implementation of RPC examples from RabbitMQ tutorial
 
 """
 
 import asyncio
 import uuid
 
-import aioamqp
+import trio_amqp
 
 
 class FibonacciRpcClient(object):
@@ -22,7 +22,7 @@ class FibonacciRpcClient(object):
     @asyncio.coroutine
     def connect(self):
         """ an `__init__` method can't be a coroutine"""
-        self.transport, self.protocol = yield from aioamqp.connect()
+        self.transport, self.protocol = yield from trio_amqp.connect()
         self.channel = yield from self.protocol.channel()
 
         result = yield from self.channel.queue_declare(queue_name='', exclusive=True)

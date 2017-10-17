@@ -3,8 +3,8 @@
 import unittest
 import socket
 
-from aioamqp import connect
-from aioamqp.protocol import OPEN
+from trio_amqp import connect
+from trio_amqp.protocol import OPEN
 
 from . import testing, testcase
 

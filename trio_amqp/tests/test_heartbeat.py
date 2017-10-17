@@ -6,7 +6,7 @@ import asyncio
 import unittest
 from unittest import mock
 
-from aioamqp.protocol import CLOSED
+from trio_amqp.protocol import CLOSED
 
 from . import testcase
 from . import testing

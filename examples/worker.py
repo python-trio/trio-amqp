@@ -4,7 +4,7 @@
 """
 
 import asyncio
-import aioamqp
+import trio_amqp
 
 import sys
 
@@ -19,8 +19,8 @@ def callback(channel, body, envelope, properties):
 @asyncio.coroutine
 def worker():
     try:
-        transport, protocol = yield from aioamqp.connect('localhost', 5672)
-    except aioamqp.AmqpClosedConnection:
+        transport, protocol = yield from trio_amqp.connect('localhost', 5672)
+    except trio_amqp.AmqpClosedConnection:
         print("closed connections")
         return
 

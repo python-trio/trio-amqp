@@ -1,6 +1,6 @@
 .PHONY: doc test update
 
-PACKAGE = aioamqp
+PACKAGE = trio_amqp
 
 NOSETESTS ?= nosetests
 TEST_OPTIONS ?= --verbosity=2

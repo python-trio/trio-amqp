@@ -1,7 +1,7 @@
-.. aioamqp documentation master file, created by
+.. trio_amqp documentation master file, created by
    sphinx-quickstart on Wed Mar 19 15:35:53 2014.
 
-Welcome to aioamqp's documentation
+Welcome to trio_amqp's documentation
 ==================================
 
 Aioamqp is a library to connect to an amqp broker. It uses asyncio under the hood.
@@ -10,7 +10,7 @@ Aioamqp is a library to connect to an amqp broker. It uses asyncio under the hoo
 Limitations
 ===========
 
-For the moment, aioamqp is tested against Rabbitmq.
+For the moment, trio_amqp is tested against Rabbitmq.
 
 Contents:
 

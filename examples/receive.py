@@ -1,10 +1,10 @@
 """
-    Hello world `receive.py` example implementation using aioamqp.
+    Hello world `receive.py` example implementation using trio_amqp.
     See the documentation for more informations.
 """
 
 import asyncio
-import aioamqp
+import trio_amqp
 
 
 @asyncio.coroutine
@@ -13,7 +13,7 @@ def callback(channel, body, envelope, properties):
 
 @asyncio.coroutine
 def receive():
-    transport, protocol = yield from aioamqp.connect()
+    transport, protocol = yield from trio_amqp.connect()
     channel = yield from protocol.channel()
 
     yield from channel.queue_declare(queue_name='hello')

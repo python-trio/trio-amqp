@@ -2,5 +2,5 @@
 /*.log
 /*.debhelper
 /*.substvars
-/python3-aioamqp
+/python3-trio-amqp
 /debhelper-build-stamp
