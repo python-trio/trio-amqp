@@ -2,8 +2,9 @@
     Amqp queue class tests
 """
 
-import asyncio
+import trio
 import unittest
+from functools import partial
 
 from . import testcase
 from . import testing
@@ -14,15 +15,16 @@ class QueueDeclareTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.consume_future = asyncio.Future(loop=self.loop)
+        self.consume_future = trio.Event()
 
     async def callback(self, body, envelope, properties):
-        self.consume_future.set_result((body, envelope, properties))
+        self.consume_future.set()
+        self.consume_result = (body, envelope, properties)
 
     async def get_callback_result(self):
-        await self.consume_future
-        result = self.consume_future.result()
-        self.consume_future = asyncio.Future(loop=self.loop)
+        await self.consume_future.wait()
+        result = self.consume_result
+        self.consume_future = trio.Event()
         return result
 
     async def test_queue_declare_no_name(self):
@@ -103,20 +105,20 @@ class QueueDeclareTestCase(testcase.RabbitTestCase, unittest.TestCase):
         await self.safe_queue_delete(queue_name)
 
     def test_durable_and_auto_deleted(self):
-        self.loop.run_until_complete(
-            self._test_queue_declare('q', exclusive=False, durable=True, auto_delete=True))
+        trio.run(partial(
+            self._test_queue_declare,'q', exclusive=False, durable=True, auto_delete=True))
 
     def test_durable_and_not_auto_deleted(self):
-        self.loop.run_until_complete(
-            self._test_queue_declare('q', exclusive=False, durable=True, auto_delete=False))
+        trio.run(partial(
+            self._test_queue_declare,'q', exclusive=False, durable=True, auto_delete=False))
 
     def test_not_durable_and_auto_deleted(self):
-        self.loop.run_until_complete(
-            self._test_queue_declare('q', exclusive=False, durable=False, auto_delete=True))
+        trio.run(partial(
+            self._test_queue_declare,'q', exclusive=False, durable=False, auto_delete=True))
 
     def test_not_durable_and_not_auto_deleted(self):
-        self.loop.run_until_complete(
-            self._test_queue_declare('q', exclusive=False, durable=False, auto_delete=False))
+        trio.run(partial(
+            self._test_queue_declare,'q', exclusive=False, durable=False, auto_delete=False))
 
     async def test_exclusive(self):
         # create an exclusive queue

@@ -6,7 +6,7 @@
 
 """
 
-import asyncio
+import trio
 import trio_amqp
 
 import random
@@ -52,10 +52,8 @@ async def receive_log(waiter):
     await protocol.close()
     transport.close()
 
-loop = asyncio.get_event_loop()
-
 try:
-    waiter = asyncio.Event()
-    loop.run_until_complete(receive_log(waiter))
+    waiter = trio.Event()
+    trio.run(receive_log,waiter)
 except KeyboardInterrupt:
     waiter.set()

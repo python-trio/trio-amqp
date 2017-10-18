@@ -1,7 +1,8 @@
 from functools import wraps
 import logging
 
-import asyncio
+import trio
+from functools import partial
 
 
 class AsyncioErrors(AssertionError):
@@ -20,7 +21,7 @@ class Handler(logging.Handler):
         self.messages.append(message)
 
 
-asyncio_logger = logging.getLogger('asyncio')
+asyncio_logger = logging.getLogger('trio')
 handler = Handler()
 asyncio_logger.addHandler(handler)
 
@@ -36,9 +37,8 @@ def coroutine(func):
     @wraps(func)
     def wrapper(self):
         handler.messages = []
-        coro = asyncio.coroutine(func)
         timeout_ = getattr(func, '__timeout__', self.__timeout__)
-        self.loop.run_until_complete(asyncio.wait_for(coro(self), timeout=timeout_, loop=self.loop))
+        trio.run(partial(func, timeout=timeout_))
         if handler.messages:
             raise AsyncioErrors(handler.messages)
     return wrapper
@@ -49,9 +49,10 @@ class AsyncioTestCaseMixin:
 
     def setUp(self):
         super().setUp()
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
+        #self.loop = asyncio.new_event_loop()
+        #asyncio.set_event_loop(self.loop)
 
     def tearDown(self):
         super().tearDown()
-        self.loop.close()
+        #self.loop.close()
+

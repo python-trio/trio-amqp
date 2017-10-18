@@ -1,4 +1,4 @@
-import asyncio
+import trio
 import unittest
 
 from . import testcase
@@ -10,16 +10,15 @@ class CloseTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.consume_future = asyncio.Future(loop=self.loop)
+        self.consume_future = trio.Event()
 
     async def callback(self, body, envelope, properties):
-        self.consume_future.set_result((body, envelope, properties))
+        self.consume_result = body, envelope, properties)
 
     async def get_callback_result(self):
-        await self.consume_future
-        result = self.consume_future.result()
-        self.consume_future = asyncio.Future(loop=self.loop)
-        return result
+        await self.consume_future.wait()
+        self.consume_future = trio.Event()
+        return self.consume_result
 
     async def test_close(self):
         channel = await self.create_channel()

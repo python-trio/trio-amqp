@@ -2,7 +2,6 @@
     Amqp exchange class tests
 """
 
-import asyncio
 import unittest
 
 from . import testcase

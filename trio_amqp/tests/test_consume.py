@@ -1,5 +1,5 @@
 
-import asyncio
+import trio
 import unittest
 
 from . import testcase
@@ -15,7 +15,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.consume_future = asyncio.Future(loop=self.loop)
+        self.consume_future = trio.Event()
 
     async def callback(self, channel, body, envelope, properties):
         self.consume_future.set_result((body, envelope, properties))
@@ -23,7 +23,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
     async def get_callback_result(self):
         await self.consume_future
         result = self.consume_future.result()
-        self.consume_future = asyncio.Future(loop=self.loop)
+        self.consume_future = trio.Event()
         return result
 
 
@@ -47,7 +47,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertIn("q", queues)
         self.assertEqual(1, queues["q"]['messages'])
 
-        await asyncio.sleep(2, loop=self.loop)
+        await trio.sleep(2)
         # start consume
         with self.assertRaises(exceptions.ConfigurationError):
             await channel.basic_consume(badcallback, queue_name="q")
@@ -107,15 +107,17 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         # get a different channel
         channel = await self.create_channel()
 
-        q1_future = asyncio.Future(loop=self.loop)
+        q1_future = trio.Event()
 
         async def q1_callback(channel, body, envelope, properties):
-            q1_future.set_result((body, envelope, properties))
+            self.q1_result = (body, envelope, properties)
+            q1_future.set()
 
-        q2_future = asyncio.Future(loop=self.loop)
+        q2_future = trio.Event()
 
         async def q2_callback(channel, body, envelope, properties):
-            q2_future.set_result((body, envelope, properties))
+            self.q2_result = (body, envelope, properties)
+            q2_future.set()
 
         # start consumers
         result = await channel.basic_consume(q1_callback, queue_name="q1")
@@ -127,7 +129,8 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         await channel.publish("coucou1", "e", "q1")
 
         # get it
-        body1, envelope1, properties1 = await q1_future
+        await q1_future.wait()
+        body1, envelope1, properties1 = self.q1_result
         self.assertEqual(ctag_q1, envelope1.consumer_tag)
         self.assertIsNotNone(envelope1.delivery_tag)
         self.assertEqual(b"coucou1", body1)
@@ -137,7 +140,8 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         await channel.publish("coucou2", "e", "q2")
 
         # get it
-        body2, envelope2, properties2 = await q2_future
+        await q2_future.wait()
+        body2, envelope2, properties2 = self.q2_result
         self.assertEqual(ctag_q2, envelope2.consumer_tag)
         self.assertEqual(b"coucou2", body2)
         self.assertIsInstance(properties2, Properties)
@@ -164,10 +168,10 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         # publish
         await channel.publish("coucou", "e", routing_key='',)
 
-        sync_future = asyncio.Future(loop=self.loop)
+        sync_future = trio.Event()
 
         async def callback(channel, body, envelope, properties):
             self.assertTrue(sync_future.done())
 
         await channel.basic_consume(callback, queue_name="q")
-        sync_future.set_result(True)
+        sync_future.set()

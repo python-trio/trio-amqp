@@ -2,7 +2,7 @@
     Amqp channel specification
 """
 
-import asyncio
+import trio
 import logging
 import uuid
 import io
@@ -26,7 +26,7 @@ class Channel:
         self.consumer_queues = {}
         self.consumer_callbacks = {}
         self.response_future = None
-        self.close_event = asyncio.Event(loop=self._loop)
+        self.close_event = trio.Event()
         self.cancelled_consumers = set()
         self.last_consumer_tag = None
         self.publisher_confirms = False
@@ -39,7 +39,7 @@ class Channel:
         if rpc_name in self._futures:
             raise exceptions.SynchronizationError("Waiter already exists")
 
-        fut = asyncio.Future(loop=self._loop)
+        fut = asyncio.Future()
         self._futures[rpc_name] = fut
         return fut
 
@@ -575,7 +575,7 @@ class Channel:
         }
         future = self._get_waiter('basic_consume')
         future.set_result(results)
-        self._ctag_events[ctag] = asyncio.Event(loop=self._loop)
+        self._ctag_events[ctag] = trio.Event()
 
     async def basic_deliver(self, frame):
         response = amqp_frame.AmqpDecoder(frame.payload)

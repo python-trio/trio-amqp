@@ -2,7 +2,7 @@
     Tests the heartbeat methods
 """
 
-import asyncio
+import trio
 import unittest
 from unittest import mock
 
@@ -24,8 +24,8 @@ class HeartbeatTestCase(testcase.RabbitTestCase, unittest.TestCase):
             self.amqp._heartbeat_timer_send_reset()
             self.amqp._heartbeat_timer_recv_reset()
 
-            await asyncio.sleep(1.001)
+            await trio.sleep(1.001)
             send_heartbeat.assert_called_once_with()
 
-            await asyncio.sleep(1.001)
+            await trio.sleep(1.001)
             self.assertEqual(self.amqp.state, CLOSED)

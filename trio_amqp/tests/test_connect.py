@@ -12,7 +12,7 @@ from . import testing, testcase
 class AmqpConnectionTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
     async def test_connect(self):
-        _transport, proto = await connect(virtualhost=self.vhost, loop=self.loop)
+        _transport, proto = await connect(virtualhost=self.vhost)
         self.assertEqual(proto.state, OPEN)
         self.assertIsNotNone(proto.server_properties)
         await proto.close()
@@ -24,7 +24,6 @@ class AmqpConnectionTestCase(testcase.RabbitTestCase, unittest.TestCase):
         heartbeat = 100
         _transport, proto = await connect(
             virtualhost=self.vhost,
-            loop=self.loop,
             channel_max=channel_max,
             frame_max=frame_max,
             heartbeat=heartbeat,
@@ -45,7 +44,7 @@ class AmqpConnectionTestCase(testcase.RabbitTestCase, unittest.TestCase):
         await proto.close()
 
     async def test_socket_nodelay(self):
-        transport, proto = await connect(virtualhost=self.vhost, loop=self.loop)
+        transport, proto = await connect(virtualhost=self.vhost)
         sock = transport.get_extra_info('socket')
         opt_val = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
         self.assertEqual(opt_val, 1)

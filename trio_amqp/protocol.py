@@ -2,6 +2,7 @@
     Amqp Protocol
 """
 
+import trio
 import asyncio
 import logging
 
@@ -37,7 +38,7 @@ class _StreamWriter(asyncio.StreamWriter):
         return ret
 
 
-class AmqpProtocol(asyncio.StreamReaderProtocol):
+class AmqpProtocol:
     """The AMQP protocol for asyncio.
 
     See http://docs.python.org/3.4/library/asyncio-protocol.html#protocols for more information
@@ -47,10 +48,11 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
     CHANNEL_FACTORY = amqp_channel.Channel
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, stream, *args, **kwargs):
         """Defines our new protocol instance
 
         Args:
+            stream: trio.Stream, raw connection to the server (optionally w/ SSL)
             channel_max: int, specifies highest channel number that the server permits.
                               Usable channel numbers are in the range 1..channel-max.
                               Zero indicates no specified limit.
@@ -60,11 +62,9 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
                             but may reject very large frames if it cannot allocate resources for them.
             heartbeat: int, the delay, in seconds, of the connection heartbeat that the server wants.
                             Zero means the server does not want a heartbeat.
-            loop: Asyncio.Eventloop: specify the eventloop to use.
             client_properties: dict, client-props to tune the client identification
         """
-        self._loop = kwargs.get('loop') or asyncio.get_event_loop()
-        super().__init__(asyncio.StreamReader(loop=self._loop), loop=self._loop)
+        self.stream = stream
         self._on_error_callback = kwargs.get('on_error')
 
         self.client_properties = kwargs.get('client_properties', {})
@@ -76,9 +76,8 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         if 'heartbeat' in kwargs:
             self.connection_tunning['heartbeat'] = kwargs.get('heartbeat')
 
-        self.connecting = asyncio.Future(loop=self._loop)
-        self.connection_closed = asyncio.Event(loop=self._loop)
-        self.stop_now = asyncio.Future(loop=self._loop)
+        self.connecting = asyncio.Future()
+        self.connection_closed = trio.Event()
         self.state = CONNECTING
         self.version_major = None
         self.version_minor = None
@@ -86,17 +85,18 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
         self.server_mechanisms = None
         self.server_locales = None
         self.worker = None
+        self.worker_done = trio.Event()
         self.server_heartbeat = None
         self._heartbeat_timer_recv = None
         self._heartbeat_timer_send = None
-        self._heartbeat_trigger_send = asyncio.Event(loop=self._loop)
+        self._heartbeat_trigger_send = trio.Event()
         self._heartbeat_worker = None
         self.channels = {}
         self.server_frame_max = None
         self.server_channel_max = None
         self.channels_ids_ceil = 0
         self.channels_ids_free = set()
-        self._drain_lock = asyncio.Lock(loop=self._loop)
+        self._drain_lock = trio.Lock()
 
     def connection_made(self, transport):
         super().connection_made(transport)
@@ -174,15 +174,16 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
             await self.wait_closed(timeout=timeout)
 
     async def wait_closed(self, timeout=None):
-        await asyncio.wait_for(self.connection_closed.wait(), timeout=timeout, loop=self._loop)
+        await asyncio.wait_for(self.connection_closed.wait(), timeout=timeout)
         if self._heartbeat_worker is not None:
             try:
-                await asyncio.wait_for(self._heartbeat_worker, timeout=timeout, loop=self._loop)
+                await asyncio.wait_for(self._heartbeat_worker, timeout=timeout)
             except asyncio.CancelledError:
                 pass
         if self.worker is not None:
             try:
-                await asyncio.wait_for(self.worker, timeout=timeout, loop=self._loop)
+                with trio.fail_after(timeout):
+                    await self.worker_done.wait()
             except Exception as exc:
                 logger.exception("Worker")
 
@@ -255,7 +256,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
             raise exceptions.AmqpClosedConnection()
 
         # for now, we read server's responses asynchronously
-        self.worker = ensure_future(self.run(), loop=self._loop)
+        self.worker = ensure_future(self.run())
 
     async def get_frame(self):
         """Read the frame, and only decode its header
@@ -319,35 +320,31 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
 
         if self._on_error_callback:
             if asyncio.iscoroutinefunction(self._on_error_callback):
-                ensure_future(self._on_error_callback(exception), loop=self._loop)
+                ensure_future(self._on_error_callback(exception))
             else:
                 self._on_error_callback(exceptions.ChannelClosed(exception))
 
         for channel in self.channels.values():
             channel.connection_closed(reply_code, reply_text, exception)
 
-    async def run(self):
-        while not self.stop_now.done():
-            try:
-                if self._stream_reader is None:
-                    raise exceptions.AmqpClosedConnection
-                await self.dispatch_frame()
-            except exceptions.AmqpClosedConnection as exc:
-                logger.debug("Closed connection")
-                self.stop_now.set_result(None)
+    async def run(self, task_status=trio.STATUS_IGNORED):
+        self.worker_done.clear()
+        task_status.started()
+        try:
+            while True:
+                try:
+                    if self._stream_reader is None:
+                        raise exceptions.AmqpClosedConnection
+                    await self.dispatch_frame()
+                except exceptions.AmqpClosedConnection as exc:
+                    logger.debug("Closed connection")
 
-                self._close_channels(exception=exc)
-            except Exception:  # pylint: disable=broad-except
-                logger.exception('error on dispatch')
-
-    async def heartbeat(self):
-        """ deprecated heartbeat coroutine
-
-        This coroutine is now a no-op as the heartbeat is handled directly by
-        the rest of the AmqpProtocol class.  This is kept around for backwards
-        compatibility purposes only.
-        """
-        await self.stop_now
+                    self._close_channels(exception=exc)
+                    break
+                except Exception:  # pylint: disable=broad-except
+                    logger.exception('error on dispatch')
+        finally:
+            self.worker_done.set()
 
     async def send_heartbeat(self):
         """Sends an heartbeat message.
@@ -384,7 +381,7 @@ class AmqpProtocol(asyncio.StreamReaderProtocol):
             self.server_heartbeat,
             self._heartbeat_trigger_send.set)
         if self._heartbeat_worker is None:
-            self._heartbeat_worker = ensure_future(self._heartbeat(), loop=self._loop)
+            self._heartbeat_worker = ensure_future(self._heartbeat())
 
     def _heartbeat_stop(self):
         self.server_heartbeat = None

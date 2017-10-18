@@ -2,7 +2,7 @@
     Amqp basic class tests
 """
 
-import asyncio
+import trio
 import struct
 import unittest
 
@@ -60,7 +60,7 @@ class BasicCancelTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
         result = await self.channel.publish("payload", exchange_name, routing_key='')
 
-        await asyncio.sleep(5, loop=self.loop)
+        await trio.sleep(5)
 
         result = await self.channel.queue_declare(queue_name, passive=True)
         self.assertEqual(result['message_count'], 1)
@@ -126,15 +126,16 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
             queue_name, exchange_name, routing_key, "payload"
         )
 
-        qfuture = asyncio.Future(loop=self.loop)
+        qfuture = trio.Event()
 
         async def qcallback(channel, body, envelope, _properties):
-            qfuture.set_result(envelope)
+            qfuture.set()
+            self.test_result = envelope
 
         await self.channel.basic_consume(qcallback, queue_name=queue_name)
-        envelope = await qfuture
+        await qfuture.wait()
+        envelope = self.test_result
 
-        await qfuture
         await self.channel.basic_client_ack(envelope.delivery_tag)
 
     async def test_basic_nack(self):
@@ -146,16 +147,16 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
             queue_name, exchange_name, routing_key, "payload"
         )
 
-        qfuture = asyncio.Future(loop=self.loop)
+        qfuture = trio.Event()
 
         async def qcallback(channel, body, envelope, _properties):
             await self.channel.basic_client_nack(
                 envelope.delivery_tag, multiple=True, requeue=False
             )
-            qfuture.set_result(True)
+            qfuture.set()
 
         await self.channel.basic_consume(qcallback, queue_name=queue_name)
-        await qfuture
+        await qfuture.wait()
 
     async def test_basic_nack_norequeue(self):
         queue_name = 'queue_name'
@@ -166,14 +167,14 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
             queue_name, exchange_name, routing_key, "payload"
         )
 
-        qfuture = asyncio.Future(loop=self.loop)
+        qfuture = trio.Event()
 
         async def qcallback(channel, body, envelope, _properties):
             await self.channel.basic_client_nack(envelope.delivery_tag, requeue=False)
-            qfuture.set_result(True)
+            qfuture.set()
 
         await self.channel.basic_consume(qcallback, queue_name=queue_name)
-        await qfuture
+        await qfuture.wait()
 
     async def test_basic_nack_requeue(self):
         queue_name = 'queue_name'
@@ -184,7 +185,7 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
             queue_name, exchange_name, routing_key, "payload"
         )
 
-        qfuture = asyncio.Future(loop=self.loop)
+        qfuture = trio.Event()
         called = False
 
         async def qcallback(channel, body, envelope, _properties):
@@ -194,10 +195,10 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
                 await self.channel.basic_client_nack(envelope.delivery_tag, requeue=True)
             else:
                 await self.channel.basic_client_ack(envelope.delivery_tag)
-                qfuture.set_result(True)
+                qfuture.set()
 
         await self.channel.basic_consume(qcallback, queue_name=queue_name)
-        await qfuture
+        await qfuture.wait()
 
 
     async def test_basic_reject(self):
@@ -208,12 +209,14 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
             queue_name, exchange_name, routing_key, "payload"
         )
 
-        qfuture = asyncio.Future(loop=self.loop)
+        qfuture = trio.Event()
 
         async def qcallback(channel, body, envelope, _properties):
-            qfuture.set_result(envelope)
+            qfuture.set()
+            self.test_result = envelope
 
         await self.channel.basic_consume(qcallback, queue_name=queue_name)
-        envelope = await qfuture
+        await qfuture.wait()
+        envelope = self.test_result
 
         await self.channel.basic_reject(envelope.delivery_tag)

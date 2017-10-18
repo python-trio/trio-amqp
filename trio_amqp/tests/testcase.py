@@ -3,7 +3,7 @@
 Provides the test case to simplify testing
 """
 
-import asyncio
+import trio
 import inspect
 import logging
 import os
@@ -110,7 +110,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
             _transport, protocol = await self.create_amqp()
             channel = await self.create_channel(amqp=protocol)
             self.channels.append(channel)
-        self.loop.run_until_complete(go())
+        trio.run(go)
 
     def tearDown(self):
         async def go():
@@ -126,7 +126,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
                 logger.debug('Delete amqp %s', amqp)
                 await amqp.close()
                 del amqp
-        self.loop.run_until_complete(go())
+        trio.run(go)
 
         try:
             self.http_client.delete_vhost(self.vhost)
@@ -199,7 +199,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         full_queue_name = self.full_name(queue_name)
         try:
             await channel.queue_delete(full_queue_name, no_wait=False)
-        except asyncio.TimeoutError:
+        except trio.TooSlowError:
             logger.warning('Timeout on queue %s deletion', full_queue_name, exc_info=True)
         except Exception:  # pylint: disable=broad-except
             logger.error('Unexpected error on queue %s deletion', full_queue_name, exc_info=True)
@@ -213,7 +213,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         full_exchange_name = self.full_name(exchange_name)
         try:
             await channel.exchange_delete(full_exchange_name, no_wait=False)
-        except asyncio.TimeoutError:
+        except trio.TooSlowError:
             logger.warning('Timeout on exchange %s deletion', full_exchange_name, exc_info=True)
         except Exception:  # pylint: disable=broad-except
             logger.error('Unexpected error on exchange %s deletion', full_exchange_name, exc_info=True)
@@ -269,6 +269,6 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
             return ProxyAmqpProtocol(self, *args, **kw)
         vhost = vhost or self.vhost
         transport, protocol = await trio_amqp_connect(host=self.host, port=self.port, virtualhost=vhost,
-            protocol_factory=protocol_factory, loop=self.loop)
+            protocol_factory=protocol_factory)
         self.amqps.append(protocol)
         return transport, protocol

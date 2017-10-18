@@ -17,9 +17,7 @@ There are two principal objects when using trio_amqp:
 Starting a connection
 ---------------------
 
-Starting a connection to AMQP really mean instanciate a new asyncio Protocol subclass.
-
-.. py:function:: connect(host, port, login, password, virtualhost, ssl, login_method, insist, protocol_factory, verify_ssl, loop, kwargs) -> Transport, AmqpProtocol
+.. py:function:: connect(host, port, login, password, virtualhost, ssl, login_method, insist, protocol_factory, verify_ssl, kwargs) -> Transport, AmqpProtocol
 
    Convenient method to connect to an AMQP broker
 
@@ -33,7 +31,6 @@ Starting a connection to AMQP really mean instanciate a new asyncio Protocol sub
    :param str login_method:  AMQP auth method
    :param bool insist:       insist on connecting to a server
    :param AmqpProtocol protocol_factory: factory to use, if you need to subclass AmqpProtocol
-   :param EventLopp loop:    set the event loop to use
 
    :param dict kwargs:       arguments to be given to the protocol_factory instance
 
@@ -61,9 +58,6 @@ Starting a connection to AMQP really mean instanciate a new asyncio Protocol sub
 
 In this example, we just use the method "start_connection" to begin a communication with the server, which deals with credentials and connection tunning.
 
-If you're not using the default event loop (e.g. because you're using
-trio_amqp from a different thread), call trio_amqp.connect(loop=your_loop).
-
 
 The `AmqpProtocol` uses the `kwargs` arguments to configure the connection to the AMQP Broker:
 
@@ -80,7 +74,6 @@ The `AmqpProtocol` uses the `kwargs` arguments to configure the connection to th
                     but may reject very large frames if it cannot allocate resources for them.
    :param int heartbeat: the delay, in seconds, of the connection heartbeat that the server wants.
                     Zero means the server does not want a heartbeat.
-   :param Asyncio.EventLoop loop: specify the eventloop to use.
    :param dict client_properties: configure the client to connect to the AMQP server.
 
 Handling errors
@@ -135,7 +128,6 @@ Consuming messages
 
 When consuming message, you connect to the same queue you previously created::
 
-    import asyncio
     import trio_amqp
 
     async def callback(channel, body, envelope, properties):

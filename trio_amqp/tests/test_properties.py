@@ -2,7 +2,7 @@
     Tests for message properties for basic deliver
 """
 
-import asyncio
+import trio
 import unittest
 import logging
 
@@ -24,7 +24,8 @@ class ReplyTestCase(testcase.RabbitTestCase, unittest.TestCase):
             server_queue_name, exchange_name, routing_key=routing_key)
         async def server_callback(channel, body, envelope, properties):
             logger.debug('Server received message')
-            server_future.set_result((body, envelope, properties))
+            server_future.test_result = (body, envelope, properties)
+            server_future.set()
             publish_properties = {'correlation_id': properties.correlation_id}
             logger.debug('Replying to %r', properties.reply_to)
             await self.channel.publish(
@@ -46,7 +47,8 @@ class ReplyTestCase(testcase.RabbitTestCase, unittest.TestCase):
             client_queue_name, exchange_name, routing_key=client_routing_key)
         async def client_callback(channel, body, envelope, properties):
             logger.debug('Client received message')
-            client_future.set_result((body, envelope, properties))
+            client_future.test_result = (body, envelope, properties)
+            client_future.set()
         await client_channel.basic_consume(client_callback, queue_name=client_queue_name)
         logger.debug('Client consuming messages')
 
@@ -61,25 +63,27 @@ class ReplyTestCase(testcase.RabbitTestCase, unittest.TestCase):
         exchange_name = 'exchange_name'
         server_routing_key = 'reply_test'
 
-        server_future = asyncio.Future(loop=self.loop)
+        server_future = trio.Event()
         await self._server(server_future, exchange_name, server_routing_key)
 
         correlation_id = 'secret correlation id'
         client_routing_key = 'secret_client_key'
 
-        client_future = asyncio.Future(loop=self.loop)
+        client_future = trio.Event()
         await self._client(
             client_future, exchange_name, server_routing_key, correlation_id, client_routing_key)
 
         logger.debug('Waiting for server to receive message')
-        server_body, server_envelope, server_properties = await server_future
+        await server_future.wait()
+        server_body, server_envelope, server_properties = server_future.test_result
         self.assertEqual(server_body, b'client message')
         self.assertEqual(server_properties.correlation_id, correlation_id)
         self.assertEqual(server_properties.reply_to, client_routing_key)
         self.assertEqual(server_envelope.routing_key, server_routing_key)
 
         logger.debug('Waiting for client to receive message')
-        client_body, client_envelope, client_properties = await client_future
+        await client_future.wait()
+        client_body, client_envelope, client_properties = client_future.test_tesult
         self.assertEqual(client_body, b'reply message')
         self.assertEqual(client_properties.correlation_id, correlation_id)
         self.assertEqual(client_envelope.routing_key, client_routing_key)
