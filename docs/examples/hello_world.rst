@@ -10,14 +10,14 @@ Creating a new connection:
 
  .. code-block:: python
 
-    import asyncio
+    import trio
     import trio_amqp
 
     async def connect():
-        transport, protocol = await trio_amqp.connect()
+        protocol = await trio_amqp.connect()
         channel = await protocol.channel()
 
-    asyncio.get_event_loop().run_until_complete(connect())
+    trio.run(connect)
 
 
 This first scripts shows how to create a new connection to the `AMQP` broker.

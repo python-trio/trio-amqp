@@ -8,7 +8,7 @@ Standards-Version: 3.9.1
 Package: python3-trio-amqp
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}
-Description: AMQP implementation using asyncio
+Description: AMQP implementation using trio
  The trio_amqp library is a pure-Python implementation of the AMQP 0.9.1 protocol.
  .
  Built on top on the Trio library, it provides an API based on coroutines,

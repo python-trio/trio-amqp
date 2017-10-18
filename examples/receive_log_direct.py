@@ -16,7 +16,7 @@ import sys
 async def callback(channel, body, envelope, properties):
     print("consumer {} recved {} ({})".format(envelope.consumer_tag, body, envelope.delivery_tag))
 
-async def receive_log(waiter):
+async def receive_log():
     try:
         transport, protocol = await trio_amqp.connect('localhost', 5672)
     except trio_amqp.AmqpClosedConnection:
@@ -46,14 +46,10 @@ async def receive_log(waiter):
 
     print(' [*] Waiting for logs. To exit press CTRL+C')
 
-    await asyncio.wait_for(channel.basic_consume(callback, queue_name=queue_name), timeout=10)
-    await waiter.wait()
+    with trio.fail_after(10):
+        await channel.basic_consume(callback, queue_name=queue_name)
 
     await protocol.close()
     transport.close()
 
-try:
-    waiter = trio.Event()
-    trio.run(receive_log,waiter)
-except KeyboardInterrupt:
-    waiter.set()
+trio.run(receive_log)

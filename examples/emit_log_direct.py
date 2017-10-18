@@ -5,7 +5,7 @@
     https://www.rabbitmq.com/tutorials/tutorial-four-python.html
 """
 
-import asyncio
+import trio
 import trio_amqp
 
 import sys
@@ -32,5 +32,5 @@ async def exchange_routing():
     transport.close()
 
 
-asyncio.get_event_loop().run_until_complete(exchange_routing())
+trio.run(exchange_routing)
 

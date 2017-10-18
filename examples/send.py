@@ -4,7 +4,7 @@
 
 """
 
-import asyncio
+import trio
 import trio_amqp
 
 
@@ -26,4 +26,4 @@ async def send():
 
 
 
-asyncio.get_event_loop().run_until_complete(send())
+trio.run(send)

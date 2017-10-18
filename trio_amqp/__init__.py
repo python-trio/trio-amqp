@@ -1,5 +1,4 @@
 import trio
-import asyncio
 import socket
 import sys
 import ssl as ssl_module  # import as to enable argument named ssl in connect

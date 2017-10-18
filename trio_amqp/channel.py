@@ -12,6 +12,7 @@ from . import constants as amqp_constants
 from . import frame as amqp_frame
 from . import exceptions
 from .envelope import Envelope
+from .future import Future
 
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,6 @@ logger = logging.getLogger(__name__)
 class Channel:
 
     def __init__(self, protocol, channel_id):
-        self._loop = protocol._loop
         self.protocol = protocol
         self.channel_id = channel_id
         self.consumer_queues = {}
@@ -35,13 +35,14 @@ class Channel:
         self._futures = {}
         self._ctag_events = {}
 
+    def _add_future(self, fut):
+        self._futures[fut.rpc_name] = fut
+
     def _set_waiter(self, rpc_name):
         if rpc_name in self._futures:
             raise exceptions.SynchronizationError("Waiter already exists")
 
-        fut = asyncio.Future()
-        self._futures[rpc_name] = fut
-        return fut
+        return Future(self, rpc_name)
 
     def _get_waiter(self, rpc_name):
         fut = self._futures.pop(rpc_name, None)
@@ -125,7 +126,7 @@ class Channel:
                 self._get_waiter(waiter_id)
                 f.cancel()
                 raise
-            return (await f)
+            return await f()
 
 #
 ## Channel class implementation

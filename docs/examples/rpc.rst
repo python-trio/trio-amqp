@@ -34,7 +34,7 @@ For that purpose, we publish a message to the `rpc_queue` and add a `reply_to` p
     )
 
 
-Note: the client use a `waiter` (an asyncio.Event) which will be set when receiving a response from the previously sent message.
+Note: the client use a `waiter` (an trio.Event) which will be set when receiving a response from the previously sent message.
 
 
 Server

@@ -9,7 +9,7 @@ _file_content = open(os.path.join(os.path.dirname(__file__), 'trio_amqp', 'versi
 
 rex = re.compile(r"""version__ = '(.*)'.*__packagename__ = '(.*)'""", re.MULTILINE | re.DOTALL)
 VERSION, PACKAGE_NAME = rex.search(_file_content).groups()
-description = 'AMQP implementation using asyncio'
+description = 'AMQP implementation using trio'
 
 setuptools.setup(
     name=PACKAGE_NAME,

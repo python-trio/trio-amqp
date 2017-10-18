@@ -3,7 +3,7 @@
     See the documentation for more informations.
 """
 
-import asyncio
+import trio
 import trio_amqp
 
 
@@ -18,7 +18,7 @@ async def receive():
 
     await channel.basic_consume(callback, queue_name='hello')
 
+    await trio.sleep_forever()
 
-event_loop = asyncio.get_event_loop()
-event_loop.run_until_complete(receive())
-event_loop.run_forever()
+
+trio.run(receive)

@@ -5,7 +5,7 @@
 
 """
 
-import asyncio
+import trio
 import uuid
 
 import trio_amqp
@@ -17,7 +17,7 @@ class FibonacciRpcClient(object):
         self.protocol = None
         self.channel = None
         self.callback_queue = None
-        self.waiter = asyncio.Event()
+        self.waiter = trio.Event()
 
     async def connect(self):
         """ an `__init__` method can't be a coroutine"""
@@ -66,5 +66,5 @@ async def rpc_client():
     print(" [.] Got %r" % response)
 
 
-asyncio.get_event_loop().run_until_complete(rpc_client())
+trio.run(rpc_client)
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import asyncio
+import trio
 import trio_amqp
 
 import sys
@@ -34,6 +34,6 @@ async def new_task():
     transport.close()
 
 
-asyncio.get_event_loop().run_until_complete(new_task())
+trio.run(new_task)
 
 

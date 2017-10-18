@@ -38,7 +38,7 @@ Content Payload
 
 """
 
-import asyncio
+import trio
 import io
 import struct
 import socket
@@ -330,7 +330,6 @@ class AmqpDecoder:
 
 class AmqpRequest:
     def __init__(self, writer, frame_type, channel):
-        self.writer = writer
         self.frame_type = frame_type
         self.channel = channel
         self.class_id = None
@@ -349,7 +348,7 @@ class AmqpRequest:
         self.class_id = class_id
         self.method_id = method_id
 
-    def write_frame(self, encoder):
+    def get_frame(self, encoder):
         payload = encoder.payload
         content_header = ''
         transmission = io.BytesIO()
@@ -372,7 +371,7 @@ class AmqpRequest:
             transmission.write(content_header)
         transmission.write(payload.getvalue())
         transmission.write(amqp_constants.FRAME_END)
-        return self.writer.write(transmission.getvalue())
+        return transmission.getvalue()
 
 
 class AmqpResponse:
@@ -401,13 +400,22 @@ class AmqpResponse:
         self.payload_decoder = None
         self.header_decoder = None
 
+    async def _readexactly(self, length):
+        data = b""
+        while len(data) < length:
+            d = await self.reader.receive_some(length-len(data))
+            if len(d) == 0:
+                raise EOFError
+            data += d
+        return d
+
     async def read_frame(self):
         """Decode the frame"""
         if not self.reader:
             raise exceptions.AmqpClosedConnection()
         try:
-            data = await self.reader.readexactly(7)
-        except (asyncio.IncompleteReadError, socket.error) as ex:
+            data = await self._readexactly(7)
+        except (EOFError, socket.error) as ex:
             raise exceptions.AmqpClosedConnection() from ex
 
         frame_header = io.BytesIO(data)
@@ -415,7 +423,7 @@ class AmqpResponse:
         self.frame_type = self.header_decoder.read_octet()
         self.channel = self.header_decoder.read_short()
         self.frame_length = self.header_decoder.read_long()
-        payload_data = await self.reader.readexactly(self.frame_length)
+        payload_data = await self._readexactly(self.frame_length)
 
         if self.frame_type == amqp_constants.TYPE_METHOD:
             self.payload = io.BytesIO(payload_data)
@@ -474,7 +482,7 @@ class AmqpResponse:
 
         else:
             raise ValueError("Message type {:x} not known".format(self.frame_type))
-        self.frame_end = await self.reader.readexactly(1)
+        self.frame_end = await self._readexactly(1)
         assert self.frame_end == amqp_constants.FRAME_END
 
     def __str__(self):

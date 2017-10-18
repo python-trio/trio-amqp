@@ -6,7 +6,7 @@
 
 """
 
-import asyncio
+import trio
 import trio_amqp
 import random
 
@@ -39,6 +39,6 @@ async def receive_log():
 
     await channel.basic_consume(callback, queue_name=queue_name, no_ack=True)
 
-event_loop = asyncio.get_event_loop()
-event_loop.run_until_complete(receive_log())
-event_loop.run_forever()
+    await triosleep_forever()
+
+trio.run(receive_log)

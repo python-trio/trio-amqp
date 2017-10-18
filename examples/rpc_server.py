@@ -2,7 +2,7 @@
     RPC server, trio_amqp implementation of RPC examples from RabbitMQ tutorial
 """
 
-import asyncio
+import trio
 import trio_amqp
 
 
@@ -43,10 +43,8 @@ async def rpc_server():
     await channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
     await channel.basic_consume(on_request, queue_name='rpc_queue')
     print(" [x] Awaiting RPC requests")
+    await trio.sleep_forever()
 
-
-event_loop = asyncio.get_event_loop()
-event_loop.run_until_complete(rpc_server())
-event_loop.run_forever()
+trio.run(rpc_server)
 
 

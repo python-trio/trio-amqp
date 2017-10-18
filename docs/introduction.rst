@@ -1,19 +1,18 @@
 Introduction
 ============
 
-Aioamqp library is a pure-Python implementation of the AMQP 0.9.1 protocol using `asyncio`.
+Trio-amqp library is a pure-Python implementation of the AMQP 0.9.1 protocol using `trio`.
 
 
 Prerequisites
 -------------
 
-Aioamqp works only with python >= 3.3 using asyncio library.
-If your are using Python 3.3 you'll have to install asyncio from pypi, but asyncio is now included in python 3.4 standard library.
+Trio-amqp works only with python >= 3.5 using the Trio library.
 
 Installation
 ------------
 
-You can install the most recent trio_amqp release from pypi using pip or easy_install:
+You can install the most recent trio-amqp release from pypi using pip or easy_install:
 
  .. code-block:: shell
 
