@@ -150,8 +150,8 @@ class AmqpProtocol:
             # version of Python where this bugs exists is supported anymore.
             await self._stream_writer.drain()
 
-    async def _write_frame(self, frame, request, drain=True):
-        frame.write_frame(request)
+    async def _write_frame(self, frame, encoder, drain=True):
+        frame.write_frame(encoder)
         if drain:
             await self._drain()
 
