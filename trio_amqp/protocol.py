@@ -450,7 +450,6 @@ class AmqpProtocol:
         frame.declare_method(
             amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK)
         request = amqp_frame.AmqpEncoder()
-        frame.write_frame(request)
         await self._write_frame(frame, request)
 
     async def tune(self, frame):
