@@ -1,4 +1,4 @@
-"""Aioamqp tests"""
+"""Connection tests"""
 
 import unittest
 import socket

@@ -4,13 +4,16 @@ import sys
 import ssl as ssl_module  # import as to enable argument named ssl in connect
 from urllib.parse import urlparse
 
+from trio._util import acontextmanager
+from async_generator import async_generator, yield_
+
 from .exceptions import *  # pylint: disable=wildcard-import
 from .protocol import AmqpProtocol
 
 from .version import __version__
 from .version import __packagename__
 
-
+@trio.hazmat.enable_ki_protection
 async def connect(host='localhost', port=None, login='guest', password='guest',
             virtualhost='/', ssl=False, login_method='AMQPLAIN', insist=False,
             protocol_factory=AmqpProtocol, *, verify_ssl=True, **kwargs):
@@ -50,7 +53,7 @@ async def connect(host='localhost', port=None, login='guest', password='guest',
     else:
         sock = stream = await trio.open_tcp_stream(host, port)
 
-    protocol = protocol_factory(stream)
+    protocol = protocol_factory()
 
     # these 2 flags *may* show up in sock.type. They are only available on linux
     # see https://bugs.python.org/issue21327
@@ -59,15 +62,9 @@ async def connect(host='localhost', port=None, login='guest', password='guest',
     if sock is not None and (sock.type & ~nonblock & ~cloexec) == socket.SOCK_STREAM:
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
-    try:
-        await protocol.start_connection(host, port, login, password, virtualhost, ssl=ssl,
-            login_method=login_method, insist=insist)
-    except Exception:
-        await protocol.wait_closed()
-        raise
-
-    return (stream, protocol)
-
+    await protocol.start_connection(stream, login, password, virtualhost, ssl=ssl,
+                login_method=login_method, insist=insist)
+    return protocol
 
 async def from_url(
         url, login_method='AMQPLAIN', insist=False, protocol_factory=AmqpProtocol, *,
@@ -92,16 +89,15 @@ async def from_url(
     if url.scheme not in ('amqp', 'amqps'):
         raise ValueError('Invalid protocol %s, valid protocols are amqp or amqps' % url.scheme)
 
-    transport, protocol = await connect(
-        host=url.hostname or 'localhost',
-        port=url.port,
-        login=url.username or 'guest',
-        password=url.password or 'guest',
-        virtualhost=(url.path[1:] if len(url.path) > 1 else '/'),
-        ssl=(url.scheme == 'amqps'),
-        login_method=login_method,
-        insist=insist,
-        protocol_factory=protocol_factory,
-        verify_ssl=verify_ssl,
-        **kwargs)
-    return transport, protocol
+    return await connect(
+            host=url.hostname or 'localhost',
+            port=url.port,
+            login=url.username or 'guest',
+            password=url.password or 'guest',
+            virtualhost=(url.path[1:] if len(url.path) > 1 else '/'),
+            ssl=(url.scheme == 'amqps'),
+            login_method=login_method,
+            insist=insist,
+            protocol_factory=protocol_factory,
+            verify_ssl=verify_ssl,
+            **kwargs)

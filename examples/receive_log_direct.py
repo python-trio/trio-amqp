@@ -18,7 +18,7 @@ async def callback(channel, body, envelope, properties):
 
 async def receive_log():
     try:
-        transport, protocol = await trio_amqp.connect('localhost', 5672)
+        protocol = await trio_amqp.connect('localhost', 5672)
     except trio_amqp.AmqpClosedConnection:
         print("closed connections")
         return
@@ -49,7 +49,6 @@ async def receive_log():
     with trio.fail_after(10):
         await channel.basic_consume(callback, queue_name=queue_name)
 
-    await protocol.close()
-    transport.close()
+    await protocol.aclose()
 
 trio.run(receive_log)

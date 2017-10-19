@@ -17,7 +17,7 @@ async def callback(channel, body, envelope, properties):
 
 async def worker():
     try:
-        transport, protocol = await trio_amqp.connect('localhost', 5672)
+        protocol = await trio_amqp.connect('localhost', 5672)
     except trio_amqp.AmqpClosedConnection:
         print("closed connections")
         return
@@ -28,7 +28,10 @@ async def worker():
     await channel.queue(queue_name='task_queue', durable=True)
     await channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
     await channel.basic_consume(callback, queue_name='task_queue')
-    await trio.sleep_forever()
+    try:
+        await trio.sleep_forever()
+    finally:
+        await protocol.aclose()
 
 
 trio.run(worker)

@@ -1,4 +1,4 @@
-"""Aioamqp tests utilities
+"""TrioAmqp tests utilities
 
 Provides the test case to simplify testing
 """
@@ -107,7 +107,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         )
 
         async def go():
-            _transport, protocol = await self.create_amqp()
+            protocol = await self.create_amqp()
             channel = await self.create_channel(amqp=protocol)
             self.channels.append(channel)
         trio.run(go)
@@ -268,7 +268,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         def protocol_factory(*args, **kw):
             return ProxyAmqpProtocol(self, *args, **kw)
         vhost = vhost or self.vhost
-        transport, protocol = await trio_amqp_connect(host=self.host, port=self.port, virtualhost=vhost,
+        protocol = await trio_amqp_connect(host=self.host, port=self.port, virtualhost=vhost,
             protocol_factory=protocol_factory)
         self.amqps.append(protocol)
-        return transport, protocol
+        return protocol

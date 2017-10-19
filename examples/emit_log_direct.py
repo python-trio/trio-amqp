@@ -13,7 +13,7 @@ import sys
 
 async def exchange_routing():
     try:
-        transport, protocol = await trio_amqp.connect('localhost', 5672)
+        protocol = await trio_amqp.connect('localhost', 5672)
     except trio_amqp.AmqpClosedConnection:
         print("closed connections")
         return
@@ -28,8 +28,7 @@ async def exchange_routing():
     await channel.publish(message, exchange_name=exchange_name, routing_key=severity)
     print(" [x] Sent %r" % (message,))
 
-    await protocol.close()
-    transport.close()
+    await protocol.aclose()
 
 
 trio.run(exchange_routing)

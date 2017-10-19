@@ -1,6 +1,12 @@
 Changelog
 =========
 
+Trio-amqp 0.1
+-------------
+
+ * Rewrote the whole thing to use Trio instead of asyncio.
+ * Changed AmqpProtocol to not return the transport
+
 Aioamqp 0.10.0
 --------------
 

@@ -110,9 +110,13 @@ class Channel:
         await self.protocol.ensure_open()
         if not self.is_open and check_open:
             raise exceptions.ChannelClosed()
-        frame.write_frame(request)
-        if drain:
-            await self.protocol._drain()
+        try:
+            frame.write_frame(request)
+            if drain:
+                await self.protocol._drain()
+        except Exception as exc:
+            self.protocol.connection_lost(exc)
+            raise
 
     async def _write_frame_awaiting_response(self, waiter_id, frame, request, no_wait, check_open=True, drain=True):
         '''Write a frame and set a waiter for the response (unless no_wait is set)'''

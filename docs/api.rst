@@ -41,18 +41,11 @@ Starting a connection
     import trio_amqp
 
     async def connect():
-        try:
-            transport, protocol = await trio_amqp.connect()  # use default parameters
-        except trio_amqp.AmqpClosedConnection:
-            print("closed connections")
-            return
+        async with trio_amqp.connect() as conn: # use default parameters
+            print("connected !")
+            await trio.sleep(1)
 
-        print("connected !")
-        await trio.sleep(1)
-
-        print("close connection")
-        await protocol.close()
-        transport.close()
+            print("close connection")
 
     trio.run(connect)
 
@@ -90,7 +83,7 @@ The connect() method has an extra 'on_error' kwarg option. This on_error is a ca
 
     async def connect():
         try:
-            transport, protocol = await trio_amqp.connect(
+            protocol = await trio_amqp.connect(
                 host='nonexistant.com',
                 on_error=error_callback,
                 client_properties={

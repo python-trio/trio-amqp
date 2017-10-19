@@ -5,7 +5,7 @@
 import trio
 import unittest
 from unittest import mock
-from functools improt partial
+from functools import partial
 
 from . import testing
 from . import testcase

@@ -35,7 +35,7 @@ async def on_request(channel, body, envelope, properties):
 
 async def rpc_server():
 
-    transport, protocol = await trio_amqp.connect()
+    protocol = await trio_amqp.connect()
 
     channel = await protocol.channel()
 
@@ -43,7 +43,10 @@ async def rpc_server():
     await channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
     await channel.basic_consume(on_request, queue_name='rpc_queue')
     print(" [x] Awaiting RPC requests")
-    await trio.sleep_forever()
+    try:
+        await trio.sleep_forever()
+    finally:
+        await protocol.aclose()
 
 trio.run(rpc_server)
 

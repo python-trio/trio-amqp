@@ -127,7 +127,7 @@ class QueueDeclareTestCase(testcase.RabbitTestCase, unittest.TestCase):
         await self.channel.basic_consume(self.callback, queue_name="q", no_wait=False)
         # create an other amqp connection
 
-        _transport, protocol = await self.create_amqp()
+        protocol = await self.create_amqp()
         channel = await self.create_channel(amqp=protocol)
         # assert that this connection cannot connect to the queue
         with self.assertRaises(exceptions.ChannelClosed):
@@ -140,7 +140,7 @@ class QueueDeclareTestCase(testcase.RabbitTestCase, unittest.TestCase):
         # consume it
         await self.channel.basic_consume(self.callback, queue_name='q', no_wait=False)
         # create an other amqp connection
-        _transport, protocol = await self.create_amqp()
+        protocol = await self.create_amqp()
         channel = await self.create_channel(amqp=protocol)
         # assert that this connection can connect to the queue
         await channel.basic_consume(self.callback, queue_name='q', no_wait=False)

@@ -3,45 +3,45 @@
 """
 
 
-class AioamqpException(Exception):
+class TrioAmqpException(Exception):
     pass
 
-class ConfigurationError(AioamqpException):
+class ConfigurationError(TrioAmqpException):
     pass
 
-class AmqpClosedConnection(AioamqpException):
+class AmqpClosedConnection(TrioAmqpException):
     pass
 
-class SynchronizationError(AioamqpException):
+class SynchronizationError(TrioAmqpException):
     pass
 
-class EmptyQueue(AioamqpException):
+class EmptyQueue(TrioAmqpException):
     pass
 
 
-class NoChannelAvailable(AioamqpException):
+class NoChannelAvailable(TrioAmqpException):
     """There is no room left for more channels"""
 
 
-class ChannelClosed(AioamqpException):
+class ChannelClosed(TrioAmqpException):
     def __init__(self, code=0, message='Channel is closed'):
         super().__init__(code, message)
         self.code = code
         self.message = message
 
 
-class DuplicateConsumerTag(AioamqpException):
+class DuplicateConsumerTag(TrioAmqpException):
     def __repr__(self):
         return ('The consumer tag specified already exists for this '
                 'channel: %s' % self.args[0])
 
 
-class ConsumerCancelled(AioamqpException):
+class ConsumerCancelled(TrioAmqpException):
     def __repr__(self):
         return ('The consumer %s has been cancelled' % self.args[0])
 
 
-class PublishFailed(AioamqpException):
+class PublishFailed(TrioAmqpException):
     def __init__(self, delivery_tag):
         super().__init__(delivery_tag)
         self.delivery_tag = delivery_tag

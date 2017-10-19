@@ -44,9 +44,7 @@ We can now close the connection to rabbit:
  .. code-block:: python
 
     # close using the `AMQP` protocol
-    await protocol.close()
-    # ensure the socket is closed.
-    transport.close()
+    await protocol.aclose()
 
 You can see the full example in the file `example/send.py`.
 

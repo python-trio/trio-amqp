@@ -13,7 +13,7 @@ class CloseTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.consume_future = trio.Event()
 
     async def callback(self, body, envelope, properties):
-        self.consume_result = body, envelope, properties)
+        self.consume_result = (body, envelope, properties)
 
     async def get_callback_result(self):
         await self.consume_future.wait()

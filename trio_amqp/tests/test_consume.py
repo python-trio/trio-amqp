@@ -27,7 +27,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         return result
 
 
-    def test_wrong_callback_argument(self):
+    async def test_wrong_callback_argument(self):
 
         def badcallback():
             pass
