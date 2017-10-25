@@ -15,7 +15,7 @@ from .version import __packagename__
 
 @trio.hazmat.enable_ki_protection
 async def connect(host='localhost', port=None, login='guest', password='guest',
-            virtualhost='/', ssl=False, login_method='AMQPLAIN', insist=False,
+            virtualhost='/', ssl=False,
             protocol_factory=AmqpProtocol, *, verify_ssl=True, **kwargs):
     """Convenient method to connect to an AMQP broker
 
@@ -59,16 +59,15 @@ async def connect(host='localhost', port=None, login='guest', password='guest',
     # see https://bugs.python.org/issue21327
     nonblock = getattr(socket, 'SOCK_NONBLOCK', 0)
     cloexec = getattr(socket, 'SOCK_CLOEXEC', 0)
-    if sock is not None and (sock.type & ~nonblock & ~cloexec) == socket.SOCK_STREAM:
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    if sock is not None and (sock.socket.type & ~nonblock & ~cloexec) == socket.SOCK_STREAM:
+        sock.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
-    await protocol.start_connection(stream, login, password, virtualhost, ssl=ssl,
-                login_method=login_method, insist=insist)
+    p = await protocol.start_connection(stream, login, password, virtualhost, ssl=ssl, **kwargs)
+    assert p is  protocol, (p,protocol)
     return protocol
 
-async def from_url(
-        url, login_method='AMQPLAIN', insist=False, protocol_factory=AmqpProtocol, *,
-        verify_ssl=True, **kwargs):
+async def connect_from_url(
+        url, **kwargs):
     """ Connect to the AMQP using a single url parameter and return the client.
 
         For instance:
@@ -97,7 +96,5 @@ async def from_url(
             virtualhost=(url.path[1:] if len(url.path) > 1 else '/'),
             ssl=(url.scheme == 'amqps'),
             login_method=login_method,
-            insist=insist,
-            protocol_factory=protocol_factory,
-            verify_ssl=verify_ssl,
             **kwargs)
+

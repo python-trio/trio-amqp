@@ -73,8 +73,11 @@ class AmqpProtocol(trio.abc.AsyncResource):
         self.channels_ids_free = set()
         self._drain_lock = trio.Lock()
         self._nursery = None
+        self._write_lock = trio.Lock()
 
     def connection_lost(self, exc):
+        if self.state == CLOSED:
+            return
         if exc:
             logger.exception("Connection lost")
         else:
@@ -83,7 +86,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         self.state = CLOSED
         self._close_channels(exception=exc)
         self._stop_heartbeat()
-        self._nursery.cancel_manager.cancel()
+        self._nursery.cancel_scope.cancel()
 
     async def ensure_open(self):
         # Raise a suitable exception if the connection isn't open.
@@ -116,12 +119,13 @@ class AmqpProtocol(trio.abc.AsyncResource):
     async def _write_frame(self, frame, encoder, drain=True):
         f = frame.get_frame(encoder)
         try:
-            await self._stream.send_all(f)
-            if drain:
-                await self._drain()
-            await self._heartbeat_timer_send_reset()
+            async with self._write_lock:
+                await self._stream.send_all(f)
+                if drain:
+                    await self._drain()
+                await self._heartbeat_timer_send_reset()
         except BaseException as exc:
-            self.connecion_lost(exc)
+            self.connection_lost(exc)
             raise
 
     async def aclose(self, no_wait=False):
@@ -149,14 +153,16 @@ class AmqpProtocol(trio.abc.AsyncResource):
             self._stop_heartbeat()
             if not no_wait:
                 await self.wait_closed()
-        except BaseExeption as exc:
+        except BaseException as exc:
             self.connection_lost(exc)
-            await self._nursery.__aexit__(type(exc),exc,exc.__traceback__)
+            import pdb;pdb.set_trace()
+            await self._nursery_mgr.__aexit__(type(exc),exc,exc.__traceback__)
         else:
             self.connection_lost()
-            await self._nursery.__aexit__(None,None,None)
+            await self._nursery_mgr.__aexit__(None,None,None)
         finally:
             self._nursery = None
+            self._nursery_mgr = None
             await self._stream.aclose()
 
     async def wait_closed(self):
@@ -164,85 +170,100 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
     async def close_ok(self, frame):
         logger.debug("Recv close ok")
-        self._stream.close()
+        await self._stream.aclose()
+        self.connection_lost()
 
     @trio.hazmat.enable_ki_protection
-    async def start_connection(self, stream, host, port, login, password, virtualhost, ssl=False,
+    async def start_connection(self, stream, login, password, virtualhost, ssl=False,
             login_method='AMQPLAIN', insist=False):
         """Initiate a connection at the protocol level
             We send `PROTOCOL_HEADER'
         """
-        self._stream = stream
-
         if login_method != 'AMQPLAIN':
             # TODO
             logger.warning('only AMQPLAIN login_method is supported, falling back to AMQPLAIN')
 
-        await self._stream.send_all(amqp_constants.PROTOCOL_HEADER)
-        if self.version_major is None:
-            raise RuntimeError("Server didn't start with a START packet")
-
-        # Wait 'start' method from the server
-        await self.dispatch_frame()
-
-        client_properties = {
-            'capabilities': {
-                'consumer_cancel_notify': True,
-                'connection.blocked': False,
-            },
-            'copyright': 'BSD',
-            'product': version.__package__,
-            'product_version': version.__version__,
-        }
-        client_properties.update(self.client_properties)
-        auth = {
+        self._stream = stream
+        self._virtualhost = virtualhost
+        #self._ssl = ssl
+        self._login_method=login_method
+        self._insist = insist
+        self._auth = {
             'LOGIN': login,
             'PASSWORD': password,
         }
+        return self
 
-        # waiting reply start with credentions and co
-        await self.start_ok(client_properties, 'AMQPLAIN', auth, self.server_locales[0])
+    async def __aenter__(self):
+        self._nursery_mgr = trio.open_nursery()
+        self._nursery = await self._nursery_mgr.__aenter__()
+        try:
+            await self._stream.send_all(amqp_constants.PROTOCOL_HEADER)
 
-        # wait for a "tune" reponse
-        await self.dispatch_frame()
-        if self.server_channel_max is None:
-            raise RuntimeError("Server didn't send a TUNE packet")
+            # Wait 'start' method from the server
+            await self.dispatch_frame()
+            if self.version_major is None:
+                raise RuntimeError("Server didn't start with a START packet")
 
-        tune_ok = {
-            'channel_max': self.connection_tunning.get('channel_max', self.server_channel_max),
-            'frame_max': self.connection_tunning.get('frame_max', self.server_frame_max),
-            'heartbeat': self.connection_tunning.get('heartbeat', self.server_heartbeat),
-        }
-        # "tune" the connexion with max channel, max frame, heartbeat
-        await self.tune_ok(**tune_ok)
+            client_properties = {
+                'capabilities': {
+                    'consumer_cancel_notify': True,
+                    'connection.blocked': False,
+                },
+                'copyright': 'BSD',
+                'product': version.__package__,
+                'product_version': version.__version__,
+            }
+            client_properties.update(self.client_properties)
 
-        # update connection tunning values
-        self.server_frame_max = tune_ok['frame_max']
-        self.server_channel_max = tune_ok['channel_max']
-        self.server_heartbeat = tune_ok['heartbeat']
+            # waiting reply start with credentions and co
+            await self.start_ok(client_properties, 'AMQPLAIN', self._auth, self.server_locales[0])
 
-        if self.server_heartbeat > 0:
-            await self._heartbeat_timer_recv_reset()
-            await self._heartbeat_timer_send_reset()
+            # wait for a "tune" reponse
+            await self.dispatch_frame()
+            if self.server_channel_max is None:
+                raise RuntimeError("Server didn't send a TUNE packet")
 
-        # open a virtualhost
-        await self.open(virtualhost, capabilities='', insist=insist)
+            tune_ok = {
+                'channel_max': self.connection_tunning.get('channel_max', self.server_channel_max),
+                'frame_max': self.connection_tunning.get('frame_max', self.server_frame_max),
+                'heartbeat': self.connection_tunning.get('heartbeat', self.server_heartbeat),
+            }
+            # "tune" the connexion with max channel, max frame, heartbeat
+            await self.tune_ok(**tune_ok)
 
-        # wait for open-ok
-        await self.dispatch_frame()
-        if self.state != OPEN:
-            raise exceptions.AmqpClosedConnection()
+            # update connection tunning values
+            self.server_frame_max = tune_ok['frame_max']
+            self.server_channel_max = tune_ok['channel_max']
+            self.server_heartbeat = tune_ok['heartbeat']
+
+            if self.server_heartbeat > 0:
+                await self._heartbeat_timer_recv_reset()
+                await self._heartbeat_timer_send_reset()
+
+            # open a virtualhost
+            await self.open(self._virtualhost, capabilities='', insist=self._insist)
+
+            # wait for open-ok
+            await self.dispatch_frame()
+            if self.state != OPEN:
+                raise exceptions.AmqpClosedConnection()
+        except BaseException as exc:
+            await self.aclose()
+            raise
 
         # read other server's responses asynchronously
-        self._nursery = await trio.open_nursery().__aenter__()
         await self._nursery.start(self.run)
         return self
+
+    async def __aexit__(self, typ,exc,tb):
+        await self.aclose()
 
     async def get_frame(self):
         """Read the frame, and only decode its header
 
         """
-        frame = amqp_frame.AmqpResponse(self._stream_reader)
+        frame = amqp_frame.AmqpResponse(self._stream)
         try:
             await frame.read_frame()
             await self._heartbeat_timer_recv_reset()
@@ -310,7 +331,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         task_status.started()
         while True:
             try:
-                if self._stream_reader is None:
+                if self._stream is None:
                     raise exceptions.AmqpClosedConnection
                 await self.dispatch_frame()
             except exceptions.AmqpClosedConnection as exc:
@@ -346,6 +367,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
             return
         if self._heartbeat_timer_recv is not None:
             self._heartbeat_timer_recv.cancel()
+        if self.state != OPEN:
+            return
         self._heartbeat_timer_recv = await self._nursery.start(
             self._heartbeat_timer_recv_timeout)
 
@@ -356,7 +379,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         with trio.open_cancel_scope() as scope:
             task_status.started(scope)
             while self.state != CLOSED:
-                trio.sleep(self.server_heartbeat)
+                await trio.sleep(self.server_heartbeat)
                 await self.send_heartbeat()
 
     async def _heartbeat_timer_send_reset(self):
@@ -364,6 +387,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
             return
         if self._heartbeat_timer_send is not None:
             self._heartbeat_timer_send.cancel()
+        if self.state != OPEN:
+            return
         self._heartbeat_timer_send = await self._nursery.start(
             self._heartbeat_timer_send_timeout)
 

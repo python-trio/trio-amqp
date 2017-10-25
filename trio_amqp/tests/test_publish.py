@@ -4,11 +4,11 @@ from . import testcase
 from . import testing
 
 
-class PublishTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestPublish(testcase.RabbitTestCase):
 
     _multiprocess_can_split_ = True
 
-    async def test_publish(self):
+    async def test_publish(self, amqp):
         # declare
         await self.channel.queue_declare("q", exclusive=True, no_wait=False)
         await self.channel.exchange_declare("e", "fanout")
@@ -21,7 +21,7 @@ class PublishTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertIn("q", queues)
         self.assertEqual(1, queues["q"]['messages'])
 
-    async def test_big_publish(self):
+    async def test_big_publish(self, amqp):
         # declare
         await self.channel.queue_declare("q", exclusive=True, no_wait=False)
         await self.channel.exchange_declare("e", "fanout")
@@ -34,7 +34,7 @@ class PublishTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertIn("q", queues)
         self.assertEqual(1, queues["q"]['messages'])
 
-    async def test_confirmed_publish(self):
+    async def test_confirmed_publish(self, amqp):
         # declare
         await self.channel.confirm_select()
         self.assertTrue(self.channel.publisher_confirms)

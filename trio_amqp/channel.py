@@ -111,7 +111,7 @@ class Channel:
         if not self.is_open and check_open:
             raise exceptions.ChannelClosed()
         try:
-            frame.write_frame(request)
+            await self.protocol._write_frame(frame, request)
             if drain:
                 await self.protocol._drain()
         except Exception as exc:
@@ -138,7 +138,7 @@ class Channel:
 
     async def open(self):
         """Open the channel on the server."""
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_CHANNEL, amqp_constants.CHANNEL_OPEN)
         request = amqp_frame.AmqpEncoder()
@@ -157,7 +157,7 @@ class Channel:
         if not self.is_open:
             raise exceptions.ChannelClosed("channel already closed or closing")
         self.close_event.set()
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_CHANNEL, amqp_constants.CHANNEL_CLOSE)
         request = amqp_frame.AmqpEncoder()
@@ -175,7 +175,7 @@ class Channel:
 
     async def _send_channel_close_ok(self):
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_CHANNEL, amqp_constants.CHANNEL_CLOSE_OK)
         request = amqp_frame.AmqpEncoder()
@@ -192,7 +192,7 @@ class Channel:
         self.connection_closed(results['reply_code'], results['reply_text'])
 
     async def flow(self, active):
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_CHANNEL, amqp_constants.CHANNEL_FLOW)
         request = amqp_frame.AmqpEncoder()
@@ -216,7 +216,7 @@ class Channel:
 
     async def exchange_declare(self, exchange_name, type_name, passive=False, durable=False,
                          auto_delete=False, no_wait=False, arguments=None):
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_EXCHANGE, amqp_constants.EXCHANGE_DECLARE)
         request = amqp_frame.AmqpEncoder()
@@ -239,7 +239,7 @@ class Channel:
         return future
 
     async def exchange_delete(self, exchange_name, if_unused=False, no_wait=False):
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_EXCHANGE, amqp_constants.EXCHANGE_DELETE)
         request = amqp_frame.AmqpEncoder()
@@ -260,7 +260,7 @@ class Channel:
                       no_wait=False, arguments=None):
         if arguments is None:
             arguments = {}
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_EXCHANGE, amqp_constants.EXCHANGE_BIND)
 
@@ -284,7 +284,7 @@ class Channel:
                         no_wait=False, arguments=None):
         if arguments is None:
             arguments = {}
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.EXCHANGE_UNBIND, amqp_constants.EXCHANGE_UNBIND)
 
@@ -331,7 +331,7 @@ class Channel:
 
         if not queue_name:
             queue_name = ''
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_QUEUE, amqp_constants.QUEUE_DECLARE)
         request = amqp_frame.AmqpEncoder()
@@ -361,7 +361,7 @@ class Channel:
                if_empty:       bool, the queue is deleted if it has no messages. Raise if not.
                no_wait:        bool, if set, the server will not respond to the method
         """
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_QUEUE, amqp_constants.QUEUE_DELETE)
 
@@ -381,7 +381,7 @@ class Channel:
         """Bind a queue and a channel."""
         if arguments is None:
             arguments = {}
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_QUEUE, amqp_constants.QUEUE_BIND)
 
@@ -404,7 +404,7 @@ class Channel:
     async def queue_unbind(self, queue_name, exchange_name, routing_key, arguments=None):
         if arguments is None:
             arguments = {}
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_QUEUE, amqp_constants.QUEUE_UNBIND)
 
@@ -424,7 +424,7 @@ class Channel:
         logger.debug("Queue unbound")
 
     async def queue_purge(self, queue_name, no_wait=False):
-        frame = amqp_frame.AmqpRequest(self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_QUEUE, amqp_constants.QUEUE_PURGE)
 
@@ -450,7 +450,7 @@ class Channel:
         assert payload, "Payload cannot be empty"
 
         method_frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         method_frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_PUBLISH)
         method_request = amqp_frame.AmqpEncoder()
@@ -461,7 +461,7 @@ class Channel:
         await self._write_frame(method_frame, method_request, drain=False)
 
         header_frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_HEADER, self.channel_id)
+            amqp_constants.TYPE_HEADER, self.channel_id)
         header_frame.declare_class(amqp_constants.CLASS_BASIC)
         header_frame.set_body_size(len(payload))
         encoder = amqp_frame.AmqpEncoder()
@@ -474,7 +474,7 @@ class Channel:
         for chunk in (payload[0+i:frame_max+i] for i in range(0, len(payload), frame_max)):
 
             content_frame = amqp_frame.AmqpRequest(
-                self.protocol._stream_writer, amqp_constants.TYPE_BODY, self.channel_id)
+                amqp_constants.TYPE_BODY, self.channel_id)
             content_frame.declare_class(amqp_constants.CLASS_BASIC)
             encoder = amqp_frame.AmqpEncoder()
             if isinstance(chunk, str):
@@ -502,7 +502,7 @@ class Channel:
                                 that the QoS settings should apply per-channel.
         """
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_QOS)
         request = amqp_frame.AmqpEncoder()
@@ -552,7 +552,7 @@ class Channel:
             arguments = {}
 
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_CONSUME)
         request = amqp_frame.AmqpEncoder()
@@ -618,7 +618,7 @@ class Channel:
 
     async def basic_cancel(self, consumer_tag, no_wait=False):
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_CANCEL)
         request = amqp_frame.AmqpEncoder()
@@ -637,7 +637,7 @@ class Channel:
 
     async def basic_get(self, queue_name='', no_ack=False):
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_GET)
         request = amqp_frame.AmqpEncoder()
@@ -673,7 +673,7 @@ class Channel:
 
     async def basic_client_ack(self, delivery_tag, multiple=False):
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_ACK)
         request = amqp_frame.AmqpEncoder()
@@ -683,7 +683,7 @@ class Channel:
 
     async def basic_client_nack(self, delivery_tag, multiple=False, requeue=True):
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_NACK)
         request = amqp_frame.AmqpEncoder()
@@ -701,7 +701,7 @@ class Channel:
 
     async def basic_reject(self, delivery_tag, requeue=False):
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_REJECT)
         request = amqp_frame.AmqpEncoder()
@@ -711,7 +711,7 @@ class Channel:
 
     async def basic_recover_async(self, requeue=True):
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_RECOVER_ASYNC)
         request = amqp_frame.AmqpEncoder()
@@ -720,7 +720,7 @@ class Channel:
 
     async def basic_recover(self, requeue=True):
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_RECOVER)
         request = amqp_frame.AmqpEncoder()
@@ -748,7 +748,7 @@ class Channel:
             fut = self._set_waiter('basic_server_ack_{}'.format(delivery_tag))
 
         method_frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         method_frame.declare_method(
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_PUBLISH)
         method_request = amqp_frame.AmqpEncoder()
@@ -759,7 +759,7 @@ class Channel:
         await self._write_frame(method_frame, method_request, drain=False)
 
         header_frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_HEADER, self.channel_id)
+            amqp_constants.TYPE_HEADER, self.channel_id)
         header_frame.declare_class(amqp_constants.CLASS_BASIC)
         header_frame.set_body_size(len(payload))
         encoder = amqp_frame.AmqpEncoder()
@@ -772,7 +772,7 @@ class Channel:
         for chunk in (payload[0+i:frame_max+i] for i in range(0, len(payload), frame_max)):
 
             content_frame = amqp_frame.AmqpRequest(
-                self.protocol._stream_writer, amqp_constants.TYPE_BODY, self.channel_id)
+                amqp_constants.TYPE_BODY, self.channel_id)
             content_frame.declare_class(amqp_constants.CLASS_BASIC)
             encoder = amqp_frame.AmqpEncoder()
             if isinstance(chunk, str):
@@ -790,7 +790,7 @@ class Channel:
         if self.publisher_confirms:
             raise ValueError('publisher confirms already enabled')
         frame = amqp_frame.AmqpRequest(
-            self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
+            amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(amqp_constants.CLASS_CONFIRM, amqp_constants.CONFIRM_SELECT)
         request = amqp_frame.AmqpEncoder()
         request.write_shortstr('')

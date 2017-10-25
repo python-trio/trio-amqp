@@ -11,38 +11,37 @@ from . import testing
 from . import testcase
 from .. import exceptions
 from .. import connect as amqp_connect
-from .. import from_url as amqp_from_url
+from .. import connect_from_url as amqp_from_url
 from ..protocol import AmqpProtocol, OPEN
 
 
-class ProtocolTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestProtocol(testcase.RabbitTestCase):
 
 
     async def test_connect(self):
-        _transport, protocol = await amqp_connect(virtualhost=self.vhost)
-        self.assertEqual(protocol.state, OPEN)
-        await protocol.close()
+        async with amqp_connect(virtualhost=self.vhost) as protocol:
+            self.assertEqual(protocol.state, OPEN)
 
     async def test_connect_products_info(self):
         client_properties = {
             'program': 'trio-amqp-tests',
             'program_version': '0.1.1',
         }
-        _transport, protocol = await amqp_connect(
+        async with amqp_connect(
             virtualhost=self.vhost,
             client_properties=client_properties,
-        )
-
-        self.assertEqual(protocol.client_properties, client_properties)
-        await protocol.close()
+        ) as protocol:
+            self.assertEqual(protocol.client_properties, client_properties)
 
     async def test_connection_unexistant_vhost(self):
         with self.assertRaises(exceptions.AmqpClosedConnection):
-            await amqp_connect(virtualhost='/unexistant')
+            async with amqp_connect(virtualhost='/unexistant') as protocol:
+                pass
 
-    def test_connection_wrong_login_password(self):
+    async def test_connection_wrong_login_password(self):
         with self.assertRaises(exceptions.AmqpClosedConnection):
-            trio.run(partial(amqp_connect,login='wrong', password='wrong'))
+            async with amqp_connect(login='wrong', password='wrong') as protocol:
+                pass
 
     async def test_connection_from_url(self):
         with mock.patch('trio_amqp.connect') as connect:
@@ -66,3 +65,4 @@ class ProtocolTestCase(testcase.RabbitTestCase, unittest.TestCase):
     async def test_from_url_raises_on_wrong_scheme(self):
         with self.assertRaises(ValueError):
             await amqp_from_url('invalid://')
+

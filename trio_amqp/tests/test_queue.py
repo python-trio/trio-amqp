@@ -11,7 +11,7 @@ from . import testing
 from .. import exceptions
 
 
-class QueueDeclareTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestQueueDeclare(testcase.RabbitTestCase):
 
     def setUp(self):
         super().setUp()
@@ -27,11 +27,11 @@ class QueueDeclareTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.consume_future = trio.Event()
         return result
 
-    async def test_queue_declare_no_name(self):
+    async def test_queue_declare_no_name(self, amqp):
         result = await self.channel.queue_declare()
         self.assertIsNotNone(result['queue'])
 
-    async def test_queue_declare(self):
+    async def test_queue_declare(self, amqp):
         queue_name = 'queue_name'
         result = await self.channel.queue_declare('queue_name')
         self.assertEqual(result['message_count'], 0)
@@ -39,7 +39,7 @@ class QueueDeclareTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertEqual(result['queue'].split('.')[-1], queue_name)
         self.assertTrue(result)
 
-    async def test_queue_declare_passive(self):
+    async def test_queue_declare_passive(self, amqp):
         queue_name = 'queue_name'
         await self.channel.queue_declare('queue_name')
         result = await self.channel.queue_declare(queue_name, passive=True)
@@ -47,14 +47,14 @@ class QueueDeclareTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertEqual(result['consumer_count'], 0)
         self.assertEqual(result['queue'].split('.')[-1], queue_name)
 
-    async def test_queue_declare_passive_nonexistant_queue(self):
+    async def test_queue_declare_passive_nonexistant_queue(self, amqp):
         queue_name = 'queue_name'
         with self.assertRaises(exceptions.ChannelClosed) as cm:
             await self.channel.queue_declare(queue_name, passive=True)
 
         self.assertEqual(cm.exception.code, 404)
 
-    async def test_wrong_parameter_queue(self):
+    async def test_wrong_parameter_queue(self, amqp):
         queue_name = 'queue_name'
         await self.channel.queue_declare(queue_name, exclusive=False, auto_delete=False)
 
@@ -64,7 +64,7 @@ class QueueDeclareTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 406)
 
-    async def test_multiple_channel_same_queue(self):
+    async def test_multiple_channel_same_queue(self, amqp):
         queue_name = 'queue_name'
 
         channel1 = await self.amqp.channel()
@@ -104,58 +104,54 @@ class QueueDeclareTestCase(testcase.RabbitTestCase, unittest.TestCase):
         # delete queue
         await self.safe_queue_delete(queue_name)
 
-    def test_durable_and_auto_deleted(self):
-        trio.run(partial(
-            self._test_queue_declare,'q', exclusive=False, durable=True, auto_delete=True))
+    async def test_durable_and_auto_deleted(self, amqp):
+        await self._test_queue_declare('q', exclusive=False, durable=True, auto_delete=True)
 
-    def test_durable_and_not_auto_deleted(self):
-        trio.run(partial(
-            self._test_queue_declare,'q', exclusive=False, durable=True, auto_delete=False))
+    async def test_durable_and_not_auto_deleted(self, amqp):
+        await self._test_queue_declare('q', exclusive=False, durable=True, auto_delete=False)
 
-    def test_not_durable_and_auto_deleted(self):
-        trio.run(partial(
-            self._test_queue_declare,'q', exclusive=False, durable=False, auto_delete=True))
+    async def test_not_durable_and_auto_deleted(self, amqp):
+        await self._test_queue_declare('q', exclusive=False, durable=False, auto_delete=True)
 
-    def test_not_durable_and_not_auto_deleted(self):
-        trio.run(partial(
-            self._test_queue_declare,'q', exclusive=False, durable=False, auto_delete=False))
+    async def test_not_durable_and_not_auto_deleted(self, amqp):
+        await self._test_queue_declare('q', exclusive=False, durable=False, auto_delete=False)
 
-    async def test_exclusive(self):
+    async def test_exclusive(self, amqp):
         # create an exclusive queue
         await self.channel.queue_declare("q", exclusive=True)
-        # consume it
+        # consume from it
         await self.channel.basic_consume(self.callback, queue_name="q", no_wait=False)
-        # create an other amqp connection
 
-        protocol = await self.create_amqp()
-        channel = await self.create_channel(amqp=protocol)
-        # assert that this connection cannot connect to the queue
-        with self.assertRaises(exceptions.ChannelClosed):
-            await channel.basic_consume(self.callback, queue_name="q", no_wait=False)
-        # amqp and channels are auto deleted by test case
+        # create another amqp connection
+        async with self.create_amqp() as protocol:
+            channel = await self.create_channel(amqp=protocol)
+            # assert that this connection cannot connect to the queue
+            with self.assertRaises(exceptions.ChannelClosed):
+                await channel.basic_consume(self.callback, queue_name="q", no_wait=False)
+            # channels are auto deleted by test case
 
-    async def test_not_exclusive(self):
+    async def test_not_exclusive(self, amqp):
         # create a non-exclusive queue
         await self.channel.queue_declare('q', exclusive=False)
         # consume it
         await self.channel.basic_consume(self.callback, queue_name='q', no_wait=False)
         # create an other amqp connection
-        protocol = await self.create_amqp()
-        channel = await self.create_channel(amqp=protocol)
-        # assert that this connection can connect to the queue
-        await channel.basic_consume(self.callback, queue_name='q', no_wait=False)
+        async with self.create_amqp() as protocol:
+            channel = await self.create_channel(amqp=protocol)
+            # assert that this connection can connect to the queue
+            await channel.basic_consume(self.callback, queue_name='q', no_wait=False)
 
 
-class QueueDeleteTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestQueueDelete(testcase.RabbitTestCase):
 
 
-    async def test_delete_queue(self):
+    async def test_delete_queue(self, amqp):
         queue_name = 'queue_name'
         await self.channel.queue_declare(queue_name)
         result = await self.channel.queue_delete(queue_name)
         self.assertTrue(result)
 
-    async def test_delete_inexistant_queue(self):
+    async def test_delete_inexistant_queue(self, amqp):
         queue_name = 'queue_name'
         if self.server_version() < (3, 3, 5):
             with self.assertRaises(exceptions.ChannelClosed) as cm:
@@ -167,10 +163,10 @@ class QueueDeleteTestCase(testcase.RabbitTestCase, unittest.TestCase):
             result = await self.channel.queue_delete(queue_name)
             self.assertTrue(result)
 
-class QueueBindTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestQueueBind(testcase.RabbitTestCase):
 
 
-    async def test_bind_queue(self):
+    async def test_bind_queue(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
 
@@ -180,7 +176,7 @@ class QueueBindTestCase(testcase.RabbitTestCase, unittest.TestCase):
         result = await self.channel.queue_bind(queue_name, exchange_name, routing_key='')
         self.assertTrue(result)
 
-    async def test_bind_unexistant_exchange(self):
+    async def test_bind_unexistant_exchange(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
 
@@ -190,7 +186,7 @@ class QueueBindTestCase(testcase.RabbitTestCase, unittest.TestCase):
             await self.channel.queue_bind(queue_name, exchange_name, routing_key='')
         self.assertEqual(cm.exception.code, 404)
 
-    async def test_bind_unexistant_queue(self):
+    async def test_bind_unexistant_queue(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
 
@@ -201,7 +197,7 @@ class QueueBindTestCase(testcase.RabbitTestCase, unittest.TestCase):
             await self.channel.queue_bind(queue_name, exchange_name, routing_key='')
         self.assertEqual(cm.exception.code, 404)
 
-    async def test_unbind_queue(self):
+    async def test_unbind_queue(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
 
@@ -214,17 +210,17 @@ class QueueBindTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertTrue(result)
 
 
-class QueuePurgeTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestQueuePurge(testcase.RabbitTestCase):
 
 
-    async def test_purge_queue(self):
+    async def test_purge_queue(self, amqp):
         queue_name = 'queue_name'
 
         await self.channel.queue_declare(queue_name)
         result = await self.channel.queue_purge(queue_name)
         self.assertEqual(result['message_count'], 0)
 
-    async def test_purge_queue_inexistant_queue(self):
+    async def test_purge_queue_inexistant_queue(self, amqp):
         queue_name = 'queue_name'
 
         with self.assertRaises(exceptions.ChannelClosed) as cm:

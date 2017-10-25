@@ -8,7 +8,7 @@ from .. import exceptions
 from ..properties import Properties
 
 
-class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestConsume(testcase.RabbitTestCase):
 
     _multiprocess_can_split_ = True
 
@@ -27,7 +27,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         return result
 
 
-    async def test_wrong_callback_argument(self):
+    async def test_wrong_callback_argument(self, amqp):
 
         def badcallback():
             pass
@@ -52,7 +52,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         with self.assertRaises(exceptions.ConfigurationError):
             await channel.basic_consume(badcallback, queue_name="q")
 
-    async def test_consume(self):
+    async def test_consume(self, amqp):
         # declare
         await self.channel.queue_declare("q", exclusive=True, no_wait=False)
         await self.channel.exchange_declare("e", "fanout")
@@ -74,7 +74,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertEqual(b"coucou", body)
         self.assertIsInstance(properties, Properties)
 
-    async def test_big_consume(self):
+    async def test_big_consume(self, amqp):
         # declare
         await self.channel.queue_declare("q", exclusive=True, no_wait=False)
         await self.channel.exchange_declare("e", "fanout")
@@ -97,7 +97,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertEqual(b"a"*1000000, body)
         self.assertIsInstance(properties, Properties)
 
-    async def test_consume_multiple_queues(self):
+    async def test_consume_multiple_queues(self, amqp):
         await self.channel.queue_declare("q1", exclusive=True, no_wait=False)
         await self.channel.queue_declare("q2", exclusive=True, no_wait=False)
         await self.channel.exchange_declare("e", "direct")
@@ -146,7 +146,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertEqual(b"coucou2", body2)
         self.assertIsInstance(properties2, Properties)
 
-    async def test_duplicate_consumer_tag(self):
+    async def test_duplicate_consumer_tag(self, amqp):
         await self.channel.queue_declare("q1", exclusive=True, no_wait=False)
         await self.channel.queue_declare("q2", exclusive=True, no_wait=False)
         await self.channel.basic_consume(self.callback, queue_name="q1", consumer_tag='tag')
@@ -156,7 +156,7 @@ class ConsumeTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 530)
 
-    async def test_consume_callaback_synced(self):
+    async def test_consume_callaback_synced(self, amqp):
         # declare
         await self.channel.queue_declare("q", exclusive=True, no_wait=False)
         await self.channel.exchange_declare("e", "fanout")

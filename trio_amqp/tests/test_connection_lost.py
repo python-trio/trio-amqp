@@ -8,18 +8,17 @@ from . import testcase
 from . import testing
 
 
-class ConnectionLostTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestConnectionLost(testcase.RabbitTestCase):
 
     _multiprocess_can_split_ = True
 
-    async def test_connection_lost(self):
+    async def test_connection_lost(self, amqp):
 
         self.callback_called = False
 
         def callback(*args, **kwargs):
             self.callback_called = True
 
-        amqp = self.amqp
         amqp._on_error_callback = callback
         channel = self.channel
         self.assertEqual(amqp.state, OPEN)

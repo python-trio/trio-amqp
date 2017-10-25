@@ -11,22 +11,22 @@ from .. import exceptions
 
 IMPLEMENT_CHANNEL_FLOW = os.environ.get('IMPLEMENT_CHANNEL_FLOW', False)
 
-class ChannelTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestChannel(testcase.RabbitTestCase):
 
     _multiprocess_can_split_ = True
 
-    async def test_open(self):
+    async def test_open(self, amqp):
         channel = await self.amqp.channel()
         self.assertNotEqual(channel.channel_id, 0)
         self.assertTrue(channel.is_open)
 
-    async def test_close(self):
+    async def test_close(self, amqp):
         channel = await self.amqp.channel()
         result = await channel.close()
         self.assertEqual(result, True)
         self.assertFalse(channel.is_open)
 
-    async def test_server_initiated_close(self):
+    async def test_server_initiated_close(self, amqp):
         channel = await self.amqp.channel()
         try:
             await channel.basic_get(queue_name='non-existant')
@@ -35,7 +35,7 @@ class ChannelTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertFalse(channel.is_open)
         channel = await self.amqp.channel()
 
-    async def test_alreadyclosed_channel(self):
+    async def test_alreadyclosed_channel(self, amqp):
         channel = await self.amqp.channel()
         result = await channel.close()
         self.assertEqual(result, True)
@@ -43,31 +43,31 @@ class ChannelTestCase(testcase.RabbitTestCase, unittest.TestCase):
         with self.assertRaises(exceptions.ChannelClosed):
             result = await channel.close()
 
-    async def test_multiple_open(self):
+    async def test_multiple_open(self, amqp):
         channel1 = await self.amqp.channel()
         channel2 = await self.amqp.channel()
         self.assertNotEqual(channel1.channel_id, channel2.channel_id)
 
-    async def test_channel_active_flow(self):
+    async def test_channel_active_flow(self, amqp):
         channel = await self.amqp.channel()
         result = await channel.flow(active=True)
         self.assertTrue(result['active'])
 
     @unittest.skipIf(IMPLEMENT_CHANNEL_FLOW is False, "active=false is not implemented in RabbitMQ")
-    async def test_channel_inactive_flow(self):
+    async def test_channel_inactive_flow(self, amqp):
         channel = await self.amqp.channel()
         result = await channel.flow(active=False)
         self.assertFalse(result['active'])
         result = await channel.flow(active=True)
 
-    async def test_channel_active_flow_twice(self):
+    async def test_channel_active_flow_twice(self, amqp):
         channel = await self.amqp.channel()
         result = await channel.flow(active=True)
         self.assertTrue(result['active'])
         result = await channel.flow(active=True)
 
     @unittest.skipIf(IMPLEMENT_CHANNEL_FLOW is False, "active=false is not implemented in RabbitMQ")
-    async def test_channel_active_inactive_flow(self):
+    async def test_channel_active_inactive_flow(self, amqp):
         channel = await self.amqp.channel()
         result = await channel.flow(active=True)
         self.assertTrue(result['active'])
@@ -75,9 +75,9 @@ class ChannelTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertFalse(result['active'])
 
 
-class ChannelIdTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestChannelId(testcase.RabbitTestCase):
 
-    async def test_channel_id_release_close(self):
+    async def test_channel_id_release_close(self, amqp):
         channels_count_start = self.amqp.channels_ids_count
         channel = await self.amqp.channel()
         self.assertEqual(self.amqp.channels_ids_count, channels_count_start + 1)

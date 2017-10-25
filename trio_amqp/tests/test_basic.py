@@ -4,7 +4,6 @@
 
 import trio
 import struct
-import unittest
 
 from . import testcase
 from . import testing
@@ -12,13 +11,13 @@ from .. import exceptions
 from .. import properties
 
 
-class QosTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestQos(testcase.RabbitTestCase):
 
-    async def test_basic_qos_default_args(self):
+    async def test_basic_qos_default_args(self, amqp):
         result = await self.channel.basic_qos()
         self.assertTrue(result)
 
-    async def test_basic_qos(self):
+    async def test_basic_qos(self, amqp):
         result = await self.channel.basic_qos(
             prefetch_size=0,
             prefetch_count=100,
@@ -26,7 +25,7 @@ class QosTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
         self.assertTrue(result)
 
-    async def test_basic_qos_prefetch_size(self):
+    async def test_basic_qos_prefetch_size(self, amqp):
         with self.assertRaises(exceptions.ChannelClosed) as cm:
             await self.channel.basic_qos(
                 prefetch_size=10,
@@ -35,7 +34,7 @@ class QosTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 540)
 
-    async def test_basic_qos_wrong_values(self):
+    async def test_basic_qos_wrong_values(self, amqp):
         with self.assertRaises(struct.error):
             await self.channel.basic_qos(
                 prefetch_size=100000,
@@ -43,9 +42,9 @@ class QosTestCase(testcase.RabbitTestCase, unittest.TestCase):
                 connection_global=False)
 
 
-class BasicCancelTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestBasicCancel(testcase.RabbitTestCase):
 
-    async def test_basic_cancel(self):
+    async def test_basic_cancel(self, amqp):
 
         async def callback(channel, body, envelope, _properties):
             pass
@@ -67,15 +66,15 @@ class BasicCancelTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertEqual(result['consumer_count'], 0)
 
 
-    async def test_basic_cancel_unknown_ctag(self):
+    async def test_basic_cancel_unknown_ctag(self, amqp):
         result = await self.channel.basic_cancel("unknown_ctag")
         self.assertTrue(result)
 
 
-class BasicGetTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestBasicGet(testcase.RabbitTestCase):
 
 
-    async def test_basic_get(self):
+    async def test_basic_get(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
         routing_key = ''
@@ -94,7 +93,7 @@ class BasicGetTestCase(testcase.RabbitTestCase, unittest.TestCase):
         self.assertEqual(result['message'], b'payload')
         self.assertIsInstance(result['properties'], properties.Properties)
 
-    async def test_basic_get_empty(self):
+    async def test_basic_get_empty(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
         routing_key = ''
@@ -106,7 +105,7 @@ class BasicGetTestCase(testcase.RabbitTestCase, unittest.TestCase):
             await self.channel.basic_get(queue_name)
 
 
-class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestBasicDelivery(testcase.RabbitTestCase):
 
 
     async def publish(self, queue_name, exchange_name, routing_key, payload):
@@ -117,7 +116,7 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
 
 
-    async def test_ack_message(self):
+    async def test_ack_message(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
         routing_key = ''
@@ -138,7 +137,7 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
         await self.channel.basic_client_ack(envelope.delivery_tag)
 
-    async def test_basic_nack(self):
+    async def test_basic_nack(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
         routing_key = ''
@@ -158,7 +157,7 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
         await self.channel.basic_consume(qcallback, queue_name=queue_name)
         await qfuture.wait()
 
-    async def test_basic_nack_norequeue(self):
+    async def test_basic_nack_norequeue(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
         routing_key = ''
@@ -176,7 +175,7 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
         await self.channel.basic_consume(qcallback, queue_name=queue_name)
         await qfuture.wait()
 
-    async def test_basic_nack_requeue(self):
+    async def test_basic_nack_requeue(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
         routing_key = ''
@@ -201,7 +200,7 @@ class BasicDeliveryTestCase(testcase.RabbitTestCase, unittest.TestCase):
         await qfuture.wait()
 
 
-    async def test_basic_reject(self):
+    async def test_basic_reject(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
         routing_key = ''

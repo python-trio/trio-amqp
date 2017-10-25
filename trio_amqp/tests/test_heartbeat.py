@@ -12,9 +12,9 @@ from . import testcase
 from . import testing
 
 
-class HeartbeatTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestHeartbeat(testcase.RabbitTestCase):
 
-    async def test_heartbeat(self):
+    async def test_heartbeat(self, amqp):
         with mock.patch.object(
                 self.amqp, 'send_heartbeat', wraps=self.amqp.send_heartbeat
                 ) as send_heartbeat:

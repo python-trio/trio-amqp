@@ -8,14 +8,14 @@ from . import testcase
 from . import testing
 
 
-class RecoverTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestRecover(testcase.RabbitTestCase):
 
-    async def test_basic_recover_async(self):
+    async def test_basic_recover_async(self, amqp):
         await self.channel.basic_recover_async(requeue=True)
 
-    async def test_basic_recover_async_no_requeue(self):
+    async def test_basic_recover_async_no_requeue(self, amqp):
         await self.channel.basic_recover_async(requeue=False)
 
-    async def test_basic_recover(self):
+    async def test_basic_recover(self, amqp):
         result = await self.channel.basic_recover(requeue=True)
         self.assertTrue(result)

@@ -12,12 +12,12 @@ from ..frame import AmqpEncoder
 from ..frame import AmqpResponse
 
 
-class EncoderTestCase(unittest.TestCase):
+class TestEncoder:
     """Test encoding of python builtin objects to AMQP frames."""
 
     _multiprocess_can_split_ = True
 
-    def setUp(self):
+    def setup(self):
         self.encoder = AmqpEncoder()
 
     def test_write_string(self):
@@ -84,7 +84,7 @@ class EncoderTestCase(unittest.TestCase):
             self.encoder.write_message_properties(properties)
 
 
-class AmqpResponseTestCase(unittest.TestCase):
+class TestAmqpResponse:
     def test_dump_dont_crash(self):
         frame = AmqpResponse(None)
         frame.frame_type = amqp_constants.TYPE_METHOD

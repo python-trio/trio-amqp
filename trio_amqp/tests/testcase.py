@@ -9,6 +9,8 @@ import logging
 import os
 import time
 import uuid
+import pytest
+from functools import wraps
 
 import pyrabbit.api
 
@@ -28,6 +30,7 @@ def use_full_name(f, arg_names):
         if arg_name not in sig.parameters:
             raise ValueError('%s is not a valid argument name for function %s' % (arg_name, f.__qualname__))
 
+    @wraps(f)
     def wrapper(self, *args, **kw):
         ba = sig.bind_partial(self, *args, **kw)
         for param in sig.parameters.values():
@@ -63,28 +66,37 @@ class ProxyChannel(Channel):
 
 
 class ProxyAmqpProtocol(AmqpProtocol):
-    def __init__(self, test_case, *args, **kw):
-        super().__init__(*args, **kw)
-        self.test_case = test_case
-
     def channel_factory(self, protocol, channel_id):
         return ProxyChannel(self.test_case, protocol, channel_id)
     CHANNEL_FACTORY = channel_factory
 
+    async def start_connection(self, *args, request=None, **kwargs):
+        assert request is not None
+        self._request = request
+        return await super().start_connection(*args, **kwargs)
+
+@pytest.fixture
+def amqp(request):
+    conn = trio_amqp_connect(
+        host = os.environ.get('AMQP_HOST', 'localhost'),
+        port = int(os.environ.get('AMQP_PORT', 5672)),
+        virtualhost = os.environ.get('AMQP_VHOST','test' + str(uuid.uuid4())),
+        request=request,
+        protocol_factory=ProxyAmqpProtocol,
+    )
+    return conn
 
 class RabbitTestCase(testing.AsyncioTestCaseMixin):
     """TestCase with a rabbit running in background"""
 
     RABBIT_TIMEOUT = 1.0
-    VHOST = 'test-trio_amqp'
 
-    def setUp(self):
-        super().setUp()
+    def setup(self):
         self.host = os.environ.get('AMQP_HOST', 'localhost')
         self.port = os.environ.get('AMQP_PORT', 5672)
-        self.vhost = os.environ.get('AMQP_VHOST', self.VHOST + str(uuid.uuid4()))
+        self.vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
         self.http_client = pyrabbit.api.Client(
-            'localhost:15672/api/', 'guest', 'guest', timeout=20
+            '%s:%s/api/' % (self.host, self.port), 'guest', 'guest', timeout=20
         )
 
         self.amqps = []
@@ -93,51 +105,47 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         self.queues = {}
         self.transports = []
 
-        self.reset_vhost()
+    async def start(self):
+        channel = await self.create_channel()
+        self.channels.append(channel)
+        pass
+        
+    async def stop(self):
+        for queue_name, channel in self.queues.values():
+            logger.debug('Delete queue %s', self.full_name(queue_name))
+            await self.safe_queue_delete(queue_name, channel)
+        for exchange_name, channel in self.exchanges.values():
+            logger.debug('Delete exchange %s', self.full_name(exchange_name))
+            await self.safe_exchange_delete(exchange_name, channel)
+        for amqp in self.amqps:
+            if amqp.state != OPEN:
+                continue
+            logger.debug('Delete amqp %s', amqp)
+            await amqp.aclose()
+            del amqp
 
-    def reset_vhost(self):
+    def teardown(self):
         try:
             self.http_client.delete_vhost(self.vhost)
         except Exception:  # pylint: disable=broad-except
             pass
 
-        self.http_client.create_vhost(self.vhost)
-        self.http_client.set_vhost_permissions(
-            vname=self.vhost, username='guest', config='.*', rd='.*', wr='.*',
-        )
-
-        async def go():
-            protocol = await self.create_amqp()
-            channel = await self.create_channel(amqp=protocol)
-            self.channels.append(channel)
-        trio.run(go)
-
-    def tearDown(self):
-        async def go():
-            for queue_name, channel in self.queues.values():
-                logger.debug('Delete queue %s', self.full_name(queue_name))
-                await self.safe_queue_delete(queue_name, channel)
-            for exchange_name, channel in self.exchanges.values():
-                logger.debug('Delete exchange %s', self.full_name(exchange_name))
-                await self.safe_exchange_delete(exchange_name, channel)
-            for amqp in self.amqps:
-                if amqp.state != OPEN:
-                    continue
-                logger.debug('Delete amqp %s', amqp)
-                await amqp.close()
-                del amqp
-        trio.run(go)
-
+    async def reset_vhost(self):
         try:
             self.http_client.delete_vhost(self.vhost)
         except Exception:  # pylint: disable=broad-except
             pass
 
-        super().tearDown()
+        try:
+            self.http_client.create_vhost(self.vhost)
+            self.http_client.set_vhost_permissions(
+                vname=self.vhost, username='guest', config='.*', rd='.*', wr='.*',
+            )
+        except Exception:  # pylint: disable=broad-except
+            pass
 
-    @property
-    def amqp(self):
-        return self.amqps[0]
+        channel = await self.amqp.create_channel(amqp=self)
+        self.channels.append(channel)
 
     @property
     def channel(self):
@@ -265,10 +273,9 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         return channel
 
     async def create_amqp(self, vhost=None):
-        def protocol_factory(*args, **kw):
-            return ProxyAmqpProtocol(self, *args, **kw)
         vhost = vhost or self.vhost
         protocol = await trio_amqp_connect(host=self.host, port=self.port, virtualhost=vhost,
-            protocol_factory=protocol_factory)
+            protocol_factory=ProxyAmqpProtocol)
         self.amqps.append(protocol)
         return protocol
+

@@ -329,7 +329,7 @@ class AmqpDecoder:
 
 
 class AmqpRequest:
-    def __init__(self, writer, frame_type, channel):
+    def __init__(self, frame_type, channel):
         self.frame_type = frame_type
         self.channel = channel
         self.class_id = None

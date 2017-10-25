@@ -33,17 +33,6 @@ def timeout(t):
     return wrapper
 
 
-def coroutine(func):
-    @wraps(func)
-    def wrapper(self):
-        handler.messages = []
-        timeout_ = getattr(func, '__timeout__', self.__timeout__)
-        trio.run(partial(func, timeout=timeout_))
-        if handler.messages:
-            raise AsyncioErrors(handler.messages)
-    return wrapper
-
-
 class AsyncioTestCaseMixin:
     __timeout__ = 10
 

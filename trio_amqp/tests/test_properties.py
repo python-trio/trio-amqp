@@ -13,7 +13,7 @@ from . import testing
 logger = logging.getLogger(__name__)
 
 
-class ReplyTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestReply(testcase.RabbitTestCase):
     async def _server(self, server_future, exchange_name, routing_key):
         """Consume messages and reply to them by publishing messages back to the client using
         routing key set to the reply_to property"""
@@ -59,7 +59,7 @@ class ReplyTestCase(testcase.RabbitTestCase, unittest.TestCase):
             {'correlation_id': correlation_id, 'reply_to': client_routing_key})
         logger.debug('Client published message')
 
-    async def test_reply_to(self):
+    async def test_reply_to(self, amqp):
         exchange_name = 'exchange_name'
         server_routing_key = 'reply_test'
 

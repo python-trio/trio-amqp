@@ -7,10 +7,9 @@ from . import testcase
 from . import testing
 
 
-class CloseTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestClose(testcase.RabbitTestCase):
 
-    async def test_close(self):
-        amqp = self.amqp
+    async def test_close(self, amqp):
         self.assertEqual(amqp.state, OPEN)
         # grab a ref here because py36 sets _stream_reader to None in
         # StreamReaderProtocol.connection_lost()
@@ -26,8 +25,7 @@ class CloseTestCase(testcase.RabbitTestCase, unittest.TestCase):
         await amqp.stop_now
         await amqp.worker
 
-    async def test_multiple_close(self):
-        amqp = self.amqp
+    async def test_multiple_close(self, amqp):
         await amqp.close()
         self.assertEqual(amqp.state, CLOSED)
         with self.assertRaises(AmqpClosedConnection):

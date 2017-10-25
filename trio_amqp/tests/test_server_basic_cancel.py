@@ -9,10 +9,10 @@ from . import testcase
 from . import testing
 
 
-class ServerBasicCancelTestCase(testcase.RabbitTestCase, unittest.TestCase):
+class TestServerBasicCancel(testcase.RabbitTestCase):
     _multiprocess_can_split_ = True
 
-    async def test_cancel_whilst_consuming(self):
+    async def test_cancel_whilst_consuming(self, amqp):
         queue_name = 'queue_name'
         await self.channel.queue_declare(queue_name)
 
