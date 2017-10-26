@@ -6,7 +6,12 @@
 class TrioAmqpException(Exception):
     pass
 
+class HeartbeatTimeoutError(TrioAmqpException):
+    """No heartbeat has been received"""
+    pass
+
 class ConfigurationError(TrioAmqpException):
+    """unused, kept for compatibility"""
     pass
 
 class AmqpClosedConnection(TrioAmqpException):
@@ -21,6 +26,7 @@ class EmptyQueue(TrioAmqpException):
 
 class NoChannelAvailable(TrioAmqpException):
     """There is no room left for more channels"""
+    pass
 
 
 class ChannelClosed(TrioAmqpException):

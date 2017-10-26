@@ -19,10 +19,6 @@ logger = logging.getLogger(__name__)
 CONNECTING, OPEN, CLOSING, CLOSED = range(4)
 
 
-class NoHeartbeatError(Exception):
-    pass
-
-
 class AmqpProtocol(trio.abc.AsyncResource):
     """The AMQP protocol for trio.
     """
@@ -374,7 +370,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
             task_status.started(scope)
 
             await trio.sleep(self.server_heartbeat * 2)
-            raise NoHeartbeatError(self)
+            self._nursery.cancel_scope.cancel()
+            raise exceptions.HeartbeatTimeoutError(self)
 
     async def _heartbeat_timer_recv_reset(self):
         if self.server_heartbeat is None:

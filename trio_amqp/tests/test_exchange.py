@@ -66,7 +66,7 @@ class TestExchangeDeclare(testcase.RabbitTestCase):
                 'non_existant_exchange',
                 type_name='headers',
                 auto_delete=False, durable=False, passive=True)
-        assert cm.exception.code == 404
+        assert cm.value.code == 404
 
     async def test_exchange_declare_unknown_type(self, amqp):
         with pytest.raises(exceptions.ChannelClosed):
@@ -88,7 +88,7 @@ class TestExchangeDelete(testcase.RabbitTestCase):
                 exchange_name, type_name='direct', passive=True
             )
 
-        assert cm.exception.code == 404
+        assert cm.value.code == 404
 
 
     async def test_double_delete(self, amqp):
@@ -100,7 +100,7 @@ class TestExchangeDelete(testcase.RabbitTestCase):
             with pytest.raises(exceptions.ChannelClosed) as cm:
                 await self.channel.exchange_delete(exchange_name)
 
-            assert cm.exception.code == 404
+            assert cm.value.code == 404
 
         else:
             # weird result from rabbitmq 3.3.5
@@ -123,7 +123,7 @@ class TestExchangeBind(testcase.RabbitTestCase):
             await self.channel.exchange_bind(
                 'exchange_destination', 'exchange_source', routing_key='')
 
-        assert cm.exception.code == 404
+        assert cm.value.code == 404
 
 
 class TestExchangeUnbind(testcase.RabbitTestCase):
@@ -155,7 +155,7 @@ class TestExchangeUnbind(testcase.RabbitTestCase):
                 result = await self.channel.exchange_unbind(
                     ex_source, ex_destination, routing_key='')
 
-            assert cm.exception.code == 404
+            assert cm.value.code == 404
 
         else:
             # weird result from rabbitmq 3.3.5
