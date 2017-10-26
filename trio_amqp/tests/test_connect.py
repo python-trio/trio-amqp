@@ -12,8 +12,8 @@ from . import testing, testcase
 class TestAmqpConnection(testcase.RabbitTestCase):
 
     async def test_connect(self):
-        self.assertEqual(amqp.state, OPEN)
-        self.assertIsNotNone(amqp.server_properties)
+        assert amqp.state == OPEN
+        assert amqp.server_properties is not None
 
     async def test_connect_tuning(self):
         # frame_max should be higher than 131072

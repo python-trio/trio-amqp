@@ -15,7 +15,7 @@ class TestQos(testcase.RabbitTestCase):
 
     async def test_basic_qos_default_args(self, amqp):
         result = await self.channel.basic_qos()
-        self.assertTrue(result)
+        assert result
 
     async def test_basic_qos(self, amqp):
         result = await self.channel.basic_qos(
@@ -23,19 +23,19 @@ class TestQos(testcase.RabbitTestCase):
             prefetch_count=100,
             connection_global=False)
 
-        self.assertTrue(result)
+        assert result
 
     async def test_basic_qos_prefetch_size(self, amqp):
-        with self.assertRaises(exceptions.ChannelClosed) as cm:
+        with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.basic_qos(
                 prefetch_size=10,
                 prefetch_count=100,
                 connection_global=False)
 
-        self.assertEqual(cm.exception.code, 540)
+        assert cm.exception.code == 540
 
     async def test_basic_qos_wrong_values(self, amqp):
-        with self.assertRaises(struct.error):
+        with pytest.raises(struct.error):
             await self.channel.basic_qos(
                 prefetch_size=100000,
                 prefetch_count=1000000000,
@@ -62,13 +62,13 @@ class TestBasicCancel(testcase.RabbitTestCase):
         await trio.sleep(5)
 
         result = await self.channel.queue_declare(queue_name, passive=True)
-        self.assertEqual(result['message_count'], 1)
-        self.assertEqual(result['consumer_count'], 0)
+        assert result['message_count'] == 1
+        assert result['consumer_count'] == 0
 
 
     async def test_basic_cancel_unknown_ctag(self, amqp):
         result = await self.channel.basic_cancel("unknown_ctag")
-        self.assertTrue(result)
+        assert result
 
 
 class TestBasicGet(testcase.RabbitTestCase):
@@ -86,12 +86,12 @@ class TestBasicGet(testcase.RabbitTestCase):
         await self.channel.publish("payload", exchange_name, routing_key=routing_key)
 
         result = await self.channel.basic_get(queue_name)
-        self.assertEqual(result['routing_key'], routing_key)
-        self.assertFalse(result['redelivered'])
-        self.assertIn('delivery_tag', result)
-        self.assertEqual(result['exchange_name'].split('.')[-1], exchange_name)
-        self.assertEqual(result['message'], b'payload')
-        self.assertIsInstance(result['properties'], properties.Properties)
+        assert result['routing_key'] == routing_key
+        assert not result['redelivered']
+        assert 'delivery_tag' in result
+        assert result['exchange_name'].split('.')[-1] == exchange_name
+        assert result['message'] == b'payload'
+        assert isinstance(result['properties'], properties.Properties)
 
     async def test_basic_get_empty(self, amqp):
         queue_name = 'queue_name'
@@ -101,7 +101,7 @@ class TestBasicGet(testcase.RabbitTestCase):
         await self.channel.exchange_declare(exchange_name, type_name='direct')
         await self.channel.queue_bind(queue_name, exchange_name, routing_key=routing_key)
 
-        with self.assertRaises(exceptions.EmptyQueue):
+        with pytest.raises(exceptions.EmptyQueue):
             await self.channel.basic_get(queue_name)
 
 

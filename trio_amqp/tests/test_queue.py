@@ -29,40 +29,40 @@ class TestQueueDeclare(testcase.RabbitTestCase):
 
     async def test_queue_declare_no_name(self, amqp):
         result = await self.channel.queue_declare()
-        self.assertIsNotNone(result['queue'])
+        assert result['queue'] is not None
 
     async def test_queue_declare(self, amqp):
         queue_name = 'queue_name'
         result = await self.channel.queue_declare('queue_name')
-        self.assertEqual(result['message_count'], 0)
-        self.assertEqual(result['consumer_count'], 0)
-        self.assertEqual(result['queue'].split('.')[-1], queue_name)
-        self.assertTrue(result)
+        assert result['message_count'] == 0
+        assert result['consumer_count'] == 0
+        assert result['queue'].split('.')[-1] == queue_name
+        assert result
 
     async def test_queue_declare_passive(self, amqp):
         queue_name = 'queue_name'
         await self.channel.queue_declare('queue_name')
         result = await self.channel.queue_declare(queue_name, passive=True)
-        self.assertEqual(result['message_count'], 0)
-        self.assertEqual(result['consumer_count'], 0)
-        self.assertEqual(result['queue'].split('.')[-1], queue_name)
+        assert result['message_count'] == 0
+        assert result['consumer_count'] == 0
+        assert result['queue'].split('.')[-1] == queue_name
 
     async def test_queue_declare_passive_nonexistant_queue(self, amqp):
         queue_name = 'queue_name'
-        with self.assertRaises(exceptions.ChannelClosed) as cm:
+        with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.queue_declare(queue_name, passive=True)
 
-        self.assertEqual(cm.exception.code, 404)
+        assert cm.exception.code == 404
 
     async def test_wrong_parameter_queue(self, amqp):
         queue_name = 'queue_name'
         await self.channel.queue_declare(queue_name, exclusive=False, auto_delete=False)
 
-        with self.assertRaises(exceptions.ChannelClosed) as cm:
+        with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.queue_declare(queue_name,
                 passive=False, exclusive=True, auto_delete=True)
 
-        self.assertEqual(cm.exception.code, 406)
+        assert cm.exception.code == 406
 
     async def test_multiple_channel_same_queue(self, amqp):
         queue_name = 'queue_name'
@@ -71,14 +71,14 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         channel2 = await self.amqp.channel()
 
         result = await channel1.queue_declare(queue_name, passive=False)
-        self.assertEqual(result['message_count'], 0)
-        self.assertEqual(result['consumer_count'], 0)
-        self.assertEqual(result['queue'].split('.')[-1], queue_name)
+        assert result['message_count'] == 0
+        assert result['consumer_count'] == 0
+        assert result['queue'].split('.')[-1] == queue_name
 
         result = await channel2.queue_declare(queue_name, passive=False)
-        self.assertEqual(result['message_count'], 0)
-        self.assertEqual(result['consumer_count'], 0)
-        self.assertEqual(result['queue'].split('.')[-1], queue_name)
+        assert result['message_count'] == 0
+        assert result['consumer_count'] == 0
+        assert result['queue'].split('.')[-1] == queue_name
 
     async def _test_queue_declare(self, queue_name, exclusive=False, durable=False, auto_delete=False):
         # declare queue
@@ -89,17 +89,17 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         # assert returned results has the good arguments
         # in test the channel declared queues with prefixed names, to get the full name of the
         # declared queue we have to use self.full_name function
-        self.assertEqual(self.full_name(queue_name), result['queue'])
+        assert self.full_name(queue_name) == result['queue']
 
         queues = self.list_queues()
         queue = queues[queue_name]
 
         # assert queue has been declared witht the good arguments
-        self.assertEqual(queue_name, queue['name'])
-        self.assertEqual(0, queue['consumers'])
-        self.assertEqual(0, queue['messages_ready'])
-        self.assertEqual(auto_delete, queue['auto_delete'])
-        self.assertEqual(durable, queue['durable'])
+        assert queue_name == queue['name']
+        assert 0 == queue['consumers']
+        assert 0 == queue['messages_ready']
+        assert auto_delete == queue['auto_delete']
+        assert durable == queue['durable']
 
         # delete queue
         await self.safe_queue_delete(queue_name)
@@ -126,7 +126,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         async with self.create_amqp() as protocol:
             channel = await self.create_channel(amqp=protocol)
             # assert that this connection cannot connect to the queue
-            with self.assertRaises(exceptions.ChannelClosed):
+            with pytest.raises(exceptions.ChannelClosed):
                 await channel.basic_consume(self.callback, queue_name="q", no_wait=False)
             # channels are auto deleted by test case
 
@@ -149,19 +149,19 @@ class TestQueueDelete(testcase.RabbitTestCase):
         queue_name = 'queue_name'
         await self.channel.queue_declare(queue_name)
         result = await self.channel.queue_delete(queue_name)
-        self.assertTrue(result)
+        assert result
 
     async def test_delete_inexistant_queue(self, amqp):
         queue_name = 'queue_name'
         if self.server_version() < (3, 3, 5):
-            with self.assertRaises(exceptions.ChannelClosed) as cm:
+            with pytest.raises(exceptions.ChannelClosed) as cm:
                 result = await self.channel.queue_delete(queue_name)
 
-            self.assertEqual(cm.exception.code, 404)
+            assert cm.exception.code == 404
 
         else:
             result = await self.channel.queue_delete(queue_name)
-            self.assertTrue(result)
+            assert result
 
 class TestQueueBind(testcase.RabbitTestCase):
 
@@ -174,7 +174,7 @@ class TestQueueBind(testcase.RabbitTestCase):
         await self.channel.exchange_declare(exchange_name, type_name='direct')
 
         result = await self.channel.queue_bind(queue_name, exchange_name, routing_key='')
-        self.assertTrue(result)
+        assert result
 
     async def test_bind_unexistant_exchange(self, amqp):
         queue_name = 'queue_name'
@@ -182,9 +182,9 @@ class TestQueueBind(testcase.RabbitTestCase):
 
 
         await self.channel.queue_declare(queue_name)
-        with self.assertRaises(exceptions.ChannelClosed) as cm:
+        with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.queue_bind(queue_name, exchange_name, routing_key='')
-        self.assertEqual(cm.exception.code, 404)
+        assert cm.exception.code == 404
 
     async def test_bind_unexistant_queue(self, amqp):
         queue_name = 'queue_name'
@@ -193,9 +193,9 @@ class TestQueueBind(testcase.RabbitTestCase):
 
         await self.channel.exchange_declare(exchange_name, type_name='direct')
 
-        with self.assertRaises(exceptions.ChannelClosed) as cm:
+        with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.queue_bind(queue_name, exchange_name, routing_key='')
-        self.assertEqual(cm.exception.code, 404)
+        assert cm.exception.code == 404
 
     async def test_unbind_queue(self, amqp):
         queue_name = 'queue_name'
@@ -207,7 +207,7 @@ class TestQueueBind(testcase.RabbitTestCase):
         await self.channel.queue_bind(queue_name, exchange_name, routing_key='')
 
         result = await self.channel.queue_unbind(queue_name, exchange_name, routing_key='')
-        self.assertTrue(result)
+        assert result
 
 
 class TestQueuePurge(testcase.RabbitTestCase):
@@ -218,11 +218,11 @@ class TestQueuePurge(testcase.RabbitTestCase):
 
         await self.channel.queue_declare(queue_name)
         result = await self.channel.queue_purge(queue_name)
-        self.assertEqual(result['message_count'], 0)
+        assert result['message_count'] == 0
 
     async def test_purge_queue_inexistant_queue(self, amqp):
         queue_name = 'queue_name'
 
-        with self.assertRaises(exceptions.ChannelClosed) as cm:
+        with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.queue_purge(queue_name)
-        self.assertEqual(cm.exception.code, 404)
+        assert cm.exception.code == 404

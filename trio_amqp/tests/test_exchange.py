@@ -16,30 +16,30 @@ class TestExchangeDeclare(testcase.RabbitTestCase):
     async def test_exchange_direct_declare(self, amqp):
         result = await self.channel.exchange_declare(
             'exchange_name', type_name='direct')
-        self.assertTrue(result)
+        assert result
 
     async def test_exchange_fanout_declare(self, amqp):
         result = await self.channel.exchange_declare(
             'exchange_name', type_name='fanout')
-        self.assertTrue(result)
+        assert result
 
     async def test_exchange_topic_declare(self, amqp):
         result = await self.channel.exchange_declare(
             'exchange_name', type_name='topic')
-        self.assertTrue(result)
+        assert result
 
     async def test_exchange_headers_declare(self, amqp):
         result = await self.channel.exchange_declare(
             'exchange_name', type_name='headers')
-        self.assertTrue(result)
+        assert result
 
     async def test_exchange_declare_wrong_types(self, amqp):
         result = await self.channel.exchange_declare(
             'exchange_name', type_name='headers',
             auto_delete=True, durable=True)
-        self.assertTrue(result)
+        assert result
 
-        with self.assertRaises(exceptions.ChannelClosed):
+        with pytest.raises(exceptions.ChannelClosed):
             result = await self.channel.exchange_declare(
                 'exchange_name', type_name='fanout',
                 auto_delete=False, durable=False)
@@ -48,28 +48,28 @@ class TestExchangeDeclare(testcase.RabbitTestCase):
         result = await self.channel.exchange_declare(
             'exchange_name', type_name='headers',
             auto_delete=True, durable=True)
-        self.assertTrue(result)
+        assert result
         result = await self.channel.exchange_declare(
             'exchange_name', type_name='headers',
             auto_delete=True, durable=True, passive=True)
-        self.assertTrue(result)
+        assert result
 
         result = await self.channel.exchange_declare(
             'exchange_name', type_name='headers',
             auto_delete=False, durable=False, passive=True)
-        self.assertTrue(result)
+        assert result
 
 
     async def test_exchange_declare_passive_does_not_exists(self, amqp):
-        with self.assertRaises(exceptions.ChannelClosed) as cm:
+        with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.exchange_declare(
                 'non_existant_exchange',
                 type_name='headers',
                 auto_delete=False, durable=False, passive=True)
-        self.assertEqual(cm.exception.code, 404)
+        assert cm.exception.code == 404
 
     async def test_exchange_declare_unknown_type(self, amqp):
-        with self.assertRaises(exceptions.ChannelClosed):
+        with pytest.raises(exceptions.ChannelClosed):
             await self.channel.exchange_declare(
                 'non_existant_exchange',
                 type_name='unknown_type',
@@ -82,30 +82,30 @@ class TestExchangeDelete(testcase.RabbitTestCase):
         exchange_name = 'exchange_name'
         await self.channel.exchange_declare(exchange_name, type_name='direct')
         result = await self.channel.exchange_delete(exchange_name)
-        self.assertTrue(result)
-        with self.assertRaises(exceptions.ChannelClosed) as cm:
+        assert result
+        with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.exchange_declare(
                 exchange_name, type_name='direct', passive=True
             )
 
-        self.assertEqual(cm.exception.code, 404)
+        assert cm.exception.code == 404
 
 
     async def test_double_delete(self, amqp):
         exchange_name = 'exchange_name'
         await self.channel.exchange_declare(exchange_name, type_name='direct')
         result = await self.channel.exchange_delete(exchange_name)
-        self.assertTrue(result)
+        assert result
         if self.server_version() < (3, 3, 5):
-            with self.assertRaises(exceptions.ChannelClosed) as cm:
+            with pytest.raises(exceptions.ChannelClosed) as cm:
                 await self.channel.exchange_delete(exchange_name)
 
-            self.assertEqual(cm.exception.code, 404)
+            assert cm.exception.code == 404
 
         else:
             # weird result from rabbitmq 3.3.5
             result = await self.channel.exchange_delete(exchange_name)
-            self.assertTrue(result)
+            assert result
 
 class TestExchangeBind(testcase.RabbitTestCase):
 
@@ -116,14 +116,14 @@ class TestExchangeBind(testcase.RabbitTestCase):
         result = await self.channel.exchange_bind(
             'exchange_destination', 'exchange_source', routing_key='')
 
-        self.assertTrue(result)
+        assert result
 
     async def test_inexistant_exchange_bind(self, amqp):
-        with self.assertRaises(exceptions.ChannelClosed) as cm:
+        with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.exchange_bind(
                 'exchange_destination', 'exchange_source', routing_key='')
 
-        self.assertEqual(cm.exception.code, 404)
+        assert cm.exception.code == 404
 
 
 class TestExchangeUnbind(testcase.RabbitTestCase):
@@ -151,13 +151,13 @@ class TestExchangeUnbind(testcase.RabbitTestCase):
             ex_destination, ex_source, routing_key='')
 
         if self.server_version() < (3, 3, 5):
-            with self.assertRaises(exceptions.ChannelClosed) as cm:
+            with pytest.raises(exceptions.ChannelClosed) as cm:
                 result = await self.channel.exchange_unbind(
                     ex_source, ex_destination, routing_key='')
 
-            self.assertEqual(cm.exception.code, 404)
+            assert cm.exception.code == 404
 
         else:
             # weird result from rabbitmq 3.3.5
             result = await self.channel.exchange_unbind(ex_source, ex_destination, routing_key='')
-            self.assertTrue(result)
+            assert result

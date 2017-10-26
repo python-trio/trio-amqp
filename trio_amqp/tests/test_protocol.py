@@ -20,7 +20,7 @@ class TestProtocol(testcase.RabbitTestCase):
 
     async def test_connect(self):
         async with amqp_connect(virtualhost=self.vhost) as protocol:
-            self.assertEqual(protocol.state, OPEN)
+            assert protocol.state == OPEN
 
     async def test_connect_products_info(self):
         client_properties = {
@@ -31,15 +31,15 @@ class TestProtocol(testcase.RabbitTestCase):
             virtualhost=self.vhost,
             client_properties=client_properties,
         ) as protocol:
-            self.assertEqual(protocol.client_properties, client_properties)
+            assert protocol.client_properties == client_properties
 
     async def test_connection_unexistant_vhost(self):
-        with self.assertRaises(exceptions.AmqpClosedConnection):
+        with pytest.raises(exceptions.AmqpClosedConnection):
             async with amqp_connect(virtualhost='/unexistant') as protocol:
                 pass
 
     async def test_connection_wrong_login_password(self):
-        with self.assertRaises(exceptions.AmqpClosedConnection):
+        with pytest.raises(exceptions.AmqpClosedConnection):
             async with amqp_connect(login='wrong', password='wrong') as protocol:
                 pass
 
@@ -63,6 +63,6 @@ class TestProtocol(testcase.RabbitTestCase):
             )
 
     async def test_from_url_raises_on_wrong_scheme(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             await amqp_from_url('invalid://')
 

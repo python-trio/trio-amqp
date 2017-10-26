@@ -76,14 +76,14 @@ class TestReply(testcase.RabbitTestCase):
         logger.debug('Waiting for server to receive message')
         await server_future.wait()
         server_body, server_envelope, server_properties = server_future.test_result
-        self.assertEqual(server_body, b'client message')
-        self.assertEqual(server_properties.correlation_id, correlation_id)
-        self.assertEqual(server_properties.reply_to, client_routing_key)
-        self.assertEqual(server_envelope.routing_key, server_routing_key)
+        assert server_body == b'client message'
+        assert server_properties.correlation_id == correlation_id
+        assert server_properties.reply_to == client_routing_key
+        assert server_envelope.routing_key == server_routing_key
 
         logger.debug('Waiting for client to receive message')
         await client_future.wait()
         client_body, client_envelope, client_properties = client_future.test_tesult
-        self.assertEqual(client_body, b'reply message')
-        self.assertEqual(client_properties.correlation_id, correlation_id)
-        self.assertEqual(client_envelope.routing_key, client_routing_key)
+        assert client_body == b'reply message'
+        assert client_properties.correlation_id == correlation_id
+        assert client_envelope.routing_key == client_routing_key

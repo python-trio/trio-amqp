@@ -44,12 +44,12 @@ class TestConsume(testcase.RabbitTestCase):
 
         # assert there is a message to consume
         queues = self.list_queues()
-        self.assertIn("q", queues)
-        self.assertEqual(1, queues["q"]['messages'])
+        assert "q" in queues
+        assert 1 == queues["q"]['messages']
 
         await trio.sleep(2)
         # start consume
-        with self.assertRaises(exceptions.ConfigurationError):
+        with pytest.raises(exceptions.ConfigurationError):
             await channel.basic_consume(badcallback, queue_name="q")
 
     async def test_consume(self, amqp):
@@ -69,10 +69,10 @@ class TestConsume(testcase.RabbitTestCase):
 
         # get one
         body, envelope, properties = await self.get_callback_result()
-        self.assertIsNotNone(envelope.consumer_tag)
-        self.assertIsNotNone(envelope.delivery_tag)
-        self.assertEqual(b"coucou", body)
-        self.assertIsInstance(properties, Properties)
+        assert envelope.consumer_tag is not None
+        assert envelope.delivery_tag is not None
+        assert b"coucou" == body
+        assert isinstance(properties, Properties)
 
     async def test_big_consume(self, amqp):
         # declare
@@ -92,10 +92,10 @@ class TestConsume(testcase.RabbitTestCase):
 
         # get one
         body, envelope, properties = await self.get_callback_result()
-        self.assertIsNotNone(envelope.consumer_tag)
-        self.assertIsNotNone(envelope.delivery_tag)
-        self.assertEqual(b"a"*1000000, body)
-        self.assertIsInstance(properties, Properties)
+        assert envelope.consumer_tag is not None
+        assert envelope.delivery_tag is not None
+        assert b"a"*1000000 == body
+        assert isinstance(properties, Properties)
 
     async def test_consume_multiple_queues(self, amqp):
         await self.channel.queue_declare("q1", exclusive=True, no_wait=False)
@@ -131,10 +131,10 @@ class TestConsume(testcase.RabbitTestCase):
         # get it
         await q1_future.wait()
         body1, envelope1, properties1 = self.q1_result
-        self.assertEqual(ctag_q1, envelope1.consumer_tag)
-        self.assertIsNotNone(envelope1.delivery_tag)
-        self.assertEqual(b"coucou1", body1)
-        self.assertIsInstance(properties1, Properties)
+        assert ctag_q1 == envelope1.consumer_tag
+        assert envelope1.delivery_tag is not None
+        assert b"coucou1" == body1
+        assert isinstance(properties1, Properties)
 
         # put message in q2
         await channel.publish("coucou2", "e", "q2")
@@ -142,19 +142,19 @@ class TestConsume(testcase.RabbitTestCase):
         # get it
         await q2_future.wait()
         body2, envelope2, properties2 = self.q2_result
-        self.assertEqual(ctag_q2, envelope2.consumer_tag)
-        self.assertEqual(b"coucou2", body2)
-        self.assertIsInstance(properties2, Properties)
+        assert ctag_q2 == envelope2.consumer_tag
+        assert b"coucou2" == body2
+        assert isinstance(properties2, Properties)
 
     async def test_duplicate_consumer_tag(self, amqp):
         await self.channel.queue_declare("q1", exclusive=True, no_wait=False)
         await self.channel.queue_declare("q2", exclusive=True, no_wait=False)
         await self.channel.basic_consume(self.callback, queue_name="q1", consumer_tag='tag')
 
-        with self.assertRaises(exceptions.ChannelClosed) as cm:
+        with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.basic_consume(self.callback, queue_name="q2", consumer_tag='tag')
 
-        self.assertEqual(cm.exception.code, 530)
+        assert cm.exception.code == 530
 
     async def test_consume_callaback_synced(self, amqp):
         # declare
@@ -171,7 +171,7 @@ class TestConsume(testcase.RabbitTestCase):
         sync_future = trio.Event()
 
         async def callback(channel, body, envelope, properties):
-            self.assertTrue(sync_future.done())
+            assert sync_future.done()
 
         await channel.basic_consume(callback, queue_name="q")
         sync_future.set()

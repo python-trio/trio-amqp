@@ -28,4 +28,4 @@ class TestHeartbeat(testcase.RabbitTestCase):
             send_heartbeat.assert_called_once_with()
 
             await trio.sleep(1.001)
-            self.assertEqual(self.amqp.state, CLOSED)
+            assert self.amqp.state == CLOSED

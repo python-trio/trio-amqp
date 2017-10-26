@@ -18,4 +18,4 @@ class TestRecover(testcase.RabbitTestCase):
 
     async def test_basic_recover(self, amqp):
         result = await self.channel.basic_recover(requeue=True)
-        self.assertTrue(result)
+        assert result
