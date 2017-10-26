@@ -75,7 +75,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         self._nursery = None
         self._write_lock = trio.Lock()
 
-    def connection_lost(self, exc):
+    def connection_lost(self, exc=None):
         if self.state == CLOSED:
             return
         if exc:
@@ -155,7 +155,6 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 await self.wait_closed()
         except BaseException as exc:
             self.connection_lost(exc)
-            import pdb;pdb.set_trace()
             await self._nursery_mgr.__aexit__(type(exc),exc,exc.__traceback__)
         else:
             self.connection_lost()

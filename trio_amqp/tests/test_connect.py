@@ -36,9 +36,9 @@ class TestAmqpConnection(testcase.RabbitTestCase):
                 'heartbeat': heartbeat
             }
 
-            assert proto.server_channel_max = channel_max
-            assert proto.server_frame_max = frame_max
-            assert proto.server_heartbeat = heartbeat
+            assert proto.server_channel_max == channel_max
+            assert proto.server_frame_max == frame_max
+            assert proto.server_heartbeat == heartbeat
         assert proto.state == CLOSED, proto.state
 
     async def test_socket_nodelay(self):

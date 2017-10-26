@@ -45,7 +45,7 @@ class ProxyChannel(Channel):
     def __init__(self, test_case, *args, **kw):
         super().__init__(*args, **kw)
         self.test_case = test_case
-        self.test_case.register_channel(self)
+        self.test_case().register_channel(self)
 
     exchange_declare = use_full_name(Channel.exchange_declare, ['exchange_name'])
     exchange_delete = use_full_name(Channel.exchange_delete, ['exchange_name'])
@@ -62,7 +62,10 @@ class ProxyChannel(Channel):
     basic_consume = use_full_name(Channel.basic_consume, ['queue_name'])
 
     def full_name(self, name):
-        return self.test_case.full_name(name)
+        tc = self.test_case()
+        if tc is None:
+            return name
+        return tc.full_name(name)
 
 
 class ProxyAmqpProtocol(AmqpProtocol):
@@ -70,18 +73,16 @@ class ProxyAmqpProtocol(AmqpProtocol):
         return ProxyChannel(self.test_case, protocol, channel_id)
     CHANNEL_FACTORY = channel_factory
 
-    async def start_connection(self, *args, request=None, **kwargs):
-        assert request is not None
-        self._request = request
+    async def start_connection(self, *args, test_case=None, **kwargs):
+        self.test_case = test_case
         return await super().start_connection(*args, **kwargs)
 
 @pytest.fixture
-def amqp(request):
+def amqp():
     conn = trio_amqp_connect(
         host = os.environ.get('AMQP_HOST', 'localhost'),
         port = int(os.environ.get('AMQP_PORT', 5672)),
         virtualhost = os.environ.get('AMQP_VHOST','test' + str(uuid.uuid4())),
-        request=request,
         protocol_factory=ProxyAmqpProtocol,
     )
     return conn
@@ -144,7 +145,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         except Exception:  # pylint: disable=broad-except
             pass
 
-        channel = await self.amqp.create_channel(amqp=self)
+        channel = await self.create_channel()
         self.channels.append(channel)
 
     @property
@@ -229,15 +230,15 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
     def full_name(self, name):
         if self.is_full_name(name):
             return name
-        return self.id() + '.' + name
+        return repr(self) + '.' + name
 
     def local_name(self, name):
         if self.is_full_name(name):
-            return name[len(self.id()) + 1:]  # +1 because of the '.'
+            return name[len(repr(self)) + 1:]  # +1 because of the '.'
         return name
 
     def is_full_name(self, name):
-        return name.startswith(self.id())
+        return name.startswith(repr(self))
 
     async def queue_declare(self, queue_name, *args, channel=None, safe_delete_before=True, **kw):
         channel = channel or self.channel

@@ -4,6 +4,7 @@
 
 import trio
 import struct
+import pytest
 
 from . import testcase
 from . import testing

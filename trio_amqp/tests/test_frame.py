@@ -73,7 +73,7 @@ class TestEncoder:
             'priority': 0,
         }
         self.encoder.write_message_properties(properties)
-        assertEqual self.encoder.payload.getvalue() == \
+        assert self.encoder.payload.getvalue() == \
                          b'\x18\x00\x02\x00'
 
     def test_write_message_properties_raises_on_invalid_property_name(self):

@@ -3,6 +3,7 @@ import inspect
 import trio
 from .testcase import amqp # side effect (fixture)
 from functools import wraps,partial
+from weakref import ref
 
 class Runner:
 	def __init__(self, proc):
@@ -17,6 +18,7 @@ class Runner:
 				kwargs['amqp'] = conn
 				obj = self.proc.__self__
 				obj.amqp = conn
+				conn.test_case = ref(obj)
 				try:
 					await obj.reset_vhost()
 					return await self.proc(*args, **kwargs)
