@@ -94,7 +94,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
 
     def setup(self):
         self.host = os.environ.get('AMQP_HOST', 'localhost')
-        self.port = os.environ.get('AMQP_PORT', 5672)
+        self.port = int(os.environ.get('AMQP_PORT', 5672))
         self.vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
         self.http_client = pyrabbit.api.Client(
             '%s:%s/' % (self.host, 10000+self.port), 'guest', 'guest', timeout=20
@@ -186,9 +186,11 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         if not self.check_queue_exists(queue_name):
             self.fail("Queue {} does not exists".format(queue_name))
 
-    def list_queues(self, vhost=None, fully_qualified_name=False):
+    def list_queues(self, vhost=None, fully_qualified_name=False, delay=None):
         # wait for the http client to get the correct state of the queue
-        time.sleep(int(os.environ.get('AMQP_REFRESH_TIME', 2)))
+        if delay is None:
+            delay = int(os.environ.get('AMQP_REFRESH_TIME', 1.1))
+        time.sleep(delay)
         queues_list = self.http_client.get_queues(vhost=vhost or self.vhost)
         queues = {}
         for queue_info in queues_list:
@@ -199,6 +201,27 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
 
             queues[queue_name] = queue_info
         return queues
+
+    async def check_messages(self, queue_name, num_msg):
+        for x in range(10):
+            try:
+                queues = self.list_queues()
+                assert queue_name in queues
+                q = queues[queue_name]
+                try:
+                    q['messages_ready_ram'] == 1
+                except (KeyError,AssertionError):
+                    try:
+                        assert q['messages'] == 1
+                    except (KeyError,AssertionError):
+                        assert q['message_stats']['publish'] == 1
+            except (KeyError,AssertionError) as exc:
+                ex = exc
+            else:
+                break
+            await trio.sleep(0.5)
+        else:
+            raise ex
 
     async def safe_queue_delete(self, queue_name, channel=None):
         """Delete the queue but does not raise any exception if it fails

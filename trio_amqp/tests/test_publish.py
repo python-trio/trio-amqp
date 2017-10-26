@@ -17,9 +17,7 @@ class TestPublish(testcase.RabbitTestCase):
         # publish
         await self.channel.publish("coucou", "e", routing_key='')
 
-        queues = self.list_queues()
-        assert "q" in queues
-        assert 1 == queues["q"]['messages']
+        await self.check_messages("q", 1)
 
     async def test_big_publish(self, amqp):
         # declare
@@ -30,9 +28,7 @@ class TestPublish(testcase.RabbitTestCase):
         # publish
         await self.channel.publish("a"*1000000, "e", routing_key='')
 
-        queues = self.list_queues()
-        assert "q" in queues
-        assert 1 == queues["q"]['messages']
+        await self.check_messages("q", 1)
 
     async def test_confirmed_publish(self, amqp):
         # declare
@@ -45,6 +41,4 @@ class TestPublish(testcase.RabbitTestCase):
         # publish
         await self.channel.publish("coucou", "e", routing_key='')
 
-        queues = self.list_queues()
-        assert "q" in queues
-        assert 1 == queues["q"]['messages']
+        await self.check_messages("q", 1)

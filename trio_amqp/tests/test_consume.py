@@ -43,9 +43,7 @@ class TestConsume(testcase.RabbitTestCase):
         await channel.publish("coucou", "e", routing_key='',)
 
         # assert there is a message to consume
-        queues = self.list_queues()
-        assert "q" in queues
-        assert 1 == queues["q"]['messages']
+        await self.check_messages("q",1)
 
         # start consume
         with pytest.raises(exceptions.ConfigurationError):
