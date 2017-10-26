@@ -60,6 +60,7 @@ class TestBasicCancel(testcase.RabbitTestCase):
 
         result = await self.channel.publish("payload", exchange_name, routing_key='')
 
+        await trio.sleep(1)
         result = await self.channel.queue_declare(queue_name, passive=True)
         assert result['message_count'] == 1
         assert result['consumer_count'] == 0

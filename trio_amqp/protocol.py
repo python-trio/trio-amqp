@@ -64,6 +64,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         self.channels_ids_free = set()
         self._drain_lock = trio.Lock()
         self._nursery = None
+        self._nursery_mgr = None
         self._write_lock = trio.Lock()
 
     def connection_lost(self, exc=None):
@@ -77,7 +78,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
         self.state = CLOSED
         self._close_channels(exception=exc)
         self._stop_heartbeat()
-        self._nursery.cancel_scope.cancel()
+        if self._nursery is not None:
+            self._nursery.cancel_scope.cancel()
 
     async def ensure_open(self):
         # Raise a suitable exception if the connection isn't open.
@@ -150,14 +152,15 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
         except BaseException as exc:
             self.connection_lost(exc)
-            await self._nursery_mgr.__aexit__(type(exc),exc,exc.__traceback__)
+            if self._nursery_mgr is not None:
+                await self._nursery_mgr.__aexit__(type(exc),exc,exc.__traceback__)
         else:
             self.connection_lost()
-            await self._nursery_mgr.__aexit__(None,None,None)
+            if self._nursery_mgr is not None:
+                await self._nursery_mgr.__aexit__(None,None,None)
         finally:
             self._nursery = None
             self._nursery_mgr = None
-            await self._stream.aclose()
 
     async def wait_closed(self):
         await self.connection_closed.wait()
@@ -349,8 +352,9 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
                 self._close_channels(exception=exc)
                 break
-            except Exception:  # pylint: disable=broad-except
-                logger.exception('error on dispatch')
+            except Exception as exc:  # pylint: disable=broad-except
+                self._nursery.cancel_scope.cancel()
+                raise
 
     async def send_heartbeat(self):
         """Sends an heartbeat message.
@@ -459,7 +463,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
             amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK)
         request = amqp_frame.AmqpEncoder()
         await self._write_frame(frame, request)
-        self._nursery.cancel_scope.cancel()
+        if self._nursery is not None:
+            self._nursery.cancel_scope.cancel()
 
     async def tune(self, frame):
         decoder = amqp_frame.AmqpDecoder(frame.payload)

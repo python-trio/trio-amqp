@@ -1,10 +1,12 @@
 
 import trio
 import pytest
+from trio_amqp import connect
 
 from . import testcase
 from . import testing
 from .. import exceptions
+
 from ..properties import Properties
 
 
@@ -13,41 +15,49 @@ class TestConsume(testcase.RabbitTestCase):
     _multiprocess_can_split_ = True
 
 
-    def setUp(self):
-        super().setUp()
+    def setup(self):
+        super().setup()
         self.consume_future = trio.Event()
 
     async def callback(self, channel, body, envelope, properties):
-        self.consume_future.set_result((body, envelope, properties))
+        self.consume_result = (body, envelope, properties)
+        self.consume_future.set()
 
     async def get_callback_result(self):
-        await self.consume_future
-        result = self.consume_future.result()
+        await self.consume_future.wait()
+        result = self.consume_result
         self.consume_future = trio.Event()
         return result
 
 
-    async def test_wrong_callback_argument(self, amqp):
+    async def test_wrong_callback_argument(self):
 
         def badcallback():
             pass
 
-        await self.channel.queue_declare("q", exclusive=True, no_wait=False)
-        await self.channel.exchange_declare("e", "fanout")
-        await self.channel.queue_bind("q", "e", routing_key='')
+        self.reset_vhost()
+        amqp = await connect(
+            virtualhost=self.vhost,
+        )
+        with pytest.raises(TypeError):
+            async with amqp:
+                await self.initial_channel(amqp)
+                await self.channel.queue_declare("q", exclusive=True, no_wait=False)
+                await self.channel.exchange_declare("e", "fanout")
+                await self.channel.queue_bind("q", "e", routing_key='')
 
-        # get a different channel
-        channel = await self.create_channel()
+                # get a different channel
+                channel = await self.create_channel()
 
-        # publish
-        await channel.publish("coucou", "e", routing_key='',)
+                # publish
+                await channel.publish("coucou", "e", routing_key='',)
 
-        # assert there is a message to consume
-        await self.check_messages("q",1)
+                # assert there is a message to consume
+                await self.check_messages("q",1)
 
-        # start consume
-        with pytest.raises(exceptions.ConfigurationError):
-            await channel.basic_consume(badcallback, queue_name="q")
+                # start consume
+                await channel.basic_consume(badcallback, queue_name="q")
+                await trio.sleep(1)
 
     async def test_consume(self, amqp):
         # declare
@@ -168,7 +178,7 @@ class TestConsume(testcase.RabbitTestCase):
         sync_future = trio.Event()
 
         async def callback(channel, body, envelope, properties):
-            assert sync_future.done()
+            assert sync_future.is_set()
 
         await channel.basic_consume(callback, queue_name="q")
         sync_future.set()
