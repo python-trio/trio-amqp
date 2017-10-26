@@ -3,7 +3,7 @@
 """
 
 import trio
-import unittest
+import pytest
 import logging
 
 from . import testcase

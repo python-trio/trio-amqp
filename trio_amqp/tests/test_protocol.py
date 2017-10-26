@@ -3,8 +3,8 @@
 """
 
 import trio
-import unittest
-from unittest import mock
+import pytest
+import mock
 from functools import partial
 
 from . import testing

@@ -3,7 +3,7 @@
 """
 
 import io
-import unittest
+import pytest
 import sys
 
 from .. import constants as amqp_constants

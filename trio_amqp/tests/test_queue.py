@@ -3,7 +3,7 @@
 """
 
 import trio
-import unittest
+import pytest
 from functools import partial
 
 from . import testcase

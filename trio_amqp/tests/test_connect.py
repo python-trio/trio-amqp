@@ -1,6 +1,5 @@
 """Connection tests"""
 
-import unittest
 import socket
 
 from trio_amqp import connect
@@ -11,12 +10,13 @@ from . import testing, testcase
 
 class TestAmqpConnection(testcase.RabbitTestCase):
 
-    async def test_connect(self):
+    async def test_connect(self, amqp):
         assert amqp.state == OPEN
         assert amqp.server_properties is not None
 
     async def test_connect_tuning(self):
         # frame_max should be higher than 131072
+        self.reset_vhost()
         frame_max = 131072
         channel_max = 10
         heartbeat = 100
@@ -42,8 +42,9 @@ class TestAmqpConnection(testcase.RabbitTestCase):
         assert proto.state == CLOSED, proto.state
 
     async def test_socket_nodelay(self):
+        self.reset_vhost()
         proto = await connect(virtualhost=self.vhost)
-        with proto:
-            sock = proto._socket.socket
+        async with proto:
+            sock = proto._stream.socket
             opt_val = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
             assert opt_val == 1, opt_val

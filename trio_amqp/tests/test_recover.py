@@ -2,7 +2,7 @@
     Amqp basic tests for recover methods
 """
 
-import unittest
+import pytest
 
 from . import testcase
 from . import testing

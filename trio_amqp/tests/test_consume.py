@@ -1,6 +1,6 @@
 
 import trio
-import unittest
+import pytest
 
 from . import testcase
 from . import testing
@@ -47,7 +47,6 @@ class TestConsume(testcase.RabbitTestCase):
         assert "q" in queues
         assert 1 == queues["q"]['messages']
 
-        await trio.sleep(2)
         # start consume
         with pytest.raises(exceptions.ConfigurationError):
             await channel.basic_consume(badcallback, queue_name="q")

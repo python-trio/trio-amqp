@@ -3,7 +3,7 @@
 """
 
 import os
-import unittest
+import pytest
 
 from . import testcase
 from . import testing
@@ -31,7 +31,7 @@ class TestChannel(testcase.RabbitTestCase):
         try:
             await channel.basic_get(queue_name='non-existant')
         except exceptions.ChannelClosed as e:
-            assert e.code != 404
+            assert e.code == 404
         assert not channel.is_open
         channel = await self.amqp.channel()
 
@@ -53,7 +53,7 @@ class TestChannel(testcase.RabbitTestCase):
         result = await channel.flow(active=True)
         assert result['active']
 
-    @unittest.skipIf(IMPLEMENT_CHANNEL_FLOW is False, "active=false is not implemented in RabbitMQ")
+    @pytest.mark.skipif(IMPLEMENT_CHANNEL_FLOW is False, reason="active=false is not implemented in RabbitMQ")
     async def test_channel_inactive_flow(self, amqp):
         channel = await self.amqp.channel()
         result = await channel.flow(active=False)
@@ -66,7 +66,7 @@ class TestChannel(testcase.RabbitTestCase):
         assert result['active']
         result = await channel.flow(active=True)
 
-    @unittest.skipIf(IMPLEMENT_CHANNEL_FLOW is False, "active=false is not implemented in RabbitMQ")
+    @pytest.mark.skipif(IMPLEMENT_CHANNEL_FLOW is False, reason="active=false is not implemented in RabbitMQ")
     async def test_channel_active_inactive_flow(self, amqp):
         channel = await self.amqp.channel()
         result = await channel.flow(active=True)

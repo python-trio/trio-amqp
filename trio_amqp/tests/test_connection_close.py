@@ -1,4 +1,4 @@
-import unittest
+import pytest
 
 from trio_amqp.protocol import OPEN, CLOSED
 from trio_amqp.exceptions import AmqpClosedConnection
@@ -13,20 +13,18 @@ class TestClose(testcase.RabbitTestCase):
         assert amqp.state == OPEN
         # grab a ref here because py36 sets _stream_reader to None in
         # StreamReaderProtocol.connection_lost()
-        transport = amqp._stream_reader._transport
-        await amqp.close()
+        sock = amqp._stream.socket
+        await amqp.aclose()
         assert amqp.state == CLOSED
-        if hasattr(transport, 'is_closing'):
-            assert transport.is_closing()
-        else:
-            # TODO: remove with python <3.4.4 support
-            assert transport._closing
+        assert sock.fileno() == -1
         # make sure those 2 tasks/futures are properly set as finished
-        await amqp.stop_now
-        await amqp.worker
+        assert amqp.connection_closed.is_set()
+        assert amqp._heartbeat_timer_recv is None
+        assert amqp._heartbeat_timer_send is None
 
     async def test_multiple_close(self, amqp):
-        await amqp.close()
+        # aclose is supposed to be idempotent
+        await amqp.aclose()
         assert amqp.state == CLOSED
-        with pytest.raises(AmqpClosedConnection):
-            await amqp.close()
+        await amqp.aclose()
+        assert amqp.state == CLOSED

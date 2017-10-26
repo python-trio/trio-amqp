@@ -14,13 +14,14 @@ class Runner:
 		amqp = kwargs.get('amqp',None)
 		if amqp is not None:
 			amqp = await amqp
+			obj = self.proc.__self__
+			obj.reset_vhost()
 			async with amqp as conn:
 				kwargs['amqp'] = conn
-				obj = self.proc.__self__
 				obj.amqp = conn
 				conn.test_case = ref(obj)
 				try:
-					await obj.reset_vhost()
+					await obj.initial_channel()
 					return await self.proc(*args, **kwargs)
 				finally:
 					del obj.amqp

@@ -45,15 +45,6 @@ class AmqpProtocol(trio.abc.AsyncResource):
             client_properties: dict, client-props to tune the client identification
         """
 
-        self.client_properties = kwargs.get('client_properties', {})
-        self.connection_tunning = {}
-        if 'channel_max' in kwargs:
-            self.connection_tunning['channel_max'] = kwargs.get('channel_max')
-        if 'frame_max' in kwargs:
-            self.connection_tunning['frame_max'] = kwargs.get('frame_max')
-        if 'heartbeat' in kwargs:
-            self.connection_tunning['heartbeat'] = kwargs.get('heartbeat')
-
         self.connecting = trio.Event()
         self.connection_closed = trio.Event()
         self.state = CONNECTING
@@ -149,10 +140,14 @@ class AmqpProtocol(trio.abc.AsyncResource):
             encoder.write_shortstr('')
             encoder.write_short(0)
             encoder.write_short(0)
-            await self._write_frame(frame, encoder)
-            self._stop_heartbeat()
-            if not no_wait:
-                await self.wait_closed()
+            try:
+                await self._write_frame(frame, encoder)
+            except trio.ClosedStreamError:
+                pass
+            else:
+                if not no_wait:
+                    await self.wait_closed()
+
         except BaseException as exc:
             self.connection_lost(exc)
             await self._nursery_mgr.__aexit__(type(exc),exc,exc.__traceback__)
@@ -174,10 +169,20 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
     @trio.hazmat.enable_ki_protection
     async def start_connection(self, stream, login, password, virtualhost, ssl=False,
+            channel_max=None, frame_max=None, heartbeat=None, client_properties=None,
             login_method='AMQPLAIN', insist=False):
         """Initiate a connection at the protocol level
             We send `PROTOCOL_HEADER'
         """
+        self.client_properties = client_properties or {}
+        self.connection_tunning = {}
+        if channel_max is not None:
+            self.connection_tunning['channel_max'] = channel_max
+        if frame_max is not None:
+            self.connection_tunning['frame_max'] = frame_max
+        if heartbeat is not None:
+            self.connection_tunning['heartbeat'] = heartbeat
+
         if login_method != 'AMQPLAIN':
             # TODO
             logger.warning('only AMQPLAIN login_method is supported, falling back to AMQPLAIN')
@@ -192,6 +197,12 @@ class AmqpProtocol(trio.abc.AsyncResource):
             'PASSWORD': password,
         }
         return self
+
+    def __enter__(self):
+        raise TypeError("You need to use an async context")
+
+    def __exit__(self, a,b,c):
+        raise TypeError("You need to use an async context")
 
     async def __aenter__(self):
         self._nursery_mgr = trio.open_nursery()
@@ -248,7 +259,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
             if self.state != OPEN:
                 raise exceptions.AmqpClosedConnection()
         except BaseException as exc:
-            await self.aclose()
+            await self.aclose(no_wait=True)
             raise
 
         # read other server's responses asynchronously

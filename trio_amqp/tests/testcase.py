@@ -97,7 +97,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         self.port = os.environ.get('AMQP_PORT', 5672)
         self.vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
         self.http_client = pyrabbit.api.Client(
-            '%s:%s/api/' % (self.host, self.port), 'guest', 'guest', timeout=20
+            '%s:%s/' % (self.host, 10000+self.port), 'guest', 'guest', timeout=20
         )
 
         self.amqps = []
@@ -128,10 +128,10 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
     def teardown(self):
         try:
             self.http_client.delete_vhost(self.vhost)
-        except Exception:  # pylint: disable=broad-except
+        except Exception as exc:  # pylint: disable=broad-except
             pass
 
-    async def reset_vhost(self):
+    def reset_vhost(self):
         try:
             self.http_client.delete_vhost(self.vhost)
         except Exception:  # pylint: disable=broad-except
@@ -145,6 +145,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         except Exception:  # pylint: disable=broad-except
             pass
 
+    async def initial_channel(self):
         channel = await self.create_channel()
         self.channels.append(channel)
 
@@ -187,7 +188,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
 
     def list_queues(self, vhost=None, fully_qualified_name=False):
         # wait for the http client to get the correct state of the queue
-        time.sleep(int(os.environ.get('AMQP_REFRESH_TIME', 6)))
+        time.sleep(int(os.environ.get('AMQP_REFRESH_TIME', 2)))
         queues_list = self.http_client.get_queues(vhost=vhost or self.vhost)
         queues = {}
         for queue_info in queues_list:
