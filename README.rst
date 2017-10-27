@@ -1,6 +1,9 @@
 trio-amqp
 =========
 
+.. image:: https://travis-ci.org/python-trio/trio-amqp.svg?branch=master
+    :target: https://travis-ci.org/python-trio/trio-amqp
+
 The ``trio-amqp`` library is a pure-Python implementation of the `AMQP 0.9.1 protocol`_.
 
 Built on top of Trio_, it provides an API based on coroutines, making it easy to write highly concurrent applications.
