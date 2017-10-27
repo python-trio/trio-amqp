@@ -7,6 +7,15 @@ Built on top of Trio_, it provides an API based on coroutines, making it easy to
 
 Bug reports, patches and suggestions welcome! Just open an issue_ or send a `pull request`_.
 
+Status
+------
+
+The code works. Porting code that uses aioamqp (or even plain
+python-amqp) should be reasonably straightforward.
+
+All tests from aioamqp have been ported and succeed.
+
+
 tests
 -----
 
@@ -20,6 +29,15 @@ Tests require an instance of RabbitMQ. You can start a new instance using docker
 
 Then you can run the tests with ``make test`` (requires ``pytest``).
 
+
+Future work
+-----------
+
+* Support message reception using async loops instead of callbacks.
+
+* Add coverage reporting. Increase coverage (duh).
+
+* Try restarting a failed AMQP connection instead of cancelling everything.
 
 .. _AMQP 0.9.1 protocol: https://www.rabbitmq.com/amqp-0-9-1-quickref.html
 .. _Trio: https://github.com/python-trio/trio
