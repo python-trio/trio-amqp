@@ -10,7 +10,7 @@ Trio-amqp is a library to connect to an amqp broker. It uses trio under the hood
 Limitations
 ===========
 
-For the moment, trio-amqp is tested against Rabbitmq.
+For the moment, trio-amqp is only tested against RabbitMQ.
 
 Contents:
 

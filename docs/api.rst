@@ -2,7 +2,7 @@ API
 ===
 
 .. module:: trio_amqp
-    :synopsis: public Jinja2 API
+    :synopsis: public trio_amqp API
 
 
 Basics
@@ -17,9 +17,10 @@ There are two principal objects when using trio_amqp:
 Starting a connection
 ---------------------
 
-.. py:function:: connect(host, port, login, password, virtualhost, ssl, login_method, insist, protocol_factory, verify_ssl, kwargs) -> Transport, AmqpProtocol
+.. py:function:: connect(host, port, login, password, virtualhost, ssl, login_method, insist, verify_ssl, …) -> AmqpProtocol
 
-   Convenient method to connect to an AMQP broker
+   Convenience method to set up a connection to an AMQP broker. It is an
+   alias for the AmqpProtocol_ class.
 
    :param str host:          the host to connect to
    :param int port:          broker port
@@ -31,9 +32,20 @@ Starting a connection
    :param str login_method:  AMQP auth method
    :param bool insist:       insist on connecting to a server
    :param AmqpProtocol protocol_factory: factory to use, if you need to subclass AmqpProtocol
+   :param int channel_max: specifies highest channel number that the server permits.
+                      Usable channel numbers are in the range 1..channel-max.
+                      Zero indicates no specified limit.
+   :param int frame_max: the largest frame size that the server proposes for the connection,
+                    including frame header and end-byte. The client can negotiate a lower value.
+                    Zero means that the server does not impose any specific limit
+                    but may reject very large frames if it cannot allocate resources for them.
+   :param int heartbeat: the delay, in seconds, of the connection heartbeat that the server wants.
+                    Zero means the server does not want a heartbeat.
+   :param dict client_properties: configure the client to connect to the AMQP server.
 
-   :param dict kwargs:       arguments to be given to the protocol_factory instance
+   The actual connection will then be etsablished by an async context manager.
 
+.. _AmqpProtocol: :
 
 .. code::
 
@@ -58,16 +70,6 @@ The `AmqpProtocol` uses the `kwargs` arguments to configure the connection to th
 
    The protocol to communicate with AMQP
 
-   :param int channel_max: specifies highest channel number that the server permits.
-                      Usable channel numbers are in the range 1..channel-max.
-                      Zero indicates no specified limit.
-   :param int frame_max: the largest frame size that the server proposes for the connection,
-                    including frame header and end-byte. The client can negotiate a lower value.
-                    Zero means that the server does not impose any specific limit
-                    but may reject very large frames if it cannot allocate resources for them.
-   :param int heartbeat: the delay, in seconds, of the connection heartbeat that the server wants.
-                    Zero means the server does not want a heartbeat.
-   :param dict client_properties: configure the client to connect to the AMQP server.
 
 Handling errors
 ---------------

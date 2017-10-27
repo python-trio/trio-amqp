@@ -12,7 +12,6 @@ class Runner:
 	async def resolve(self, args, kwargs):
 		amqp = kwargs.get('amqp',None)
 		if amqp is not None:
-			amqp = await amqp
 			obj = self.proc.__self__
 			amqp.test_case = obj
 			obj.reset_vhost()

@@ -18,30 +18,28 @@ async def callback(channel, body, envelope, properties):
 
 async def receive_log():
     try:
-        protocol = await trio_amqp.connect('localhost', 5672)
+        async with trio_amqp.connect() as protocol:
+
+            channel = await protocol.channel()
+            exchange_name = 'logs'
+
+            await channel.exchange(exchange_name=exchange_name, type_name='fanout')
+
+            # let RabbitMQ generate a random queue name
+            result = await channel.queue(queue_name='', exclusive=True)
+
+            queue_name = result['queue']
+            await channel.queue_bind(exchange_name=exchange_name, queue_name=queue_name, routing_key='')
+
+            print(' [*] Waiting for logs. To exit press CTRL+C')
+
+            await channel.basic_consume(callback, queue_name=queue_name, no_ack=True)
+
+            await trio.sleep_forever()
+
     except trio_amqp.AmqpClosedConnection:
         print("closed connections")
         return
 
-
-    channel = await protocol.channel()
-    exchange_name = 'logs'
-
-    await channel.exchange(exchange_name=exchange_name, type_name='fanout')
-
-    # let RabbitMQ generate a random queue name
-    result = await channel.queue(queue_name='', exclusive=True)
-
-    queue_name = result['queue']
-    await channel.queue_bind(exchange_name=exchange_name, queue_name=queue_name, routing_key='')
-
-    print(' [*] Waiting for logs. To exit press CTRL+C')
-
-    await channel.basic_consume(callback, queue_name=queue_name, no_ack=True)
-
-    try:
-        await trio.sleep_forever()
-    finally:
-        await protocol.aclose()
 
 trio.run(receive_log)

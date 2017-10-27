@@ -16,7 +16,7 @@ from . import testing
 class TestHeartbeat(testcase.RabbitTestCase):
 
     async def test_heartbeat(self):
-        amqp = await connect(
+        amqp = connect(
             virtualhost=self.vhost,
         )
         self.reset_vhost()

@@ -13,22 +13,21 @@ import sys
 
 async def exchange_routing_topic():
     try:
-        protocol = await trio_amqp.connect('localhost', 5672)
+        async with trio_amqp.connect() as protocol:
+
+            channel = await protocol.channel()
+            exchange_name = 'topic_logs'
+            message = ' '.join(sys.argv[2:]) or 'Hello World!'
+            routing_key = sys.argv[1] if len(sys.argv) > 1 else 'anonymous.info'
+
+            await channel.exchange(exchange_name, 'topic')
+
+            await channel.publish(message, exchange_name=exchange_name, routing_key=routing_key)
+            print(" [x] Sent %r" % message)
+
     except trio_amqp.AmqpClosedConnection:
         print("closed connections")
         return
-
-    channel = await protocol.channel()
-    exchange_name = 'topic_logs'
-    message = ' '.join(sys.argv[2:]) or 'Hello World!'
-    routing_key = sys.argv[1] if len(sys.argv) > 1 else 'anonymous.info'
-
-    await channel.exchange(exchange_name, 'topic')
-
-    await channel.publish(message, exchange_name=exchange_name, routing_key=routing_key)
-    print(" [x] Sent %r" % message)
-
-    await protocol.aclose()
 
 
 trio.run(exchange_routing_topic)

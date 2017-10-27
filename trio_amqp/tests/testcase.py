@@ -74,18 +74,16 @@ class ProxyAmqpProtocol(AmqpProtocol):
         return ProxyChannel(self.test_case, protocol, channel_id)
     CHANNEL_FACTORY = channel_factory
 
-    async def start_connection(self, *args, test_case=None, **kwargs):
-        if test_case is not None:
-            self.test_case = test_case
-        return await super().start_connection(*args, **kwargs)
+    def __init__(self, *args, test_case=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.test_case = test_case
 
 @pytest.fixture
 def amqp():
-    conn = trio_amqp_connect(
+    conn = ProxyAmqpProtocol(
         host = os.environ.get('AMQP_HOST', 'localhost'),
         port = int(os.environ.get('AMQP_PORT', 5672)),
         virtualhost = os.environ.get('AMQP_VHOST','test' + str(uuid.uuid4())),
-        protocol_factory=ProxyAmqpProtocol,
     )
     return conn
 
@@ -299,10 +297,10 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         channel = await amqp.channel()
         return channel
 
-    async def create_amqp(self, vhost=None):
+    def create_amqp(self, vhost=None):
         vhost = vhost or self.vhost
-        protocol = await trio_amqp_connect(host=self.host, port=self.port, virtualhost=vhost,
-            protocol_factory=ProxyAmqpProtocol, test_case=self)
+        protocol = ProxyAmqpProtocol(host=self.host, port=self.port, virtualhost=vhost,
+            test_case=self)
         self.amqps.append(protocol)
         return protocol
 

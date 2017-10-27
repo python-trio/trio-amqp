@@ -18,37 +18,36 @@ async def callback(channel, body, envelope, properties):
 
 async def receive_log():
     try:
-        protocol = await trio_amqp.connect('localhost', 5672)
+        async with trio_amqp.connect() as protocol:
+
+            channel = await protocol.channel()
+            exchange_name = 'direct_logs'
+
+            await channel.exchange(exchange_name, 'direct')
+
+            result = await channel.queue(queue_name='', durable=False, auto_delete=True)
+
+            queue_name = result['queue']
+
+            severities = sys.argv[1:]
+            if not severities:
+                print("Usage: %s [info] [warning] [error]" % (sys.argv[0],))
+                sys.exit(1)
+
+            for severity in severities:
+                await channel.queue_bind(
+                    exchange_name='direct_logs',
+                    queue_name=queue_name,
+                    routing_key=severity,
+                )
+
+            print(' [*] Waiting for logs. To exit press CTRL+C')
+
+            with trio.fail_after(10):
+                await channel.basic_consume(callback, queue_name=queue_name)
+
     except trio_amqp.AmqpClosedConnection:
         print("closed connections")
         return
-
-    channel = await protocol.channel()
-    exchange_name = 'direct_logs'
-
-    await channel.exchange(exchange_name, 'direct')
-
-    result = await channel.queue(queue_name='', durable=False, auto_delete=True)
-
-    queue_name = result['queue']
-
-    severities = sys.argv[1:]
-    if not severities:
-        print("Usage: %s [info] [warning] [error]" % (sys.argv[0],))
-        sys.exit(1)
-
-    for severity in severities:
-        await channel.queue_bind(
-            exchange_name='direct_logs',
-            queue_name=queue_name,
-            routing_key=severity,
-        )
-
-    print(' [*] Waiting for logs. To exit press CTRL+C')
-
-    with trio.fail_after(10):
-        await channel.basic_consume(callback, queue_name=queue_name)
-
-    await protocol.aclose()
 
 trio.run(receive_log)

@@ -4,13 +4,14 @@
 
 import trio
 import logging
+import socket
+import ssl
 
 from . import channel as amqp_channel
 from . import constants as amqp_constants
 from . import frame as amqp_frame
 from . import exceptions
 from . import version
-from . import acontextmanager, async_generator, yield_
 
 
 logger = logging.getLogger(__name__)
@@ -25,43 +26,62 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
     CHANNEL_FACTORY = amqp_channel.Channel
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, host='localhost', port=None,
+            ssl=False, verify_ssl=True,
+            login='guest', password='guest', virtualhost='/',
+            channel_max=None, frame_max=None, heartbeat=None, client_properties=None,
+            login_method='AMQPLAIN', insist=False):
         """Defines our new protocol instance
 
         Args:
-            channel_max: int, specifies highest channel number that the server permits.
-                              Usable channel numbers are in the range 1..channel-max.
-                              Zero indicates no specified limit.
-            frame_max: int, the largest frame size that the server proposes for the connection,
+    
+            @host:          the host to connect to
+            @port:          broker port
+            @login:         login
+            @password:      password
+            @virtualhost:   AMQP virtualhost to use for this connection
+            @ssl:           the SSL context to use
+            @login_method:  AMQP auth method
+            @insist:        Insist on connecting to a server
+
+            @kwargs:        Arguments to be given to the protocol_factory instance
+
+            @channel_max:   specifies highest channel number that the server permits.
+                            Usable channel numbers are in the range 1..channel-max.
+                            Zero indicates no specified limit.
+            @frame_max:     the largest frame size that the server proposes for the connection,
                             including frame header and end-byte. The client can negotiate a lower value.
                             Zero means that the server does not impose any specific limit
                             but may reject very large frames if it cannot allocate resources for them.
-            heartbeat: int, the delay, in seconds, of the connection heartbeat that the server wants.
+            @heartbeat:     the delay, in seconds, of the connection heartbeat that the server wants.
                             Zero means the server does not want a heartbeat.
             client_properties: dict, client-props to tune the client identification
         """
 
-        self.connecting = trio.Event()
-        self.connection_closed = trio.Event()
-        self.state = CONNECTING
-        self.version_major = None
-        self.version_minor = None
-        self.server_properties = None
-        self.server_mechanisms = None
-        self.server_locales = None
-        self.server_heartbeat = None
-        self._heartbeat_timer_recv = None
-        self._heartbeat_timer_send = None
-        self._heartbeat_trigger_send = trio.Event()
-        self.channels = {}
-        self.server_frame_max = None
-        self.server_channel_max = None
-        self.channels_ids_ceil = 0
-        self.channels_ids_free = set()
-        self._drain_lock = trio.Lock()
-        self._nursery = None
-        self._nursery_mgr = None
-        self._write_lock = trio.Lock()
+        self.client_properties = client_properties or {}
+        self.connection_tunning = {}
+        if channel_max is not None:
+            self.connection_tunning['channel_max'] = channel_max
+        if frame_max is not None:
+            self.connection_tunning['frame_max'] = frame_max
+        if heartbeat is not None:
+            self.connection_tunning['heartbeat'] = heartbeat
+
+        if login_method != 'AMQPLAIN':
+            # TODO
+            logger.warning('only AMQPLAIN login_method is supported, falling back to AMQPLAIN')
+
+        self._host = host
+        self._port = port
+        self._ssl = ssl
+        self._virtualhost = virtualhost
+        #self._ssl = ssl
+        self._login_method=login_method
+        self._insist = insist
+        self._auth = {
+            'LOGIN': login,
+            'PASSWORD': password,
+        }
 
     def connection_lost(self, exc=None):
         if self.state == CLOSED:
@@ -168,37 +188,6 @@ class AmqpProtocol(trio.abc.AsyncResource):
         await self._stream.aclose()
         self.connection_lost()
 
-    @trio.hazmat.enable_ki_protection
-    async def start_connection(self, stream, login, password, virtualhost, ssl=False,
-            channel_max=None, frame_max=None, heartbeat=None, client_properties=None,
-            login_method='AMQPLAIN', insist=False):
-        """Initiate a connection at the protocol level
-            We send `PROTOCOL_HEADER'
-        """
-        self.client_properties = client_properties or {}
-        self.connection_tunning = {}
-        if channel_max is not None:
-            self.connection_tunning['channel_max'] = channel_max
-        if frame_max is not None:
-            self.connection_tunning['frame_max'] = frame_max
-        if heartbeat is not None:
-            self.connection_tunning['heartbeat'] = heartbeat
-
-        if login_method != 'AMQPLAIN':
-            # TODO
-            logger.warning('only AMQPLAIN login_method is supported, falling back to AMQPLAIN')
-
-        self._stream = stream
-        self._virtualhost = virtualhost
-        #self._ssl = ssl
-        self._login_method=login_method
-        self._insist = insist
-        self._auth = {
-            'LOGIN': login,
-            'PASSWORD': password,
-        }
-        return self
-
     def __enter__(self):
         raise TypeError("You need to use an async context")
 
@@ -206,6 +195,54 @@ class AmqpProtocol(trio.abc.AsyncResource):
         raise TypeError("You need to use an async context")
 
     async def __aenter__(self):
+        self.connecting = trio.Event()
+        self.connection_closed = trio.Event()
+        self.state = CONNECTING
+        self.version_major = None
+        self.version_minor = None
+        self.server_properties = None
+        self.server_mechanisms = None
+        self.server_locales = None
+        self.server_heartbeat = None
+        self._heartbeat_timer_recv = None
+        self._heartbeat_timer_send = None
+        self._heartbeat_trigger_send = trio.Event()
+        self.channels = {}
+        self.server_frame_max = None
+        self.server_channel_max = None
+        self.channels_ids_ceil = 0
+        self.channels_ids_free = set()
+        self._drain_lock = trio.Lock()
+        self._write_lock = trio.Lock()
+
+        if self._ssl:
+            ssl_context = ssl.create_default_context()
+            if not verify_ssl:
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+
+        port = self._port
+        if port is None:
+            if self._ssl:
+                port = 5671
+            else:
+                port = 5672
+
+        if self._ssl:
+            stream = trio.open_ssl_over_tcp_stream(self._host, port, ssl_context=ssl_context)
+            sock = stream.transport_stream
+        else:
+            sock = stream = await trio.open_tcp_stream(self._host, port)
+
+        # these 2 flags *may* show up in sock.type. They are only available on linux
+        # see https://bugs.python.org/issue21327
+        nonblock = getattr(sock, 'SOCK_NONBLOCK', 0)
+        cloexec = getattr(sock, 'SOCK_CLOEXEC', 0)
+        if sock is not None and (sock.socket.type & ~nonblock & ~cloexec) == socket.SOCK_STREAM:
+            sock.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+        self._stream = stream
+
         self._nursery_mgr = trio.open_nursery()
         self._nursery = await self._nursery_mgr.__aenter__()
         try:

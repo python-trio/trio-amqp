@@ -9,20 +9,18 @@ import trio_amqp
 
 
 async def send():
-    protocol = await trio_amqp.connect()
-    channel = await protocol.channel()
+    async with trio_amqp.connect() as protocol:
+        channel = await protocol.channel()
 
-    await channel.queue_declare(queue_name='hello')
+        await channel.queue_declare(queue_name='hello')
 
-    await channel.basic_publish(
-        payload='Hello World!',
-        exchange_name='',
-        routing_key='hello'
-    )
+        await channel.basic_publish(
+            payload='Hello World!',
+            exchange_name='',
+            routing_key='hello'
+        )
 
-    print(" [x] Sent 'Hello World!'")
-    await protocol.aclose()
-
+        print(" [x] Sent 'Hello World!'")
 
 
 trio.run(send)

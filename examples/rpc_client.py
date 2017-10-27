@@ -20,7 +20,6 @@ class FibonacciRpcClient(object):
 
     async def connect(self):
         """ an `__init__` method can't be a coroutine"""
-        self.protocol = await trio_amqp.connect()
         self.channel = await self.protocol.channel()
 
         result = await self.channel.queue_declare(queue_name='', exclusive=True)
@@ -39,23 +38,24 @@ class FibonacciRpcClient(object):
         self.waiter.set()
 
     async def call(self, n):
-        if not self.protocol:
+        async with trio_amqp.connect() as protocol:
+            self.protocol = protocol
             await self.connect()
-        self.response = None
-        self.corr_id = str(uuid.uuid4())
-        await self.channel.basic_publish(
-            payload=str(n),
-            exchange_name='',
-            routing_key='rpc_queue',
-            properties={
-                'reply_to': self.callback_queue,
-                'correlation_id': self.corr_id,
-            },
-        )
-        await self.waiter.wait()
 
-        await self.protocol.aclose()
-        return int(self.response)
+            self.response = None
+            self.corr_id = str(uuid.uuid4())
+            await self.channel.basic_publish(
+                payload=str(n),
+                exchange_name='',
+                routing_key='rpc_queue',
+                properties={
+                    'reply_to': self.callback_queue,
+                    'correlation_id': self.corr_id,
+                },
+            )
+            await self.waiter.wait()
+
+            return int(self.response)
 
 
 async def rpc_client():

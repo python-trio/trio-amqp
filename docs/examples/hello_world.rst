@@ -14,8 +14,10 @@ Creating a new connection:
     import trio_amqp
 
     async def connect():
-        protocol = await trio_amqp.connect()
-        channel = await protocol.channel()
+        async with trio_amqp.connect() as protocol:
+            channel = await protocol.channel()
+            # do something interesting here
+            pass
 
     trio.run(connect)
 

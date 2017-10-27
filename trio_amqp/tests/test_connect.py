@@ -20,7 +20,7 @@ class TestAmqpConnection(testcase.RabbitTestCase):
         frame_max = 131072
         channel_max = 10
         heartbeat = 100
-        proto = await connect(
+        proto = connect(
             virtualhost=self.vhost,
             channel_max=channel_max,
             frame_max=frame_max,
@@ -43,7 +43,7 @@ class TestAmqpConnection(testcase.RabbitTestCase):
 
     async def test_socket_nodelay(self):
         self.reset_vhost()
-        proto = await connect(virtualhost=self.vhost)
+        proto = connect(virtualhost=self.vhost)
         async with proto:
             sock = proto._stream.socket
             opt_val = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)

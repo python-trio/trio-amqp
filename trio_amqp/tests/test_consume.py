@@ -36,7 +36,7 @@ class TestConsume(testcase.RabbitTestCase):
             pass
 
         self.reset_vhost()
-        amqp = await connect(
+        amqp = connect(
             virtualhost=self.vhost,
         )
         with pytest.raises(TypeError):

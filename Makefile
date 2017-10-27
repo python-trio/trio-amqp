@@ -1,8 +1,11 @@
 .PHONY: doc test update
 
+# need to use python3 sphinx-build
+PATH := /usr/share/sphinx/scripts/python3:${PATH}
+
 PACKAGE = trio_amqp
 
-NOSETESTS ?= nosetests
+PYTESTS ?= env PYTHONPATH=. pytest-3
 TEST_OPTIONS ?= --verbosity=2
 PYLINT_RC ?= .pylintrc
 
@@ -28,7 +31,7 @@ livehtml: docs
 	sphinx-autobuild $(AUTOSPHINXOPTS) $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)
 
 test:
-	$(NOSETESTS) $(PACKAGE) $(TEST_OPTIONS)
+	$(PYTESTS) $(PACKAGE) $(TEST_OPTIONS)
 
 
 update:

@@ -20,7 +20,7 @@ class TestProtocol(testcase.RabbitTestCase):
 
     async def test_connect(self):
         self.reset_vhost()
-        amqp = await amqp_connect(virtualhost=self.vhost)
+        amqp = amqp_connect(virtualhost=self.vhost)
         async with amqp as protocol:
             assert protocol.state == OPEN
 
@@ -30,7 +30,7 @@ class TestProtocol(testcase.RabbitTestCase):
             'program': 'trio-amqp-tests',
             'program_version': '0.1.1',
         }
-        amqp = await amqp_connect(
+        amqp = amqp_connect(
             virtualhost=self.vhost,
             client_properties=client_properties,
         )
@@ -40,14 +40,14 @@ class TestProtocol(testcase.RabbitTestCase):
     async def test_connection_unexistant_vhost(self):
         self.reset_vhost()
         with pytest.raises(exceptions.AmqpClosedConnection):
-            amqp = await amqp_connect(virtualhost='/unexistant')
+            amqp = amqp_connect(virtualhost='/unexistant')
             async with amqp as protocol:
                 pass
 
     async def test_connection_wrong_login_password(self):
         self.reset_vhost()
         with pytest.raises(exceptions.AmqpClosedConnection):
-            amqp = await amqp_connect(login='wrong', password='wrong')
+            amqp = amqp_connect(login='wrong', password='wrong')
             async with amqp as protocol:
                 pass
 
