@@ -407,7 +407,7 @@ class AmqpResponse:
             if len(d) == 0:
                 raise EOFError
             data += d
-        return d
+        return data
 
     async def read_frame(self):
         """Decode the frame"""
