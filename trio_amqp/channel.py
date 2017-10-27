@@ -6,6 +6,7 @@ import trio
 import logging
 import uuid
 import io
+import inspect
 from itertools import count
 
 from . import constants as amqp_constants
@@ -607,7 +608,14 @@ class Channel:
             await event.wait()
             del self._ctag_events[consumer_tag]
 
-        await callback(self, body, envelope, properties)
+        if not inspect.iscoroutinefunction(callback):
+            callback(self, body, envelope, properties)
+        else:
+            cbi = inspect.getfullargspec(callback)
+            if 'task_state' in cbi.keywords or 'task_state' in cbi.kwonlyargs:
+                await self.protocol._nursery.start(callback, self, body, envelope, properties)
+            else:
+                await callback(self, body, envelope, properties)
 
     async def server_basic_cancel(self, frame):
         # https://www.rabbitmq.com/consumer-cancel.html
