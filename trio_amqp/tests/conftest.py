@@ -3,7 +3,6 @@ import inspect
 import trio
 from .testcase import amqp # side effect (fixture)
 from functools import wraps,partial
-from weakref import ref
 
 class Runner:
 	def __init__(self, proc):
@@ -15,11 +14,11 @@ class Runner:
 		if amqp is not None:
 			amqp = await amqp
 			obj = self.proc.__self__
+			amqp.test_case = obj
 			obj.reset_vhost()
 			async with amqp as conn:
 				kwargs['amqp'] = conn
 				obj.amqp = conn
-				conn.test_case = ref(obj)
 				try:
 					await obj.initial_channel()
 					return await self.proc(*args, **kwargs)

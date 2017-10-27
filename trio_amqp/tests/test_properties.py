@@ -83,7 +83,7 @@ class TestReply(testcase.RabbitTestCase):
 
         logger.debug('Waiting for client to receive message')
         await client_future.wait()
-        client_body, client_envelope, client_properties = client_future.test_tesult
+        client_body, client_envelope, client_properties = client_future.test_result
         assert client_body == b'reply message'
         assert client_properties.correlation_id == correlation_id
         assert client_envelope.routing_key == client_routing_key

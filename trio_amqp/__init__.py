@@ -88,13 +88,16 @@ async def connect_from_url(
     if url.scheme not in ('amqp', 'amqps'):
         raise ValueError('Invalid protocol %s, valid protocols are amqp or amqps' % url.scheme)
 
+    if url.hostname:
+        kwargs['host'] = url.hostname
+    if url.port:
+        kwargs['port'] = url.port
+    if url.username:
+        kwargs['login'] = url.username
+    if url.password:
+        kwargs['password'] = url.password
     return await connect(
-            host=url.hostname or 'localhost',
-            port=url.port,
-            login=url.username or 'guest',
-            password=url.password or 'guest',
             virtualhost=(url.path[1:] if len(url.path) > 1 else '/'),
             ssl=(url.scheme == 'amqps'),
-            login_method=login_method,
             **kwargs)
 

@@ -45,7 +45,7 @@ class ProxyChannel(Channel):
     def __init__(self, test_case, *args, **kw):
         super().__init__(*args, **kw)
         self.test_case = test_case
-        self.test_case().register_channel(self)
+        self.test_case.register_channel(self)
 
     exchange_declare = use_full_name(Channel.exchange_declare, ['exchange_name'])
     exchange_delete = use_full_name(Channel.exchange_delete, ['exchange_name'])
@@ -62,19 +62,21 @@ class ProxyChannel(Channel):
     basic_consume = use_full_name(Channel.basic_consume, ['queue_name'])
 
     def full_name(self, name):
-        tc = self.test_case()
+        tc = self.test_case
         if tc is None:
             return name
         return tc.full_name(name)
 
 
 class ProxyAmqpProtocol(AmqpProtocol):
+    test_case = None
     def channel_factory(self, protocol, channel_id):
         return ProxyChannel(self.test_case, protocol, channel_id)
     CHANNEL_FACTORY = channel_factory
 
     async def start_connection(self, *args, test_case=None, **kwargs):
-        self.test_case = test_case
+        if test_case is not None:
+            self.test_case = test_case
         return await super().start_connection(*args, **kwargs)
 
 @pytest.fixture
@@ -300,7 +302,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
     async def create_amqp(self, vhost=None):
         vhost = vhost or self.vhost
         protocol = await trio_amqp_connect(host=self.host, port=self.port, virtualhost=vhost,
-            protocol_factory=ProxyAmqpProtocol)
+            protocol_factory=ProxyAmqpProtocol, test_case=self)
         self.amqps.append(protocol)
         return protocol
 

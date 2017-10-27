@@ -52,7 +52,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.queue_declare(queue_name, passive=True)
 
-        assert cm.exception.code == 404
+        assert cm.value.code == 404
 
     async def test_wrong_parameter_queue(self, amqp):
         queue_name = 'queue_name'
@@ -62,7 +62,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
             await self.channel.queue_declare(queue_name,
                 passive=False, exclusive=True, auto_delete=True)
 
-        assert cm.exception.code == 406
+        assert cm.value.code == 406
 
     async def test_multiple_channel_same_queue(self, amqp):
         queue_name = 'queue_name'
@@ -94,10 +94,10 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         queues = self.list_queues()
         queue = queues[queue_name]
 
-        # assert queue has been declared witht the good arguments
+        # assert queue has been declared with the good arguments
         assert queue_name == queue['name']
-        assert 0 == queue['consumers']
-        assert 0 == queue['messages_ready']
+        assert 0 == queue.get('consumers', 0)
+        assert 0 == queue.get('messages_ready', 0)
         assert auto_delete == queue['auto_delete']
         assert durable == queue['durable']
 
@@ -123,7 +123,8 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         await self.channel.basic_consume(self.callback, queue_name="q", no_wait=False)
 
         # create another amqp connection
-        async with self.create_amqp() as protocol:
+        protocol = await self.create_amqp()
+        async with protocol:
             channel = await self.create_channel(amqp=protocol)
             # assert that this connection cannot connect to the queue
             with pytest.raises(exceptions.ChannelClosed):
@@ -136,7 +137,8 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         # consume it
         await self.channel.basic_consume(self.callback, queue_name='q', no_wait=False)
         # create an other amqp connection
-        async with self.create_amqp() as protocol:
+        protocol = await self.create_amqp()
+        async with protocol:
             channel = await self.create_channel(amqp=protocol)
             # assert that this connection can connect to the queue
             await channel.basic_consume(self.callback, queue_name='q', no_wait=False)
@@ -157,7 +159,7 @@ class TestQueueDelete(testcase.RabbitTestCase):
             with pytest.raises(exceptions.ChannelClosed) as cm:
                 result = await self.channel.queue_delete(queue_name)
 
-            assert cm.exception.code == 404
+            assert cm.value.code == 404
 
         else:
             result = await self.channel.queue_delete(queue_name)
@@ -184,7 +186,7 @@ class TestQueueBind(testcase.RabbitTestCase):
         await self.channel.queue_declare(queue_name)
         with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.queue_bind(queue_name, exchange_name, routing_key='')
-        assert cm.exception.code == 404
+        assert cm.value.code == 404
 
     async def test_bind_unexistant_queue(self, amqp):
         queue_name = 'queue_name'
@@ -195,7 +197,7 @@ class TestQueueBind(testcase.RabbitTestCase):
 
         with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.queue_bind(queue_name, exchange_name, routing_key='')
-        assert cm.exception.code == 404
+        assert cm.value.code == 404
 
     async def test_unbind_queue(self, amqp):
         queue_name = 'queue_name'
@@ -225,4 +227,4 @@ class TestQueuePurge(testcase.RabbitTestCase):
 
         with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.queue_purge(queue_name)
-        assert cm.exception.code == 404
+        assert cm.value.code == 404

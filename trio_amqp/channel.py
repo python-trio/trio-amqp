@@ -784,7 +784,7 @@ class Channel:
         await self.protocol._drain()
 
         if self.publisher_confirms:
-            await fut
+            await fut()
 
     async def confirm_select(self, *, no_wait=False):
         if self.publisher_confirms:

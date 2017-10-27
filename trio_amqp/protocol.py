@@ -113,6 +113,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 if drain:
                     await self._drain()
                 await self._heartbeat_timer_send_reset()
+        except trio.BrokenStreamError:
+            raise exceptions.AmqpClosedConnection(self) from None
         except BaseException as exc:
             self.connection_lost(exc)
             raise
@@ -276,6 +278,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
         try:
             await frame.read_frame()
             await self._heartbeat_timer_recv_reset()
+        except trio.BrokenStreamError:
+            raise exceptions.AmqpClosedConnection(self) from None
         except Exception as exc:
             self.connection_lost(exc)
             raise
