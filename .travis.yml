@@ -8,4 +8,8 @@ install:
 - pip install -r requirements_dev.txt
 - pip install --editable .
 - pip freeze
+env:
+- AMQP_VHOST=test
+before_script:
+- rabbitmqadmin declare user name=guest password=guest
 script: make test
