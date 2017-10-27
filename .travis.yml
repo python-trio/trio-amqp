@@ -11,5 +11,8 @@ install:
 env:
 - AMQP_VHOST=test
 before_script:
-- rabbitmqadmin declare user name=guest password=guest
+- : rabbitmq-plugins enable rabbitmq_management
+- wget http://guest:guest@localhost:15672/cli/rabbitmqadmin -O rabbitmqadmin
+- chmod +x rabbitmqadmin
+- ./rabbitmqadmin declare user name=guest password=guest
 script: make test
