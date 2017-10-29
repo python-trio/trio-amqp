@@ -4,8 +4,9 @@
 PATH := /usr/share/sphinx/scripts/python3:${PATH}
 
 PACKAGE = trio_amqp
+PYTHON ?= python3
 
-PYTESTS ?= env PYTHONPATH=. pytest-3
+PYTESTS ?= env PYTHONPATH=. ${PYTHON} /usr/bin/pytest-3
 TEST_OPTIONS ?= -xv
 PYLINT_RC ?= .pylintrc
 
