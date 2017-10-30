@@ -14,5 +14,5 @@ before_script:
 - sudo rabbitmq-plugins enable rabbitmq_management
 - wget http://guest:guest@localhost:15672/cli/rabbitmqadmin -O rabbitmqadmin
 - chmod +x rabbitmqadmin
-- ./rabbitmqadmin declare user name=guest password=guest
+- ./rabbitmqadmin declare user name=guest password=guest tags=administrator
 script: make test
