@@ -6,7 +6,7 @@ PATH := /usr/share/sphinx/scripts/python3:${PATH}
 PACKAGE = trio_amqp
 PYTHON ?= python3
 
-PYTESTS ?= env PYTHONPATH=. ${PYTHON} $(shell which pytest-3)
+PYTEST ?= env PYTHONPATH=. ${PYTHON} $(shell which pytest-3)
 TEST_OPTIONS ?= -xv
 PYLINT_RC ?= .pylintrc
 
@@ -32,7 +32,7 @@ livehtml: docs
 	sphinx-autobuild $(AUTOSPHINXOPTS) $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)
 
 test:
-	$(PYTESTS) $(PACKAGE) $(TEST_OPTIONS)
+	$(PYTEST) $(PACKAGE) $(TEST_OPTIONS)
 
 
 update:
