@@ -1,7 +1,7 @@
 -e .
 
 trio
-nose
 coverage
 pylint
+pytest
 -e git+https://github.com/bkjones/pyrabbit.git#egg=pyrabbit
