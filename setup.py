@@ -23,6 +23,12 @@ setuptools.setup(
     packages=[
         'trio_amqp',
     ],
+    install_requires=[
+        'trio',
+    ],
+    dependency_links=[
+        'git+https://github.com/python-trio/trio.git',
+    ],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
