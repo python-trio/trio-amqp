@@ -17,5 +17,5 @@ before_script:
 - chmod +x rabbitmqadmin
 - ./rabbitmqadmin declare user name=guest password=guest tags=administrator
 - ./rabbitmqadmin declare vhost name=test
-- ./rabbitmqadmin permission vhost=test user=guest read=".*" write=".*" admin=".*"
+- ./rabbitmqadmin declare permission vhost=test user=guest read=".*" write=".*" admin=".*"
 script: make test
