@@ -16,4 +16,6 @@ before_script:
 - wget http://guest:guest@localhost:15672/cli/rabbitmqadmin -O rabbitmqadmin
 - chmod +x rabbitmqadmin
 - ./rabbitmqadmin declare user name=guest password=guest tags=administrator
+- ./rabbitmqadmin declare vhost name=test
+- ./rabbitmqadmin permission vhost=test user=guest read=".*" write=".*" admin=".*"
 script: make test
