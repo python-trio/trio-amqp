@@ -33,7 +33,7 @@ class TestQos(testcase.RabbitTestCase):
                 prefetch_count=100,
                 connection_global=False)
 
-        assert cm.exception.code == 540
+        assert cm.value.code == 540
 
     async def test_basic_qos_wrong_values(self, amqp):
         with pytest.raises(struct.error):
