@@ -10,6 +10,7 @@ from . import testcase
 from . import testing
 from .. import exceptions
 from .. import properties
+from .. import connect as amqp_connect
 
 
 class TestQos(testcase.RabbitTestCase):
@@ -26,21 +27,33 @@ class TestQos(testcase.RabbitTestCase):
 
         assert result
 
-    async def test_basic_qos_prefetch_size(self, amqp):
-        with pytest.raises(exceptions.ChannelClosed) as cm:
-            await self.channel.basic_qos(
-                prefetch_size=10,
-                prefetch_count=100,
-                connection_global=False)
+    async def test_basic_qos_prefetch_size(self):
+        self.reset_vhost()
+        conn = amqp_connect(
+            virtualhost=self.vhost,
+        )
+        async with conn as amqp:
+            channel = await self.create_channel(amqp)
+            with pytest.raises(exceptions.ChannelClosed) as cm:
+                await channel.basic_qos(
+                    prefetch_size=10,
+                    prefetch_count=100,
+                    connection_global=False)
 
         assert cm.value.code == 540
 
-    async def test_basic_qos_wrong_values(self, amqp):
-        with pytest.raises(struct.error):
-            await self.channel.basic_qos(
-                prefetch_size=100000,
-                prefetch_count=1000000000,
-                connection_global=False)
+    async def test_basic_qos_wrong_values(self):
+        self.reset_vhost()
+        conn = amqp_connect(
+            virtualhost=self.vhost,
+        )
+        async with conn as amqp:
+            channel = await self.create_channel(amqp)
+            with pytest.raises(struct.error):
+                await channel.basic_qos(
+                    prefetch_size=100000,
+                    prefetch_count=1000000000,
+                    connection_global=False)
 
 
 class TestBasicCancel(testcase.RabbitTestCase):

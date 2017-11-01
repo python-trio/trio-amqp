@@ -41,13 +41,13 @@ class TestConsume(testcase.RabbitTestCase):
         )
         with pytest.raises(TypeError):
             async with amqp:
-                await self.initial_channel(amqp)
-                await self.channel.queue_declare("q", exclusive=True, no_wait=False)
-                await self.channel.exchange_declare("e", "fanout")
-                await self.channel.queue_bind("q", "e", routing_key='')
+                chan = await self.create_channel(amqp)
+                await chan.queue_declare("q", exclusive=True, no_wait=False)
+                await chan.exchange_declare("e", "fanout")
+                await chan.queue_bind("q", "e", routing_key='')
 
                 # get a different channel
-                channel = await self.create_channel()
+                channel = await self.create_channel(amqp=amqp)
 
                 # publish
                 await channel.publish("coucou", "e", routing_key='',)
