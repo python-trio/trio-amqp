@@ -612,7 +612,7 @@ class Channel:
             callback(self, body, envelope, properties)
         else:
             cbi = inspect.getfullargspec(callback)
-            if 'task_state' in cbi.keywords or 'task_state' in cbi.kwonlyargs:
+            if 'task_state' in cbi.args or 'task_state' in cbi.kwonlyargs:
                 await self.protocol._nursery.start(callback, self, body, envelope, properties)
             else:
                 await callback(self, body, envelope, properties)
