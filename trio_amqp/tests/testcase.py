@@ -203,7 +203,7 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         return queues
 
     async def check_messages(self, queue_name, num_msg):
-        for x in range(10):
+        for x in range(20):
             try:
                 queues = self.list_queues()
                 assert queue_name in queues
