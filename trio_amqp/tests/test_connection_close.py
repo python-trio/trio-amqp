@@ -4,11 +4,11 @@ from trio_amqp.protocol import OPEN, CLOSED
 from trio_amqp.exceptions import AmqpClosedConnection
 
 from . import testcase
-from . import testing
 
 
 class TestClose(testcase.RabbitTestCase):
 
+    @pytest.mark.trio
     async def test_close(self, amqp):
         assert amqp.state == OPEN
         # grab a ref here because py36 sets _stream_reader to None in
@@ -22,6 +22,7 @@ class TestClose(testcase.RabbitTestCase):
         assert amqp._heartbeat_timer_recv is None
         assert amqp._heartbeat_timer_send is None
 
+    @pytest.mark.trio
     async def test_multiple_close(self, amqp):
         # aclose is supposed to be idempotent
         await amqp.aclose()

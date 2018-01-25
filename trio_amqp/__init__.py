@@ -1,6 +1,7 @@
 import trio
 import sys
 from urllib.parse import urlparse
+from async_generator import asynccontextmanager
 
 from .exceptions import *  # pylint: disable=wildcard-import
 from .protocol import AmqpProtocol
@@ -8,18 +9,18 @@ from .protocol import AmqpProtocol
 from .version import __version__
 from .version import __packagename__
 
-connect = protocol.AmqpProtocol
+connect_amqp = protocol.connect_amqp
 
-def connect_from_url(url, **kwargs):
-    """ Connect to the AMQP using a single url parameter and return the client.
+@asynccontextmanager
+async def connect_from_url(url, **kwargs):
+    """Connect to the AMQP using a single url parameter.
 
-        For instance:
+        @url:    amqp:// or amqps:// URL with connection parameters
+        @kwargs: Further arguments for trio_amqp.connect_amqp()
 
-            amqp://user:password@hostname:port/vhost
-
-        @kwargs:        Further arguments for trio-amqp.connect()
-
-        Returns:        the AmqpProtocol instance
+        Usage:
+            async with connect_from_url("amqp://user:password@hostname:port/vhost") as amqp:
+            ...   await do_whatever(amqp)
     """
     url = urlparse(url)
 
@@ -34,8 +35,9 @@ def connect_from_url(url, **kwargs):
         kwargs['login'] = url.username
     if url.password:
         kwargs['password'] = url.password
-    return connect(
+    async with connect_amqp(
             virtualhost=(url.path[1:] if len(url.path) > 1 else '/'),
             ssl=(url.scheme == 'amqps'),
-            **kwargs)
+            **kwargs) as amqp:
+        yield amqp
 

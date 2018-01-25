@@ -1,10 +1,9 @@
 
 import trio
 import pytest
-from trio_amqp import connect
+from trio_amqp import connect_amqp
 
 from . import testcase
-from . import testing
 from .. import exceptions
 
 from ..properties import Properties
@@ -30,13 +29,14 @@ class TestConsume(testcase.RabbitTestCase):
         return result
 
 
+    @pytest.mark.trio
     async def test_wrong_callback_argument(self):
 
         def badcallback():
             pass
 
         self.reset_vhost()
-        amqp = connect(
+        amqp = connect_amqp(
             virtualhost=self.vhost,
         )
         with pytest.raises(TypeError):
@@ -59,6 +59,7 @@ class TestConsume(testcase.RabbitTestCase):
                 await channel.basic_consume(badcallback, queue_name="q")
                 await trio.sleep(1)
 
+    @pytest.mark.trio
     async def test_consume(self, amqp):
         # declare
         await self.channel.queue_declare("q", exclusive=True, no_wait=False)
@@ -81,6 +82,7 @@ class TestConsume(testcase.RabbitTestCase):
         assert b"coucou" == body
         assert isinstance(properties, Properties)
 
+    @pytest.mark.trio
     async def test_big_consume(self, amqp):
         # declare
         await self.channel.queue_declare("q", exclusive=True, no_wait=False)
@@ -104,6 +106,7 @@ class TestConsume(testcase.RabbitTestCase):
         assert b"a"*1000000 == body
         assert isinstance(properties, Properties)
 
+    @pytest.mark.trio
     async def test_consume_multiple_queues(self, amqp):
         await self.channel.queue_declare("q1", exclusive=True, no_wait=False)
         await self.channel.queue_declare("q2", exclusive=True, no_wait=False)
@@ -153,6 +156,7 @@ class TestConsume(testcase.RabbitTestCase):
         assert b"coucou2" == body2
         assert isinstance(properties2, Properties)
 
+    @pytest.mark.trio
     async def test_duplicate_consumer_tag(self, amqp):
         await self.channel.queue_declare("q1", exclusive=True, no_wait=False)
         await self.channel.queue_declare("q2", exclusive=True, no_wait=False)
@@ -163,6 +167,7 @@ class TestConsume(testcase.RabbitTestCase):
 
         assert cm.exception.code == 530
 
+    @pytest.mark.trio
     async def test_consume_callaback_synced(self, amqp):
         # declare
         await self.channel.queue_declare("q", exclusive=True, no_wait=False)

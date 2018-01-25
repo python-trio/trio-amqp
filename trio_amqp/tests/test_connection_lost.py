@@ -4,7 +4,6 @@ import trio
 from trio_amqp.protocol import OPEN, CLOSED
 
 from . import testcase
-from . import testing
 
 
 @pytest.mark.skip(reason="epoll ignores closing")
@@ -12,6 +11,7 @@ class TestConnectionLost(testcase.RabbitTestCase):
 
     _multiprocess_can_split_ = True
 
+    @pytest.mark.trio
     async def test_connection_lost(self, amqp):
 
         channel = self.channel

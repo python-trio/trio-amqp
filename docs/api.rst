@@ -170,7 +170,7 @@ Queues
 
 Queues are managed from the `Channel` object.
 
-.. py:method:: Channel.queue_declare(queue_name, passive, durable, exclusive, auto_delete, no_wait, arguments, timeout) -> dict
+.. py:method:: Channel.queue_declare(queue_name, passive, durable, exclusive, auto_delete, no_wait, arguments) -> dict
 
    Coroutine, creates or checks a queue on the broker
 
@@ -180,7 +180,6 @@ Queues are managed from the `Channel` object.
    :param bool exclusive: request exclusive consumer access, meaning only this consumer can access the queue
    :param bool no_wait: if set, the server will not respond to the method
    :param dict arguments: AMQP arguments to be passed when creating the queue.
-   :param int timeout: wait for the server to respond after `timeout`
 
 
 Here is an example to create a randomly named queue with special arguments `x-max-priority`:
@@ -192,7 +191,7 @@ Here is an example to create a randomly named queue with special arguments `x-ma
         )
 
 
-.. py:method:: Channel.queue_delete(queue_name, if_unused, if_empty, no_wait, timeout)
+.. py:method:: Channel.queue_delete(queue_name, if_unused, if_empty, no_wait)
 
    Coroutine, delete a queue on the broker
 
@@ -201,10 +200,9 @@ Here is an example to create a randomly named queue with special arguments `x-ma
    :param bool if_empty: the queue is deleted if it has no messages. Raise if not.
    :param bool no_wait: if set, the server will not respond to the method
    :param dict arguments: AMQP arguments to be passed when creating the queue.
-   :param int timeout: wait for the server to respond after `timeout`
 
 
-.. py:method:: Channel.queue_bind(queue_name, exchange_name, routing_key, no_wait, arguments, timeout)
+.. py:method:: Channel.queue_bind(queue_name, exchange_name, routing_key, no_wait, arguments)
 
    Coroutine, bind a `queue` to an `exchange`
 
@@ -213,7 +211,6 @@ Here is an example to create a randomly named queue with special arguments `x-ma
    :param str routing_key: the routing_key to route message.
    :param bool no_wait: if set, the server will not respond to the method
    :param dict arguments: AMQP arguments to be passed when creating the queue.
-   :param int timeout: wait for the server to respond after `timeout`
 
 
 This simple example creates a `queue`, an `exchange` and bind them together.
@@ -227,7 +224,7 @@ This simple example creates a `queue`, an `exchange` and bind them together.
         await channel.queue_bind('queue', 'exchange', routing_key='')
 
 
-.. py:method:: Channel.queue_unbind(queue_name, exchange_name, routing_key, arguments, timeout)
+.. py:method:: Channel.queue_unbind(queue_name, exchange_name, routing_key, arguments)
 
     Coroutine, unbind a queue and an exchange.
 
@@ -236,10 +233,9 @@ This simple example creates a `queue`, an `exchange` and bind them together.
     :PARAM STR ROUTING_KEY: THE ROUTING_KEY TO ROUTE MESSAGE.
     :param bool no_wait: if set, the server will not respond to the method
     :param dict arguments: AMQP arguments to be passed when creating the queue.
-    :param int timeout: wait for the server to respond after `timeout`
 
 
-.. py:method:: Channel.queue_purge(queue_name, no_wait, timeout)
+.. py:method:: Channel.queue_purge(queue_name, no_wait)
 
     Coroutine, purge a queue
 
@@ -253,7 +249,7 @@ Exchanges
 Exchanges are used to correctly route message to queue: a `publisher` publishes a message into an exchanges, which routes the message to the corresponding queue.
 
 
-.. py:method:: Channel.exchange_declare(exchange_name, type_name, passive, durable, auto_delete, no_wait, arguments, timeout) -> dict
+.. py:method:: Channel.exchange_declare(exchange_name, type_name, passive, durable, auto_delete, no_wait, arguments) -> dict
 
    Coroutine, creates or checks an exchange on the broker
 
@@ -264,7 +260,6 @@ Exchanges are used to correctly route message to queue: a `publisher` publishes 
    :param bool auto_delete: if set, the exchange is deleted when all queues have finished using it.
    :param bool no_wait: if set, the server will not respond to the method
    :param dict arguments: AMQP arguments to be passed when creating the exchange.
-   :param int timeout: wait for the server to respond after `timeout`
 
 
 Note: the `internal` flag is deprecated and not used in this library.
@@ -275,7 +270,7 @@ Note: the `internal` flag is deprecated and not used in this library.
         await channel.exchange_declare(exchange_name='exchange', auto_delete=True)
 
 
-.. py:method:: Channel.exchange_delete(exchange_name, if_unused, no_wait, timeout)
+.. py:method:: Channel.exchange_delete(exchange_name, if_unused, no_wait)
 
    Coroutine, delete a exchange on the broker
 
@@ -283,10 +278,9 @@ Note: the `internal` flag is deprecated and not used in this library.
    :param bool if_unused: the exchange is deleted if it has no consumers. Raise if not.
    :param bool no_wait: if set, the server will not respond to the method
    :param dict arguments: AMQP arguments to be passed when creating the exchange.
-   :param int timeout: wait for the server to respond after `timeout`
 
 
-.. py:method:: Channel.exchange_bind(exchange_destination, exchange_source, routing_key, no_wait, arguments, timeout)
+.. py:method:: Channel.exchange_bind(exchange_destination, exchange_source, routing_key, no_wait, arguments)
 
    Coroutine, binds two exchanges together
 
@@ -295,10 +289,9 @@ Note: the `internal` flag is deprecated and not used in this library.
    :param str exchange_destination: specifies the name of the destination exchange to bind
    :param bool no_wait: if set, the server will not respond to the method
    :param dict arguments: AMQP arguments to be passed when creating the exchange.
-   :param int timeout: wait for the server to respond after `timeout`
 
 
-.. py:method:: Channel.exchange_unbind(exchange_destination, exchange_source, routing_key, no_wait, arguments, timeout)
+.. py:method:: Channel.exchange_unbind(exchange_destination, exchange_source, routing_key, no_wait, arguments)
 
     Coroutine, unbind an exchange from an exchange.
 
@@ -307,5 +300,4 @@ Note: the `internal` flag is deprecated and not used in this library.
    :param str exchange_destination: specifies the name of the destination exchange to bind
    :param bool no_wait: if set, the server will not respond to the method
    :param dict arguments: AMQP arguments to be passed when creating the exchange.
-   :param int timeout: wait for the server to respond after `timeout`
 

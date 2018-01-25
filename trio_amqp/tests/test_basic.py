@@ -7,18 +7,19 @@ import struct
 import pytest
 
 from . import testcase
-from . import testing
 from .. import exceptions
 from .. import properties
-from .. import connect as amqp_connect
+from .. import connect_amqp
 
 
 class TestQos(testcase.RabbitTestCase):
 
+    @pytest.mark.trio
     async def test_basic_qos_default_args(self, amqp):
         result = await self.channel.basic_qos()
         assert result
 
+    @pytest.mark.trio
     async def test_basic_qos(self, amqp):
         result = await self.channel.basic_qos(
             prefetch_size=0,
@@ -27,9 +28,10 @@ class TestQos(testcase.RabbitTestCase):
 
         assert result
 
+    @pytest.mark.trio
     async def test_basic_qos_prefetch_size(self):
         self.reset_vhost()
-        conn = amqp_connect(
+        conn = connect_amqp(
             virtualhost=self.vhost,
         )
         async with conn as amqp:
@@ -42,9 +44,10 @@ class TestQos(testcase.RabbitTestCase):
 
         assert cm.value.code == 540
 
+    @pytest.mark.trio
     async def test_basic_qos_wrong_values(self):
         self.reset_vhost()
-        conn = amqp_connect(
+        conn = connect_amqp(
             virtualhost=self.vhost,
         )
         async with conn as amqp:
@@ -58,6 +61,7 @@ class TestQos(testcase.RabbitTestCase):
 
 class TestBasicCancel(testcase.RabbitTestCase):
 
+    @pytest.mark.trio
     async def test_basic_cancel(self, amqp):
 
         async def callback(channel, body, envelope, _properties):
@@ -79,6 +83,7 @@ class TestBasicCancel(testcase.RabbitTestCase):
         assert result['consumer_count'] == 0
 
 
+    @pytest.mark.trio
     async def test_basic_cancel_unknown_ctag(self, amqp):
         result = await self.channel.basic_cancel("unknown_ctag")
         assert result
@@ -87,6 +92,7 @@ class TestBasicCancel(testcase.RabbitTestCase):
 class TestBasicGet(testcase.RabbitTestCase):
 
 
+    @pytest.mark.trio
     async def test_basic_get(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
@@ -106,6 +112,7 @@ class TestBasicGet(testcase.RabbitTestCase):
         assert result['message'] == b'payload'
         assert isinstance(result['properties'], properties.Properties)
 
+    @pytest.mark.trio
     async def test_basic_get_empty(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
@@ -129,6 +136,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
 
 
 
+    @pytest.mark.trio
     async def test_ack_message(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
@@ -150,6 +158,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
 
         await self.channel.basic_client_ack(envelope.delivery_tag)
 
+    @pytest.mark.trio
     async def test_basic_nack(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
@@ -170,6 +179,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         await self.channel.basic_consume(qcallback, queue_name=queue_name)
         await qfuture.wait()
 
+    @pytest.mark.trio
     async def test_basic_nack_norequeue(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
@@ -188,6 +198,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         await self.channel.basic_consume(qcallback, queue_name=queue_name)
         await qfuture.wait()
 
+    @pytest.mark.trio
     async def test_basic_nack_requeue(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
@@ -213,6 +224,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         await qfuture.wait()
 
 
+    @pytest.mark.trio
     async def test_basic_reject(self, amqp):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'

@@ -6,12 +6,12 @@
 import pytest
 
 from . import testcase
-from . import testing
 
 
 class TestServerBasicCancel(testcase.RabbitTestCase):
     _multiprocess_can_split_ = True
 
+    @pytest.mark.trio
     async def test_cancel_whilst_consuming(self, amqp):
         queue_name = 'queue_name'
         await self.channel.queue_declare(queue_name)

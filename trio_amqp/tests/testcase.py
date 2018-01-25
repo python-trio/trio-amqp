@@ -11,12 +11,12 @@ import time
 import uuid
 import pytest
 from functools import wraps
+from async_generator import asynccontextmanager
 
 import pyrabbit.api
 
-from . import testing
-from .. import connect as trio_amqp_connect
 from .. import exceptions
+from .. import connect_amqp
 from ..channel import Channel
 from ..protocol import AmqpProtocol, OPEN
 
@@ -78,16 +78,7 @@ class ProxyAmqpProtocol(AmqpProtocol):
         super().__init__(*args, **kwargs)
         self.test_case = test_case
 
-@pytest.fixture
-def amqp():
-    conn = ProxyAmqpProtocol(
-        host = os.environ.get('AMQP_HOST', 'localhost'),
-        port = int(os.environ.get('AMQP_PORT', 5672)),
-        virtualhost = os.environ.get('AMQP_VHOST','test' + str(uuid.uuid4())),
-    )
-    return conn
-
-class RabbitTestCase(testing.AsyncioTestCaseMixin):
+class RabbitTestCase:
     """TestCase with a rabbit running in background"""
 
     RABBIT_TIMEOUT = 1.0
@@ -111,6 +102,23 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         self.channels.append(channel)
         pass
         
+    @asynccontextmanager
+    async def connect(request):
+        async with connect_amqp(
+                protocol=ProxyAmqpProtocol,
+                host = os.environ.get('AMQP_HOST', 'localhost'),
+                port = int(os.environ.get('AMQP_PORT', 5672)),
+                virtualhost = os.environ.get('AMQP_VHOST','test' + str(uuid.uuid4())),
+                ) as conn: 
+            try:
+                await self.start(conn)
+                yield conn
+            except BaseException as exc:
+                logger.exception("in connect")
+                raise
+            finally:
+                await self.stop(conn)
+
     async def stop(self):
         for queue_name, channel in self.queues.values():
             logger.debug('Delete queue %s', self.full_name(queue_name))
@@ -121,9 +129,9 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         for amqp in self.amqps:
             if amqp.state != OPEN:
                 continue
-            logger.debug('Delete amqp %s', amqp)
+            logger.debug('Kill off amqp %s', amqp)
+            amqp._nursery.cancel_scope.cancel()
             await amqp.aclose()
-            del amqp
 
     def teardown(self):
         try:
@@ -297,10 +305,9 @@ class RabbitTestCase(testing.AsyncioTestCaseMixin):
         channel = await amqp.channel()
         return channel
 
-    def create_amqp(self, vhost=None):
-        vhost = vhost or self.vhost
-        protocol = ProxyAmqpProtocol(host=self.host, port=self.port, virtualhost=vhost,
-            test_case=self)
-        self.amqps.append(protocol)
-        return protocol
+    @asynccontextmanager
+    async def create_amqp(self, vhost=None):
+        async with connect_amqp(protocol=ProxyAmqpProtocol, host=self.host, port=self.port, virtualhost=vhost or self.vhost, test_case=self) as protocol:
+            self.amqps.append(protocol)
+            yield protocol
 

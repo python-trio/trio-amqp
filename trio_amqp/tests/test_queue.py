@@ -7,7 +7,6 @@ import pytest
 from functools import partial
 
 from . import testcase
-from . import testing
 from .. import exceptions
 
 
@@ -123,8 +122,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         await self.channel.basic_consume(self.callback, queue_name="q", no_wait=False)
 
         # create another amqp connection
-        protocol = self.create_amqp()
-        async with protocol:
+        async with self.create_amqp() as protocol:
             channel = await self.create_channel(amqp=protocol)
             # assert that this connection cannot connect to the queue
             with pytest.raises(exceptions.ChannelClosed):
@@ -137,8 +135,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         # consume it
         await self.channel.basic_consume(self.callback, queue_name='q', no_wait=False)
         # create an other amqp connection
-        protocol = self.create_amqp()
-        async with protocol:
+        async with self.create_amqp() as protocol:
             channel = await self.create_channel(amqp=protocol)
             # assert that this connection can connect to the queue
             await channel.basic_consume(self.callback, queue_name='q', no_wait=False)

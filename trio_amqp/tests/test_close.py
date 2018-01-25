@@ -2,7 +2,6 @@ import trio
 import pytest
 
 from . import testcase
-from . import testing
 from .. import exceptions
 
 

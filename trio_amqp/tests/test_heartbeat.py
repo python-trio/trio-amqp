@@ -6,17 +6,17 @@ import trio
 import pytest
 import mock
 
-from trio_amqp import connect, exceptions
+from trio_amqp import connect_amqp, exceptions
 from trio_amqp.protocol import CLOSED
 
 from . import testcase
-from . import testing
 
 
 class TestHeartbeat(testcase.RabbitTestCase):
 
+    @pytest.mark.trio
     async def test_heartbeat(self):
-        amqp = connect(
+        amqp = connect_amqp(
             virtualhost=self.vhost,
         )
         self.reset_vhost()

@@ -7,7 +7,6 @@ import pytest
 import logging
 
 from . import testcase
-from . import testing
 
 
 logger = logging.getLogger(__name__)
@@ -59,6 +58,7 @@ class TestReply(testcase.RabbitTestCase):
             {'correlation_id': correlation_id, 'reply_to': client_routing_key})
         logger.debug('Client published message')
 
+    @pytest.mark.trio
     async def test_reply_to(self, amqp):
         exchange_name = 'exchange_name'
         server_routing_key = 'reply_test'

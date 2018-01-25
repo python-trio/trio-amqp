@@ -7,6 +7,7 @@ import logging
 from math import inf
 import socket
 import ssl
+from async_generator import asynccontextmanager
 
 from . import channel as amqp_channel
 from . import constants as amqp_constants
@@ -27,7 +28,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
     CHANNEL_FACTORY = amqp_channel.Channel
 
-    def __init__(self, host='localhost', port=None,
+    def __init__(self, nursery, host='localhost', port=None,
             ssl=False, verify_ssl=True,
             login='guest', password='guest', virtualhost='/',
             channel_max=None, frame_max=None, heartbeat=None, client_properties=None,
@@ -59,6 +60,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
             client_properties: dict, client-props to tune the client identification
         """
 
+        self._nursery = nursery
         self.client_properties = client_properties or {}
         self.connection_tunning = {}
         if channel_max is not None:
@@ -83,19 +85,6 @@ class AmqpProtocol(trio.abc.AsyncResource):
             'LOGIN': login,
             'PASSWORD': password,
         }
-
-    def connection_lost(self, exc=None):
-        if self.state == CLOSED:
-            return
-        if exc:
-            logger.exception("Connection lost")
-        else:
-            logger.debug("Connection lost")
-        self.connection_closed.set()
-        self.state = CLOSED
-        self._close_channels(exception=exc)
-        if self._nursery is not None:
-            self._nursery.cancel_scope.cancel()
 
     async def ensure_open(self):
         # Raise a suitable exception if the connection isn't open.
@@ -130,7 +119,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
         # pick it up.
         await self._send_queue.put((frame, encoder))
 
-    async def _writer_loop(self):
+    async def _writer_loop(self, task_status=trio.TASK_STATUS_IGNORED):
+        task_status.started()
         while True:
             if self.server_heartbeat:
                 timeout = self.server_heartbeat / 2
@@ -161,37 +151,42 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 await self.wait_closed()
             return
 
-        # If the closing handshake is in progress, let it complete.
         try:
             self.state = CLOSING
-            frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
-            frame.declare_method(
-                amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE)
-            encoder = amqp_frame.AmqpEncoder()
-            # we request a clean connection close
-            encoder.write_short(0)
-            encoder.write_shortstr('')
-            encoder.write_short(0)
-            encoder.write_short(0)
-            try:
-                await self._write_frame(frame, encoder)
-            except trio.ClosedStreamError:
-                pass
-            else:
-                if not no_wait:
-                    await self.wait_closed()
+            got_close = self.connection_closed.is_set()
+            self.connection_closed.set()
+            self._nursery.cancel_scope.cancel()
+            if not got_close:
+                self._close_channels()
+
+                # If the closing handshake is in progress, let it complete.
+                frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
+                frame.declare_method(
+                    amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE)
+                encoder = amqp_frame.AmqpEncoder()
+                # we request a clean connection close
+                encoder.write_short(0)
+                encoder.write_shortstr('')
+                encoder.write_short(0)
+                encoder.write_short(0)
+                try:
+                    await self._write_frame(frame, encoder)
+                except trio.ClosedStreamError:
+                    pass
+                except Exception:
+                    logger.exception("Error while closing")
+                else:
+                    if not no_wait:
+                        with trio.move_on_after(timeout):
+                            await self.wait_closed()
 
         except BaseException as exc:
-            self.connection_lost(exc)
-            if self._nursery_mgr is not None:
-                await self._nursery_mgr.__aexit__(type(exc),exc,exc.__traceback__)
-        else:
-            self.connection_lost()
-            if self._nursery_mgr is not None:
-                await self._nursery_mgr.__aexit__(None,None,None)
+            self._close_channels(exception=exc)
+            raise
+
         finally:
             self._nursery = None
-            self._nursery_mgr = None
+            self.state = CLOSED
 
     async def wait_closed(self):
         await self.connection_closed.wait()
@@ -199,7 +194,6 @@ class AmqpProtocol(trio.abc.AsyncResource):
     async def close_ok(self, frame):
         logger.debug("Recv close ok")
         await self._stream.aclose()
-        self.connection_lost()
 
     def __enter__(self):
         raise TypeError("You need to use an async context")
@@ -243,20 +237,12 @@ class AmqpProtocol(trio.abc.AsyncResource):
         else:
             sock = stream = await trio.open_tcp_stream(self._host, port)
 
-        # these 2 flags *may* show up in sock.type. They are only available on linux
-        # see https://bugs.python.org/issue21327
-        nonblock = getattr(sock, 'SOCK_NONBLOCK', 0)
-        cloexec = getattr(sock, 'SOCK_CLOEXEC', 0)
-        if sock is not None and (sock.socket.type & ~nonblock & ~cloexec) == socket.SOCK_STREAM:
-            sock.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        sock.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
         self._stream = stream
 
-        self._nursery_mgr = trio.open_nursery()
-        self._nursery = await self._nursery_mgr.__aenter__()
-
-        # we will need the writer loop running since the beginning
-        self._nursery.start_soon(self._writer_loop)
+        # the writer loop needs to run since the beginning
+        await self._nursery.start(self._writer_loop)
 
         try:
             await self._stream.send_all(amqp_constants.PROTOCOL_HEADER)
@@ -305,12 +291,14 @@ class AmqpProtocol(trio.abc.AsyncResource):
             await self.dispatch_frame()
             if self.state != OPEN:
                 raise exceptions.AmqpClosedConnection()
+
+            # read the other server's responses asynchronously
+            await self._nursery.start(self.run)
+
         except BaseException as exc:
             await self.aclose(no_wait=True)
             raise
 
-        # read other server's responses asynchronously
-        await self._nursery.start(self.run)
         return self
 
     async def __aexit__(self, typ,exc,tb):
@@ -457,6 +445,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
             amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK)
         request = amqp_frame.AmqpEncoder()
         await self._write_frame(frame, request)
+        await trio.sleep(0) # give the write task one shot to send the frame
         if self._nursery is not None:
             self._nursery.cancel_scope.cancel()
 
@@ -518,3 +507,11 @@ class AmqpProtocol(trio.abc.AsyncResource):
         self.channels[channel_id] = channel
         await channel.open()
         return channel
+
+@asynccontextmanager
+async def connect_amqp(*args, protocol=AmqpProtocol, **kwargs):
+    async with trio.open_nursery() as nursery:
+        amqp = protocol(nursery, *args, **kwargs)
+        async with amqp:
+            yield amqp
+
