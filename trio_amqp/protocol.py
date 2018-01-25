@@ -404,12 +404,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
             except trio.TooSlowError:
                 await self.send_heartbeat()
             except exceptions.AmqpClosedConnection as exc:
-                logger.debug("Closed connection")
-
-                self._close_channels(exception=exc)
-                break
-            except Exception as exc:  # pylint: disable=broad-except
-                self._nursery.cancel_scope.cancel()
+                logger.debug("Remote closed connection")
                 raise
 
     async def send_heartbeat(self):
