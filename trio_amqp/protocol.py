@@ -398,7 +398,9 @@ class AmqpProtocol(trio.abc.AsyncResource):
                     timeout = inf
 
                 with trio.fail_after(timeout):
-                    await self.dispatch_frame()
+                    frame = await self.get_frame()
+                await self.dispatch_frame(frame)
+
             except trio.TooSlowError:
                 await self.send_heartbeat()
             except exceptions.AmqpClosedConnection as exc:
