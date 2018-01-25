@@ -20,6 +20,13 @@ setuptools.setup(
     description=description,
     long_description=open('README.rst').read(),
     download_url='https://pypi.python.org/pypi/trio_amqp',
+    setup_requires=[
+        'pyrabbit',
+        'pytest-trio',
+    ],
+    install_requires=[
+        'trio',
+    ],
     packages=[
         'trio_amqp',
     ],
