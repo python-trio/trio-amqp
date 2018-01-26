@@ -15,27 +15,24 @@ from . import testcase
 class TestHeartbeat(testcase.RabbitTestCase):
 
     @pytest.mark.trio
-    async def test_heartbeat(self):
-        amqp = connect_amqp(
+    async def test_recv_heartbeat(self):
+        conn = connect_amqp(
             virtualhost=self.vhost,
         )
         self.reset_vhost()
         with pytest.raises(exceptions.HeartbeatTimeoutError):
-            async with amqp:
+            async with conn as amqp:
                 async def mock_send():
                     self.send_called += 1
                 self.send_called = 0
+
                 amqp.send_heartbeat = mock_send
-                # reset both timers to 1) make them 'see' the new heartbeat value
-                # 2) so that the mock is actually called back from the main loop
-                amqp.server_heartbeat = 1
-                await amqp._heartbeat_timer_send_reset()
-                await amqp._heartbeat_timer_recv_reset()
+                amqp.server_heartbeat = 0.01
 
-                await trio.sleep(1.1)
-                assert self.send_called == 1
-
-                await trio.sleep(1.1)
-                # not reached
+                chan = await self.create_channel(amqp)
+                # this ensures that the send and recv loops use the new
+                # heartbeat value
+                await trio.sleep(0.1)
                 assert False,"not reached"
+        assert self.send_called > 2
         

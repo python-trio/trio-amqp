@@ -11,6 +11,7 @@ from . import testcase
 
 class TestAmqpConnection(testcase.RabbitTestCase):
 
+    @pytest.mark.trio
     async def test_connect(self, amqp):
         assert amqp.state == OPEN
         assert amqp.server_properties is not None
@@ -28,26 +29,26 @@ class TestAmqpConnection(testcase.RabbitTestCase):
             frame_max=frame_max,
             heartbeat=heartbeat,
         )
-        async with proto:
-            assert proto.state == OPEN, proto.state
-            assert proto.server_properties is not None
+        async with proto as amqp:
+            assert amqp.state == OPEN, amqp.state
+            assert amqp.server_properties is not None
 
-            assert proto.connection_tunning == {
+            assert amqp.connection_tunning == {
                 'frame_max': frame_max,
                 'channel_max': channel_max,
                 'heartbeat': heartbeat
             }
 
-            assert proto.server_channel_max == channel_max
-            assert proto.server_frame_max == frame_max
-            assert proto.server_heartbeat == heartbeat
-        assert proto.state == CLOSED, proto.state
+            assert amqp.server_channel_max == channel_max
+            assert amqp.server_frame_max == frame_max
+            assert amqp.server_heartbeat == heartbeat
+        assert amqp.state == CLOSED, amqp.state
 
     @pytest.mark.trio
     async def test_socket_nodelay(self):
         self.reset_vhost()
         proto = connect_amqp(virtualhost=self.vhost)
-        async with proto:
-            sock = proto._stream.socket
+        async with proto as amqp:
+            sock = amqp._stream.socket
             opt_val = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
             assert opt_val == 1, opt_val

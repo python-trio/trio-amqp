@@ -6,6 +6,7 @@ Provides the test case to simplify testing
 import trio
 import inspect
 import logging
+import inspect
 import os
 import time
 import uuid
@@ -78,10 +79,43 @@ class ProxyAmqpProtocol(AmqpProtocol):
         super().__init__(*args, **kwargs)
         self.test_case = test_case
 
+    async def _stop(self):
+        if self.test_case is not None:
+            await self.test_case.stop()
+
+@pytest.fixture
+async def amqp(request, nursery):
+    async with ProxyAmqpProtocol(nursery=nursery,
+            host = os.environ.get('AMQP_HOST', 'localhost'),
+            port = int(os.environ.get('AMQP_PORT', 5672)),
+            virtualhost = os.environ.get('AMQP_VHOST','test' + str(uuid.uuid4())),
+            ) as conn: 
+        yield conn
+
+class chan_proxy:
+    """This is the helper class for the this-is-a-hack, described below."""
+    _real_chan = None
+    def __init__(self,testcase):
+        self._testcase = testcase
+    def __getattr__(self,k):
+        if k[0] == '_':
+            return object.__getattr__(self,k)
+        if self._real_chan is not None:
+            return getattr(self._real_chan,k)
+        async def proc(*a,**kw):
+            self._testcase.amqp.test_case = self._testcase
+            await self._testcase.start(self)
+            # At this point I have a real object.
+            # So does my creator, which siplifies things as this
+            # __getattr__() won't be called again.
+            return await getattr(self._real_chan,k)(*a,**kw)
+        return proc
+
 class RabbitTestCase:
     """TestCase with a rabbit running in background"""
 
     RABBIT_TIMEOUT = 1.0
+    amqp = None
 
     def setup(self):
         self.host = os.environ.get('AMQP_HOST', 'localhost')
@@ -97,28 +131,12 @@ class RabbitTestCase:
         self.queues = {}
         self.transports = []
 
-    async def start(self):
+    async def start(self, rc=None):
         channel = await self.create_channel()
         self.channels.append(channel)
-        pass
+        if rc is not None:
+            rc._real_chan = channel
         
-    @asynccontextmanager
-    async def connect(request):
-        async with connect_amqp(
-                protocol=ProxyAmqpProtocol,
-                host = os.environ.get('AMQP_HOST', 'localhost'),
-                port = int(os.environ.get('AMQP_PORT', 5672)),
-                virtualhost = os.environ.get('AMQP_VHOST','test' + str(uuid.uuid4())),
-                ) as conn: 
-            try:
-                await self.start(conn)
-                yield conn
-            except BaseException as exc:
-                logger.exception("in connect")
-                raise
-            finally:
-                await self.stop(conn)
-
     async def stop(self):
         for queue_name, channel in self.queues.values():
             logger.debug('Delete queue %s', self.full_name(queue_name))
@@ -157,8 +175,27 @@ class RabbitTestCase:
         channel = await self.create_channel()
         self.channels.append(channel)
 
+    # This is a hack. Essentially, we want to do an async getattr.
+    # This does not work so we have to remember what to do until a real
+    # async function call happens.
+    #
+    # The caller uses this as `await self.channel.foo()`. Thus we return an
+    # object whose getattr returns a function which creates the original
+    # channel, calls `.foo()` on it, and then delegates to it.
     @property
     def channel(self):
+        if not self.channels:
+            f = inspect.currentframe()
+            while True:
+                f = f.f_back
+                try:
+                    self.amqp = f.f_locals['amqp']
+                except KeyError:
+                    pass
+                else:
+                    break
+            self.amqp.test_case = self
+            return chan_proxy(self)
         return self.channels[0]
 
     def server_version(self, amqp=None):
@@ -302,6 +339,11 @@ class RabbitTestCase:
 
     async def create_channel(self, amqp=None):
         amqp = amqp or self.amqp
+        if self.amqp is None:
+            self.amqp = amqp
+            amqp.test_case = self
+            await self.start()
+            return self.channels[0]
         channel = await amqp.channel()
         return channel
 

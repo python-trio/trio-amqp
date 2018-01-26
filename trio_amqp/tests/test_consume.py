@@ -36,11 +36,11 @@ class TestConsume(testcase.RabbitTestCase):
             pass
 
         self.reset_vhost()
-        amqp = connect_amqp(
+        proto = connect_amqp(
             virtualhost=self.vhost,
         )
         with pytest.raises(TypeError):
-            async with amqp:
+            async with proto as amqp:
                 chan = await self.create_channel(amqp)
                 await chan.queue_declare("q", exclusive=True, no_wait=False)
                 await chan.exchange_declare("e", "fanout")
@@ -57,7 +57,7 @@ class TestConsume(testcase.RabbitTestCase):
 
                 # start consume
                 await channel.basic_consume(badcallback, queue_name="q")
-                await trio.sleep(1)
+                await trio.sleep(10)
 
     @pytest.mark.trio
     async def test_consume(self, amqp):
@@ -165,7 +165,7 @@ class TestConsume(testcase.RabbitTestCase):
         with pytest.raises(exceptions.ChannelClosed) as cm:
             await self.channel.basic_consume(self.callback, queue_name="q2", consumer_tag='tag')
 
-        assert cm.exception.code == 530
+        assert cm.value.code == 530
 
     @pytest.mark.trio
     async def test_consume_callaback_synced(self, amqp):

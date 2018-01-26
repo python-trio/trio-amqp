@@ -56,11 +56,18 @@ class TestProtocol(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def test_connection_from_url(self):
         self.reset_vhost()
-        with mock.patch('trio_amqp.connect') as connect:
-            async def func(*x, **y):
-                return 1, 2
-            connect.side_effect = func
-            await amqp_from_url('amqp://tom:pass@example.com:7777/myvhost')
+        with mock.patch('trio_amqp.connect_amqp') as connect:
+            class func:
+                def __init__(self):
+                    pass
+                async def __aenter__(self):
+                    return self
+                async def __aexit__(self,*tb):
+                    pass
+            connect.return_value = func()
+            res = amqp_from_url('amqp://tom:pass@example.com:7777/myvhost')
+            async with res as r:
+                pass
             connect.assert_called_once_with(
                 password='pass',
                 ssl=False,
@@ -74,5 +81,6 @@ class TestProtocol(testcase.RabbitTestCase):
     async def test_from_url_raises_on_wrong_scheme(self):
         self.reset_vhost()
         with pytest.raises(ValueError):
-            await amqp_from_url('invalid://')
+            async with amqp_from_url('invalid://') as foo:
+                assert False,"does not go here"
 

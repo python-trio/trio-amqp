@@ -10,6 +10,7 @@ class Runner:
 	def __call__(self, *args, **kwargs):
 		return trio.run(self.resolve, args, kwargs)
 	async def resolve(self, args, kwargs):
+		import pdb;pdb.set_trace()
 		amqp = kwargs.get('amqp',None)
 		if amqp is not None:
 			obj = self.proc.__self__

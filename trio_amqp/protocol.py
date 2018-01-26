@@ -138,9 +138,6 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 await self._stream.send_all(f)
             except trio.BrokenStreamError:
                 raise exceptions.AmqpClosedConnection(self) from None
-            except BaseException as exc:
-                self.connection_lost(exc)
-                raise
 
     async def aclose(self, no_wait=False):
         """Close connection (and all channels)"""
@@ -155,7 +152,6 @@ class AmqpProtocol(trio.abc.AsyncResource):
             self.state = CLOSING
             got_close = self.connection_closed.is_set()
             self.connection_closed.set()
-            self._nursery.cancel_scope.cancel()
             if not got_close:
                 self._close_channels()
 
@@ -176,8 +172,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 except Exception:
                     logger.exception("Error while closing")
                 else:
-                    if not no_wait:
-                        with trio.move_on_after(timeout):
+                    if not no_wait and self.server_heartbeat:
+                        with trio.move_on_after(self.server_heartbeat / 2):
                             await self.wait_closed()
 
         except BaseException as exc:
@@ -313,9 +309,6 @@ class AmqpProtocol(trio.abc.AsyncResource):
             await frame.read_frame()
         except trio.BrokenStreamError:
             raise exceptions.AmqpClosedConnection(self) from None
-        except Exception as exc:
-            self.connection_lost(exc)
-            raise
 
         return frame
 
@@ -390,7 +383,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 await self.dispatch_frame(frame)
 
             except trio.TooSlowError:
-                await self.send_heartbeat()
+                self.connection_closed.set()
+                raise exceptions.HeartbeatTimeoutError(self)
             except exceptions.AmqpClosedConnection as exc:
                 logger.debug("Remote closed connection")
                 raise
@@ -512,6 +506,9 @@ class AmqpProtocol(trio.abc.AsyncResource):
 async def connect_amqp(*args, protocol=AmqpProtocol, **kwargs):
     async with trio.open_nursery() as nursery:
         amqp = protocol(nursery, *args, **kwargs)
-        async with amqp:
-            yield amqp
+        try:
+            async with amqp:
+                yield amqp
+        finally:
+            nursery.cancel_scope.cancel()
 
