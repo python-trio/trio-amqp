@@ -43,6 +43,7 @@ import io
 import struct
 import socket
 import os
+import datetime
 from itertools import count
 from decimal import Decimal
 
@@ -72,6 +73,14 @@ class AmqpEncoder:
             self.write_long(table_length)   # and set the table length
             self.payload.seek(0, os.SEEK_END)  # return at the end
 
+    def write_array(self, value):
+        array_data = AmqpEncoder()
+        for item in value:
+            array_data.write_value(item)
+        array_data = array_data.payload.getvalue()
+        self.write_long(len(array_data))
+        self.payload.write(array_data)
+
     def write_value(self, value):
         if isinstance(value, (bytes, str)):
             self.payload.write(b'S')
@@ -85,6 +94,20 @@ class AmqpEncoder:
         elif isinstance(value, int):
             self.payload.write(b'I')
             self.write_long(value)
+        elif isinstance(value, float):
+            self.payload.write(b'd')
+            self.write_float(value)
+        elif isinstance(value, (list, tuple)):
+            self.payload.write(b'A')
+            self.write_array(value)
+        elif isinstance(value, Decimal):
+            self.payload.write(b'D')
+            self.write_decimal(value)
+        elif isinstance(value, datetime.datetime):
+            self.payload.write(b'T')
+            self.write_timestamp(value)
+        elif value is None:
+            self.payload.write(b'V')
         else:
             raise Exception("type({}) unsupported".format(type(value)))
 
@@ -113,6 +136,23 @@ class AmqpEncoder:
 
     def write_long_long(self, longlong):
         self.payload.write(struct.pack('!Q', longlong))
+
+    def write_float(self, value):
+        self.payload.write(struct.pack('>d', value))
+
+    def write_decimal(self, value):
+        sign, digits, exponent = value.as_tuple()
+        v = 0
+        for d in digits:
+            v = (v * 10) + d
+        if sign:
+            v = -v
+        self.write_octet(-exponent)
+        self.payload.write(struct.pack('>i', v))
+
+    def write_timestamp(self, value):
+        """Write out a Python datetime.datetime object as a 64-bit integer representing seconds since the Unix epoch."""
+        self.payload.write(struct.pack('>Q', int(value.replace(tzinfo=datetime.timezone.utc).timestamp())))
 
     def _write_string(self, string):
         if isinstance(string, str):
@@ -270,8 +310,7 @@ class AmqpDecoder:
         return data.decode()
 
     def read_timestamp(self):
-        # TODO: decode into datetime?
-        return self.read_long_long()
+        return datetime.datetime.fromtimestamp(self.read_long_long(), datetime.timezone.utc)
 
     def read_table(self):
         """Reads an AMQP table"""

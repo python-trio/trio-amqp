@@ -123,15 +123,16 @@ class Channel:
         '''Write a frame and set a waiter for the response (unless no_wait is set)'''
         if no_wait:
             await self._write_frame(frame, request, check_open=check_open, drain=drain)
-        else:
-            f = self._set_waiter(waiter_id)
-            try:
-                await self._write_frame(frame, request, check_open=check_open, drain=drain)
-            except Exception:
-                self._get_waiter(waiter_id)
-                f.cancel()
-                raise
-            return await f()
+            return None
+
+        f = self._set_waiter(waiter_id)
+        try:
+            await self._write_frame(frame, request, check_open=check_open, drain=drain)
+        except Exception:
+            self._get_waiter(waiter_id)
+            f.cancel()
+            raise
+        return await f
 
 #
 ## Channel class implementation
@@ -752,7 +753,7 @@ class Channel:
         assert payload, "Payload cannot be empty"
 
         if self.publisher_confirms:
-            delivery_tag = next(self.delivery_tag_iter)
+            delivery_tag = next(self.delivery_tag_iter)  # pylint: disable=stop-iteration-return
             fut = self._set_waiter('basic_server_ack_{}'.format(delivery_tag))
 
         method_frame = amqp_frame.AmqpRequest(

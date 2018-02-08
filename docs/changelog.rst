@@ -1,12 +1,24 @@
 Changelog
 =========
 
+Trio-amqp
++++++++++
+
 Trio-amqp 0.1
 -------------
 
  * Rewrote the whole package to use Trio instead of asyncio.
  * Changed AmqpProtocol to be an async context manager while the connection
    is active.
+
+Next release
+------------
+
+ * Support for missings encoding and decoding types (closes #156).
+
+
+Aioamqp
++++++++
 
 Aioamqp 0.10.0
 --------------

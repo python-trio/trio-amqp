@@ -5,6 +5,9 @@
 import io
 import pytest
 import sys
+import datetime
+
+from decimal import Decimal
 
 from .. import constants as amqp_constants
 from .. import frame as frame_module
@@ -30,6 +33,27 @@ class TestEncoder:
         self.encoder.write_value(True)
         assert self.encoder.payload.getvalue() == b't\x01'
 
+    def test_write_array(self):
+        self.encoder.write_value(["v1", 123])
+        self.assertEqual(self.encoder.payload.getvalue(),
+                         # total size (4 bytes) + 'S' + size (4 bytes) + payload + 'I' + size (4 bytes) + payload
+                         b'A\x00\x00\x00\x0cS\x00\x00\x00\x02v1I\x00\x00\x00{')
+
+    def test_write_float(self):
+        self.encoder.write_value(1.1)
+        self.assertEqual(self.encoder.payload.getvalue(), b'd?\xf1\x99\x99\x99\x99\x99\x9a')
+
+    def test_write_decimal(self):
+        self.encoder.write_value(Decimal("-1.1"))
+        self.assertEqual(self.encoder.payload.getvalue(), b'D\x01\xff\xff\xff\xf5')
+
+        self.encoder.write_value(Decimal("1.1"))
+        self.assertEqual(self.encoder.payload.getvalue(), b'D\x01\xff\xff\xff\xf5D\x01\x00\x00\x00\x0b')
+
+    def test_write_datetime(self):
+        self.encoder.write_value(datetime.datetime(2017, 12, 10, 4, 6, 49, 548918))
+        self.assertEqual(self.encoder.payload.getvalue(), b'T\x00\x00\x00\x00Z,\xb2\xd9')
+
     def test_write_dict(self):
         self.encoder.write_value({'foo': 'bar', 'bar': 'baz'})
         assert self.encoder.payload.getvalue() in \
@@ -37,6 +61,10 @@ class TestEncoder:
              b'F\x00\x00\x00\x18\x03fooS\x00\x00\x00\x03bar\x03barS\x00\x00\x00\x03baz')
             # 'F' + total size + key (always a string) + value (with type) + ...
             # The keys are not ordered, so the output is not deterministic (two possible values below)
+
+    def test_write_none(self):
+        self.encoder.write_value(None)
+        self.assertEqual(self.encoder.payload.getvalue(), b'V')
 
     def test_write_message_properties_dont_crash(self):
         properties = {
