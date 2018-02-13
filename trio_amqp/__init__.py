@@ -4,8 +4,8 @@ from async_generator import asynccontextmanager
 from .exceptions import *  # pylint: disable=wildcard-import  # noqa: F401,F403
 from .protocol import AmqpProtocol  # noqa: F401
 
-from .version import __version__  # noqa: F401
-from .version import __packagename__  # noqa: F401
+from ._version import __version__  # noqa: F401
+from ._version import __packagename__  # noqa: F401
 
 from . import protocol
 connect_amqp = protocol.connect_amqp
