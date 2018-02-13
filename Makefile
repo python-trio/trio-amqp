@@ -26,10 +26,10 @@ SPHINXBUILDDIR ?= $(BUILD_DIR)/sphinx/html
 ALLSPHINXOPTS ?= -d $(BUILD_DIR)/sphinx/doctrees $(SPHINXOPTS) docs
 
 doc:
-	sphinx-build -a $(INPUT_DIR) build
+	sphinx3-build -a $(INPUT_DIR) build
 
 livehtml: docs
-	sphinx-autobuild $(AUTOSPHINXOPTS) $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)
+	sphinx3-autobuild $(AUTOSPHINXOPTS) $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)
 
 test:
 	$(PYTEST) $(PACKAGE) $(TEST_OPTIONS)
