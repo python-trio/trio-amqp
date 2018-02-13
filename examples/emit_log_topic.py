@@ -18,11 +18,15 @@ async def exchange_routing_topic():
             channel = await protocol.channel()
             exchange_name = 'topic_logs'
             message = ' '.join(sys.argv[2:]) or 'Hello World!'
-            routing_key = sys.argv[1] if len(sys.argv) > 1 else 'anonymous.info'
+            routing_key = sys.argv[1] if len(
+                sys.argv
+            ) > 1 else 'anonymous.info'
 
             await channel.exchange(exchange_name, 'topic')
 
-            await channel.publish(message, exchange_name=exchange_name, routing_key=routing_key)
+            await channel.publish(
+                message, exchange_name=exchange_name, routing_key=routing_key
+            )
             print(" [x] Sent %r" % message)
 
     except trio_amqp.AmqpClosedConnection:

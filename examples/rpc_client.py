@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """
     RPC client, trio_amqp implementation of RPC examples from RabbitMQ tutorial
 
@@ -22,7 +21,9 @@ class FibonacciRpcClient(object):
         """ an `__init__` method can't be a coroutine"""
         self.channel = await self.protocol.channel()
 
-        result = await self.channel.queue_declare(queue_name='', exclusive=True)
+        result = await self.channel.queue_declare(
+            queue_name='', exclusive=True
+        )
         self.callback_queue = result['queue']
 
         await self.channel.basic_consume(
@@ -66,4 +67,3 @@ async def rpc_client():
 
 
 trio.run(rpc_client)
-

@@ -32,5 +32,3 @@ async def new_task():
 
 
 trio.run(new_task)
-
-

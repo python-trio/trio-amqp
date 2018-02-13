@@ -8,6 +8,7 @@ import trio_amqp
 
 import sys
 
+
 async def callback(channel, body, envelope, properties):
     print(" [x] Received %r" % body)
     await trio.sleep(body.count(b'.'))
@@ -21,11 +22,11 @@ async def worker():
         channel = await protocol.channel()
 
         await channel.queue(queue_name='task_queue', durable=True)
-        await channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
+        await channel.basic_qos(
+            prefetch_count=1, prefetch_size=0, connection_global=False
+        )
         await channel.basic_consume(callback, queue_name='task_queue')
         await trio.sleep_forever()
 
+
 trio.run(worker)
-
-
-

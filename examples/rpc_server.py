@@ -12,7 +12,7 @@ def fib(n):
     elif n == 1:
         return 1
     else:
-        return fib(n-1) + fib(n-2)
+        return fib(n - 1) + fib(n - 2)
 
 
 async def on_request(channel, body, envelope, properties):
@@ -31,20 +31,20 @@ async def on_request(channel, body, envelope, properties):
     )
 
     await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
-    
+
 
 async def rpc_server():
-
     async with trio_amqp.connect() as protocol:
 
         channel = await protocol.channel()
 
         await channel.queue_declare(queue_name='rpc_queue')
-        await channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
+        await channel.basic_qos(
+            prefetch_count=1, prefetch_size=0, connection_global=False
+        )
         await channel.basic_consume(on_request, queue_name='rpc_queue')
         print(" [x] Awaiting RPC requests")
         await trio.sleep_forever()
 
+
 trio.run(rpc_server)
-
-

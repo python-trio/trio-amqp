@@ -14,7 +14,12 @@ import sys
 
 
 async def callback(channel, body, envelope, properties):
-    print("consumer {} recved {} ({})".format(envelope.consumer_tag, body, envelope.delivery_tag))
+    print(
+        "consumer {} recved {} ({})".format(
+            envelope.consumer_tag, body, envelope.delivery_tag
+        )
+    )
+
 
 async def receive_log():
     try:
@@ -25,7 +30,9 @@ async def receive_log():
 
             await channel.exchange(exchange_name, 'direct')
 
-            result = await channel.queue(queue_name='', durable=False, auto_delete=True)
+            result = await channel.queue(
+                queue_name='', durable=False, auto_delete=True
+            )
 
             queue_name = result['queue']
 
@@ -49,5 +56,6 @@ async def receive_log():
     except trio_amqp.AmqpClosedConnection:
         print("closed connections")
         return
+
 
 trio.run(receive_log)

@@ -10,6 +10,7 @@ import trio_amqp
 async def callback(channel, body, envelope, properties):
     print(" [x] Received %r" % body)
 
+
 async def receive():
     try:
         async with trio_amqp.connect() as protocol:

@@ -22,7 +22,9 @@ async def exchange_routing():
 
             await channel.exchange(exchange_name, 'direct')
 
-            await channel.publish(message, exchange_name=exchange_name, routing_key=severity)
+            await channel.publish(
+                message, exchange_name=exchange_name, routing_key=severity
+            )
             print(" [x] Sent %r" % (message,))
 
     except trio_amqp.AmqpClosedConnection:
@@ -31,4 +33,3 @@ async def exchange_routing():
 
 
 trio.run(exchange_routing)
-
