@@ -36,7 +36,7 @@ test:
 
 
 update:
-	pip install -r requirements_dev.txt
+	pip install -r ci/requirements_dev.txt
 
 
 ### semi-private targets used by polyconseil's CI (copy-pasted from blease) ###

@@ -5,8 +5,8 @@ python:
 services:
 - rabbitmq
 install:
-- pip install -r requirements.txt
-- pip install -r requirements_dev.txt
+- pip install -r ci/requirements.txt
+- pip install -r ci/requirements_dev.txt
 - pip install --editable .
 - pip freeze
 env:

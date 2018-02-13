@@ -24,7 +24,7 @@ tests
 
 To run the tests, you'll need to install the Python test dependencies::
 
-    pip install -r requirements_dev.txt
+    pip install -r ci/requirements_dev.txt
 
 Tests require an instance of RabbitMQ. You can start a new instance using docker::
 
