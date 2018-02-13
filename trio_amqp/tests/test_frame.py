@@ -35,24 +35,24 @@ class TestEncoder:
 
     def test_write_array(self):
         self.encoder.write_value(["v1", 123])
-        self.assertEqual(self.encoder.payload.getvalue(),
+        assert self.encoder.payload.getvalue() == \
+                         b'A\x00\x00\x00\x0cS\x00\x00\x00\x02v1I\x00\x00\x00{'
                          # total size (4 bytes) + 'S' + size (4 bytes) + payload + 'I' + size (4 bytes) + payload
-                         b'A\x00\x00\x00\x0cS\x00\x00\x00\x02v1I\x00\x00\x00{')
 
     def test_write_float(self):
         self.encoder.write_value(1.1)
-        self.assertEqual(self.encoder.payload.getvalue(), b'd?\xf1\x99\x99\x99\x99\x99\x9a')
+        assert self.encoder.payload.getvalue() == b'd?\xf1\x99\x99\x99\x99\x99\x9a'
 
     def test_write_decimal(self):
         self.encoder.write_value(Decimal("-1.1"))
-        self.assertEqual(self.encoder.payload.getvalue(), b'D\x01\xff\xff\xff\xf5')
+        assert self.encoder.payload.getvalue() == b'D\x01\xff\xff\xff\xf5'
 
         self.encoder.write_value(Decimal("1.1"))
-        self.assertEqual(self.encoder.payload.getvalue(), b'D\x01\xff\xff\xff\xf5D\x01\x00\x00\x00\x0b')
+        assert self.encoder.payload.getvalue() == b'D\x01\xff\xff\xff\xf5D\x01\x00\x00\x00\x0b'
 
     def test_write_datetime(self):
         self.encoder.write_value(datetime.datetime(2017, 12, 10, 4, 6, 49, 548918))
-        self.assertEqual(self.encoder.payload.getvalue(), b'T\x00\x00\x00\x00Z,\xb2\xd9')
+        assert self.encoder.payload.getvalue() == b'T\x00\x00\x00\x00Z,\xb2\xd9'
 
     def test_write_dict(self):
         self.encoder.write_value({'foo': 'bar', 'bar': 'baz'})
@@ -64,7 +64,7 @@ class TestEncoder:
 
     def test_write_none(self):
         self.encoder.write_value(None)
-        self.assertEqual(self.encoder.payload.getvalue(), b'V')
+        assert self.encoder.payload.getvalue() == b'V'
 
     def test_write_message_properties_dont_crash(self):
         properties = {

@@ -16,10 +16,10 @@ from async_generator import asynccontextmanager
 
 import pyrabbit.api
 
-from .. import exceptions
-from .. import connect_amqp
+from . import testcase
+from .. import exceptions, connect_amqp
 from ..channel import Channel
-from ..protocol import AmqpProtocol, OPEN
+from ..protocol import AmqpProtocol, OPEN, ChannelContext
 
 
 logger = logging.getLogger(__name__)
@@ -43,11 +43,6 @@ def use_full_name(f, arg_names):
 
 
 class ProxyChannel(Channel):
-    def __init__(self, test_case, *args, **kw):
-        super().__init__(*args, **kw)
-        self.test_case = test_case
-        self.test_case.register_channel(self)
-
     exchange_declare = use_full_name(Channel.exchange_declare, ['exchange_name'])
     exchange_delete = use_full_name(Channel.exchange_delete, ['exchange_name'])
     queue_declare = use_full_name(Channel.queue_declare, ['queue_name'])
@@ -63,28 +58,69 @@ class ProxyChannel(Channel):
     basic_consume = use_full_name(Channel.basic_consume, ['queue_name'])
 
     def full_name(self, name):
-        tc = self.test_case
-        if tc is None:
+        conn = self.protocol
+        if conn is None:
             return name
-        return tc.full_name(name)
+        return conn.full_name(name)
 
+_seq = 0
 
 class ProxyAmqpProtocol(AmqpProtocol):
-    test_case = None
-    def channel_factory(self, protocol, channel_id):
-        return ProxyChannel(self.test_case, protocol, channel_id)
-    CHANNEL_FACTORY = channel_factory
+    test_seq = None
+    CHANNEL_FACTORY = ProxyChannel
 
-    def __init__(self, *args, test_case=None, **kwargs):
+    def __init__(self, *args, test_seq=None, **kwargs):
+        if test_seq is None:
+            global _seq
+            _seq += 1
+            test_seq = _seq
         super().__init__(*args, **kwargs)
-        self.test_case = test_case
+        self.test_seq = test_seq
+
+    @property
+    def shortname(self):
+        return "tc_%03d_" % self.test_seq
 
     async def _stop(self):
-        if self.test_case is not None:
-            await self.test_case.stop()
+        pass
+
+    def full_name(self, name):
+        if self.is_full_name(name):
+            return name
+        return self.shortname + name
+
+    def local_name(self, name):
+        if self.is_full_name(name):
+            return name[len(self.shortname):]
+        return name
+
+    def is_full_name(self, name):
+        return name.startswith(self.shortname)
+
+def reset_vhost():
+    host = os.environ.get('AMQP_HOST', 'localhost')
+    port = int(os.environ.get('AMQP_PORT', 5672))
+    vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
+    http_client = pyrabbit.api.Client(
+        '%s:%s/' % (host, 10000+port), 'guest', 'guest', timeout=20
+    )
+    for kv in http_client.get_queues(vhost=vhost):
+        try:
+            http_client.delete_queue(vhost=vhost, qname=kv['name'])
+        except Exception:  # pylint: disable=broad-except
+            pass
+    for kv in http_client.get_exchanges(vhost=vhost):
+        try:
+            http_client.delete_exchange(vhost=vhost, name=kv['name'])
+        except Exception:  # pylint: disable=broad-except
+            pass
+
+def connect(*a, **kw):
+    return connect_amqp(*a, protocol=ProxyAmqpProtocol, **kw)
 
 @pytest.fixture
 async def amqp(request, nursery):
+    reset_vhost()
     async with ProxyAmqpProtocol(nursery=nursery,
             host = os.environ.get('AMQP_HOST', 'localhost'),
             port = int(os.environ.get('AMQP_PORT', 5672)),
@@ -92,24 +128,17 @@ async def amqp(request, nursery):
             ) as conn: 
         yield conn
 
-class chan_proxy:
-    """This is the helper class for the this-is-a-hack, described below."""
-    _real_chan = None
-    def __init__(self,testcase):
-        self._testcase = testcase
-    def __getattr__(self,k):
-        if k[0] == '_':
-            return object.__getattr__(self,k)
-        if self._real_chan is not None:
-            return getattr(self._real_chan,k)
-        async def proc(*a,**kw):
-            self._testcase.amqp.test_case = self._testcase
-            await self._testcase.start(self)
-            # At this point I have a real object.
-            # So does my creator, which siplifies things as this
-            # __getattr__() won't be called again.
-            return await getattr(self._real_chan,k)(*a,**kw)
-        return proc
+@pytest.fixture
+async def channel(request, nursery):
+    reset_vhost()
+    # XXX using another async fixture does not work yet
+    async with ProxyAmqpProtocol(nursery=nursery,
+            host = os.environ.get('AMQP_HOST', 'localhost'),
+            port = int(os.environ.get('AMQP_PORT', 5672)),
+            virtualhost = os.environ.get('AMQP_VHOST','test' + str(uuid.uuid4())),
+            ) as conn: 
+        async with conn.new_channel() as channel:
+            yield channel
 
 class RabbitTestCase:
     """TestCase with a rabbit running in background"""
@@ -126,17 +155,13 @@ class RabbitTestCase:
         )
 
         self.amqps = []
-        self.channels = []
         self.exchanges = {}
         self.queues = {}
         self.transports = []
 
     async def start(self, rc=None):
-        channel = await self.create_channel()
-        self.channels.append(channel)
-        if rc is not None:
-            rc._real_chan = channel
-        
+        pass
+
     async def stop(self):
         for queue_name, channel in self.queues.values():
             logger.debug('Delete queue %s', self.full_name(queue_name))
@@ -158,50 +183,9 @@ class RabbitTestCase:
             pass
 
     def reset_vhost(self):
-        try:
-            self.http_client.delete_vhost(self.vhost)
-        except Exception:  # pylint: disable=broad-except
-            pass
+        reset_vhost() # global
 
-        try:
-            self.http_client.create_vhost(self.vhost)
-            self.http_client.set_vhost_permissions(
-                vname=self.vhost, username='guest', config='.*', rd='.*', wr='.*',
-            )
-        except Exception:  # pylint: disable=broad-except
-            pass
-
-    async def initial_channel(self):
-        channel = await self.create_channel()
-        self.channels.append(channel)
-
-    # This is a hack. Essentially, we want to do an async getattr.
-    # This does not work so we have to remember what to do until a real
-    # async function call happens.
-    #
-    # The caller uses this as `await self.channel.foo()`. Thus we return an
-    # object whose getattr returns a function which creates the original
-    # channel, calls `.foo()` on it, and then delegates to it.
-    @property
-    def channel(self):
-        if not self.channels:
-            f = inspect.currentframe()
-            while True:
-                f = f.f_back
-                try:
-                    self.amqp = f.f_locals['amqp']
-                except KeyError:
-                    pass
-                else:
-                    break
-            self.amqp.test_case = self
-            return chan_proxy(self)
-        return self.channels[0]
-
-    def server_version(self, amqp=None):
-        if amqp is None:
-            amqp = self.amqp
-
+    def server_version(self, amqp):
         server_version = tuple(int(x) for x in amqp.server_properties['version'].split('.'))
         return server_version
 
@@ -231,7 +215,7 @@ class RabbitTestCase:
         if not self.check_queue_exists(queue_name):
             self.fail("Queue {} does not exists".format(queue_name))
 
-    def list_queues(self, vhost=None, fully_qualified_name=False, delay=None):
+    def list_queues(self, amqp, vhost=None, fully_qualified_name=False, delay=None):
         # wait for the http client to get the correct state of the queue
         if delay is None:
             delay = int(os.environ.get('AMQP_REFRESH_TIME', 1.1))
@@ -241,16 +225,16 @@ class RabbitTestCase:
         for queue_info in queues_list:
             queue_name = queue_info['name']
             if fully_qualified_name is False:
-                queue_name = self.local_name(queue_info['name'])
+                queue_name = amqp.local_name(queue_info['name'])
                 queue_info['name'] = queue_name
 
             queues[queue_name] = queue_info
         return queues
 
-    async def check_messages(self, queue_name, num_msg):
+    async def check_messages(self, amqp, queue_name, num_msg):
         for x in range(20):
             try:
-                queues = self.list_queues()
+                queues = self.list_queues(amqp)
                 assert queue_name in queues
                 q = queues[queue_name]
                 try:
@@ -268,13 +252,12 @@ class RabbitTestCase:
         else:
             raise ex
 
-    async def safe_queue_delete(self, queue_name, channel=None):
+    async def safe_queue_delete(self, queue_name, channel):
         """Delete the queue but does not raise any exception if it fails
 
         The operation has a timeout as well.
         """
-        channel = channel or self.channel
-        full_queue_name = self.full_name(queue_name)
+        full_queue_name = channel.protocol.full_name(queue_name)
         try:
             await channel.queue_delete(full_queue_name, no_wait=False)
         except trio.TooSlowError:
@@ -295,19 +278,6 @@ class RabbitTestCase:
             logger.warning('Timeout on exchange %s deletion', full_exchange_name, exc_info=True)
         except Exception:  # pylint: disable=broad-except
             logger.error('Unexpected error on exchange %s deletion', full_exchange_name, exc_info=True)
-
-    def full_name(self, name):
-        if self.is_full_name(name):
-            return name
-        return repr(self) + '.' + name
-
-    def local_name(self, name):
-        if self.is_full_name(name):
-            return name[len(repr(self)) + 1:]  # +1 because of the '.'
-        return name
-
-    def is_full_name(self, name):
-        return name.startswith(repr(self))
 
     async def queue_declare(self, queue_name, *args, channel=None, safe_delete_before=True, **kw):
         channel = channel or self.channel
@@ -334,22 +304,9 @@ class RabbitTestCase:
             self.exchanges[exchange_name] = (exchange_name, channel)
         return rep
 
-    def register_channel(self, channel):
-        self.channels.append(channel)
-
-    async def create_channel(self, amqp=None):
-        amqp = amqp or self.amqp
-        if self.amqp is None:
-            self.amqp = amqp
-            amqp.test_case = self
-            await self.start()
-            return self.channels[0]
-        channel = await amqp.channel()
-        return channel
-
     @asynccontextmanager
-    async def create_amqp(self, vhost=None):
-        async with connect_amqp(protocol=ProxyAmqpProtocol, host=self.host, port=self.port, virtualhost=vhost or self.vhost, test_case=self) as protocol:
+    async def create_amqp(self, vhost=None, test_seq=None):
+        async with testcase.connect(host=self.host, port=self.port, virtualhost=vhost or self.vhost, test_seq=test_seq) as protocol:
             self.amqps.append(protocol)
             yield protocol
 

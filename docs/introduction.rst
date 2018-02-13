@@ -3,6 +3,7 @@ Introduction
 
 Trio-amqp library is a pure-Python implementation of the AMQP 0.9.1 protocol using Trio_.
 
+.. _trio: https://github.com/python-trio/trio/
 
 Prerequisites
 -------------

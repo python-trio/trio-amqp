@@ -19,6 +19,38 @@ from .future import Future
 logger = logging.getLogger(__name__)
 
 
+class BasicListener:
+    """This class is returned by :meth:Channel.new_consumer`.
+    It is responsible for connecting to 
+    """
+    def __init__(self, channel, consumer_tag, **kwargs):
+        self.channel = channel
+        self.kwargs = kwargs
+        self.consumer_tag = consumer_tag
+        self._q = trio.Queue(30) # TODO: 2 + possible prefetch
+
+    async def __call__(self,msg,env,prop):
+        await self._q.put((msg,env,prop))
+
+    async def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        return await self._q.get()
+
+    async def __aenter__(self):
+        await self.channel.basic_consume(self, consumer_tag=self.consumer_tag, **self.kwargs)
+        self._q = trio.Queue()
+        return self
+
+    async def __aexit__(self, *tb):
+        with trio.open_cancel_scope(shield=True):
+            await self.channel.basic_cancel(self.consumer_tag)
+        del self._q
+        # these messages are not acknowledged, thus deleting the queue will
+        # not lose them
+
+
 class Channel:
 
     def __init__(self, protocol, channel_id):
@@ -32,6 +64,8 @@ class Channel:
         self.last_consumer_tag = None
         self.publisher_confirms = False
         self.delivery_tag_iter = None  # used for mapping delivered messages to publisher confirms
+
+        self._write_lock = trio.Lock()
 
         self._futures = {}
         self._ctag_events = {}
@@ -53,6 +87,8 @@ class Channel:
 
     @property
     def is_open(self):
+        if self.protocol.connection_closed.is_set():
+            return False
         return not self.close_event.is_set()
 
     def connection_closed(self, server_code=None, server_reason=None, exception=None):
@@ -128,11 +164,12 @@ class Channel:
         f = self._set_waiter(waiter_id)
         try:
             await self._write_frame(frame, request, check_open=check_open, drain=drain)
-        except Exception:
+        except BaseException as exc:
             self._get_waiter(waiter_id)
             f.cancel()
             raise
-        return await f
+        res = await f()
+        return res
 
 #
 ## Channel class implementation
@@ -167,8 +204,9 @@ class Channel:
         request.write_shortstr(reply_text)
         request.write_short(0)
         request.write_short(0)
-        return (await self._write_frame_awaiting_response(
-            'close', frame, request, no_wait=False, check_open=False))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'close', frame, request, no_wait=False, check_open=False))
 
     async def close_ok(self, frame):
         self._get_waiter('close').set_result(True)
@@ -181,6 +219,7 @@ class Channel:
         frame.declare_method(
             amqp_constants.CLASS_CHANNEL, amqp_constants.CHANNEL_CLOSE_OK)
         request = amqp_frame.AmqpEncoder()
+        # intentionally not locked
         await self._write_frame(frame, request)
 
     async def server_channel_close(self, frame):
@@ -199,9 +238,10 @@ class Channel:
             amqp_constants.CLASS_CHANNEL, amqp_constants.CHANNEL_FLOW)
         request = amqp_frame.AmqpEncoder()
         request.write_bits(active)
-        return (await self._write_frame_awaiting_response(
-            'flow', frame, request, no_wait=False,
-            check_open=False))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'flow', frame, request, no_wait=False,
+                check_open=False))
 
     async def flow_ok(self, frame):
         decoder = amqp_frame.AmqpDecoder(frame.payload)
@@ -231,8 +271,9 @@ class Channel:
         request.write_bits(passive, durable, auto_delete, internal, no_wait)
         request.write_table(arguments)
 
-        return (await self._write_frame_awaiting_response(
-            'exchange_declare', frame, request, no_wait))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'exchange_declare', frame, request, no_wait))
 
     async def exchange_declare_ok(self, frame):
         future = self._get_waiter('exchange_declare')
@@ -250,8 +291,9 @@ class Channel:
         request.write_shortstr(exchange_name)
         request.write_bits(if_unused, no_wait)
 
-        return (await self._write_frame_awaiting_response(
-            'exchange_delete', frame, request, no_wait))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'exchange_delete', frame, request, no_wait))
 
     async def exchange_delete_ok(self, frame):
         future = self._get_waiter('exchange_delete')
@@ -274,8 +316,9 @@ class Channel:
 
         request.write_bits(no_wait)
         request.write_table(arguments)
-        return (await self._write_frame_awaiting_response(
-            'exchange_bind', frame, request, no_wait))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'exchange_bind', frame, request, no_wait))
 
     async def exchange_bind_ok(self, frame):
         future = self._get_waiter('exchange_bind')
@@ -298,8 +341,9 @@ class Channel:
 
         request.write_bits(no_wait)
         request.write_table(arguments)
-        return (await self._write_frame_awaiting_response(
-            'exchange_unbind', frame, request, no_wait))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'exchange_unbind', frame, request, no_wait))
 
     async def exchange_unbind_ok(self, frame):
         future = self._get_waiter('exchange_unbind')
@@ -341,8 +385,9 @@ class Channel:
         request.write_shortstr(queue_name)
         request.write_bits(passive, durable, exclusive, auto_delete, no_wait)
         request.write_table(arguments)
-        return (await self._write_frame_awaiting_response(
-            'queue_declare', frame, request, no_wait))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'queue_declare', frame, request, no_wait))
 
     async def queue_declare_ok(self, frame):
         results = {
@@ -371,8 +416,9 @@ class Channel:
         request.write_short(0)  # reserved
         request.write_shortstr(queue_name)
         request.write_bits(if_unused, if_empty, no_wait)
-        return (await self._write_frame_awaiting_response(
-            'queue_delete', frame, request, no_wait))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'queue_delete', frame, request, no_wait))
 
     async def queue_delete_ok(self, frame):
         future = self._get_waiter('queue_delete')
@@ -380,7 +426,7 @@ class Channel:
         logger.debug("Queue deleted")
 
     async def queue_bind(self, queue_name, exchange_name, routing_key, no_wait=False, arguments=None):
-        """Bind a queue and a channel."""
+        """Bind a queue to an exchange."""
         if arguments is None:
             arguments = {}
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
@@ -395,8 +441,9 @@ class Channel:
         request.write_shortstr(routing_key)
         request.write_octet(int(no_wait))
         request.write_table(arguments)
-        return (await self._write_frame_awaiting_response(
-            'queue_bind', frame, request, no_wait))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'queue_bind', frame, request, no_wait))
 
     async def queue_bind_ok(self, frame):
         future = self._get_waiter('queue_bind')
@@ -417,8 +464,9 @@ class Channel:
         request.write_shortstr(exchange_name)
         request.write_shortstr(routing_key)
         request.write_table(arguments)
-        return (await self._write_frame_awaiting_response(
-            'queue_unbind', frame, request, no_wait=False))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'queue_unbind', frame, request, no_wait=False))
 
     async def queue_unbind_ok(self, frame):
         future = self._get_waiter('queue_unbind')
@@ -435,8 +483,9 @@ class Channel:
         request.write_short(0)
         request.write_shortstr(queue_name)
         request.write_octet(int(no_wait))
-        return (await self._write_frame_awaiting_response(
-            'queue_purge', frame, request, no_wait=no_wait))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'queue_purge', frame, request, no_wait=no_wait))
 
     async def queue_purge_ok(self, frame):
         decoder = amqp_frame.AmqpDecoder(frame.payload)
@@ -451,39 +500,40 @@ class Channel:
     async def basic_publish(self, payload, exchange_name, routing_key, properties=None, mandatory=False, immediate=False):
         assert payload, "Payload cannot be empty"
 
-        method_frame = amqp_frame.AmqpRequest(
-            amqp_constants.TYPE_METHOD, self.channel_id)
-        method_frame.declare_method(
-            amqp_constants.CLASS_BASIC, amqp_constants.BASIC_PUBLISH)
-        method_request = amqp_frame.AmqpEncoder()
-        method_request.write_short(0)
-        method_request.write_shortstr(exchange_name)
-        method_request.write_shortstr(routing_key)
-        method_request.write_bits(mandatory, immediate)
-        await self._write_frame(method_frame, method_request, drain=False)
+        async with self._write_lock:
+            method_frame = amqp_frame.AmqpRequest(
+                amqp_constants.TYPE_METHOD, self.channel_id)
+            method_frame.declare_method(
+                amqp_constants.CLASS_BASIC, amqp_constants.BASIC_PUBLISH)
+            method_request = amqp_frame.AmqpEncoder()
+            method_request.write_short(0)
+            method_request.write_shortstr(exchange_name)
+            method_request.write_shortstr(routing_key)
+            method_request.write_bits(mandatory, immediate)
+            await self._write_frame(method_frame, method_request, drain=False)
 
-        header_frame = amqp_frame.AmqpRequest(
-            amqp_constants.TYPE_HEADER, self.channel_id)
-        header_frame.declare_class(amqp_constants.CLASS_BASIC)
-        header_frame.set_body_size(len(payload))
-        encoder = amqp_frame.AmqpEncoder()
-        encoder.write_message_properties(properties)
-        await self._write_frame(header_frame, encoder, drain=False)
-
-        # split the payload
-
-        frame_max = self.protocol.server_frame_max or len(payload)
-        for chunk in (payload[0+i:frame_max+i] for i in range(0, len(payload), frame_max)):
-
-            content_frame = amqp_frame.AmqpRequest(
-                amqp_constants.TYPE_BODY, self.channel_id)
-            content_frame.declare_class(amqp_constants.CLASS_BASIC)
+            header_frame = amqp_frame.AmqpRequest(
+                amqp_constants.TYPE_HEADER, self.channel_id)
+            header_frame.declare_class(amqp_constants.CLASS_BASIC)
+            header_frame.set_body_size(len(payload))
             encoder = amqp_frame.AmqpEncoder()
-            if isinstance(chunk, str):
-                encoder.payload.write(chunk.encode())
-            else:
-                encoder.payload.write(chunk)
-            await self._write_frame(content_frame, encoder, drain=False)
+            encoder.write_message_properties(properties)
+            await self._write_frame(header_frame, encoder, drain=False)
+
+            # split the payload
+
+            frame_max = self.protocol.server_frame_max or len(payload)
+            for chunk in (payload[0+i:frame_max+i] for i in range(0, len(payload), frame_max)):
+
+                content_frame = amqp_frame.AmqpRequest(
+                    amqp_constants.TYPE_BODY, self.channel_id)
+                content_frame.declare_class(amqp_constants.CLASS_BASIC)
+                encoder = amqp_frame.AmqpEncoder()
+                if isinstance(chunk, str):
+                    encoder.payload.write(chunk.encode())
+                else:
+                    encoder.payload.write(chunk)
+                await self._write_frame(content_frame, encoder, drain=False)
 
         await self.protocol._drain()
 
@@ -512,8 +562,9 @@ class Channel:
         request.write_short(prefetch_count)
         request.write_bits(connection_global)
 
-        return (await self._write_frame_awaiting_response(
-            'basic_qos', frame, request, no_wait=False))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'basic_qos', frame, request, no_wait=False))
 
     async def basic_qos_ok(self, frame):
         future = self._get_waiter('basic_qos')
@@ -529,23 +580,46 @@ class Channel:
         logger.debug('Received nack for delivery tag %r', delivery_tag)
         fut.set_exception(exceptions.PublishFailed(delivery_tag))
 
-    async def basic_consume(self, callback, queue_name='', consumer_tag='', no_local=False, no_ack=False,
+    def new_consumer(self, queue_name='', consumer_tag='', no_local=False, no_ack=False,
                       exclusive=False, no_wait=False, arguments=None):
-        """Starts the consumption of message into a queue.
-        the callback will be called each time we're receiving a message.
+        """Starts the consumption of message from a queue.
+        
+            Usage::
 
-            Args:
-                callback:       coroutine, the called callback
-                queue_name:     str, the queue to receive message from
-                consumer_tag:   str, optional consumer tag
-                no_local:       bool, if set the server will not send messages
-                                to the connection that published them.
-                no_ack:         bool, if set the server does not expect
-                                acknowledgements for messages
-                exclusive:      bool, request exclusive consumer access,
-                                meaning only this consumer can access the queue
-                no_wait:        bool, if set, the server will not respond to the method
-                arguments:      dict, AMQP arguments to be passed to the server
+                async with chan.new_consumer(callback, queue_name="my_queue") as listener:
+                    async for body, envelope, properties in listener:
+                        await process_message(body, envelope, properties)
+
+            Arguments:
+                queue_name:
+                    str, the queue to receive message from
+                consumer_tag:
+                    str, optional consumer tag
+                no_local:
+                    bool, if set the server will not send messages to the
+                    connection that published them.
+                no_ack:
+                    bool, if set the server does not expect
+                    acknowledgements for messages
+                exclusive:
+                    bool, request exclusive consumer access, meaning only
+                    this consumer can access the queue
+                no_wait:
+                    bool, if set, the server will not respond to the method
+                arguments:
+                    dict, AMQP arguments to be passed to the server
+
+        If no callback is given, return an iterable which returns (message,
+        envelope, properties) triples. You must call its :meth:`aclose`
+        coroutine to stop receiving messages.
+
+        Otherwise, the callback function will be called with these three
+        arguments, once for each message. Callbacks may be simple functions,
+        async coroutines, or Trio tasks.
+
+        In either case, unless you have set :param:`no_ack` to ``True``,
+        your code is responsible for calling :meth:`basic_client_ack` or
+        :meth:`basic_client_nack` on the envelope's :attribute:`delivery_tag`.
         """
         # If a consumer tag was not passed, create one
         consumer_tag = consumer_tag or 'ctag%i.%s' % (self.channel_id, uuid.uuid4().hex)
@@ -553,6 +627,64 @@ class Channel:
         if arguments is None:
             arguments = {}
 
+        return BasicListener(self, queue_name=queue_name,
+            consumer_tag=consumer_tag, no_local=no_local, no_ack=no_ack,
+            exclusive=exclusive, no_wait=no_wait, arguments=arguments)
+
+    async def basic_consume(self, callback=None, queue_name='', consumer_tag='', no_local=False, no_ack=False,
+                      exclusive=False, no_wait=False, arguments=None):
+        """Starts the consumption of message from a queue.
+        The callback will be called each time we're receiving a message.
+
+            Arguments:
+                callback:
+                    coroutine, the callback to be executed for each message.
+                queue_name:
+                    str, the queue to receive message from
+                consumer_tag:
+                    str, optional consumer tag
+                no_local:
+                    bool, if set the server will not send messages to the
+                    connection that published them.
+                no_ack:
+                    bool, if set the server does not expect
+                    acknowledgements for messages
+                exclusive:
+                    bool, request exclusive consumer access, meaning only
+                    this consumer can access the queue
+                no_wait:
+                    bool, if set, the server will not respond to the method
+                arguments:
+                    dict, AMQP arguments to be passed to the server
+
+        The callback function will be called with three arguments,
+        once for each message. Callbacks may be simple functions, async
+        coroutines, or Trio tasks.
+
+            Callback Args:
+                Message:
+                    The body of the AMQP message.
+                Envelope:
+                    An instance of :class:`trio_amqp.envelope.Envelope`.
+                Properties:
+                    An instance of :class:`trio_amqp.properties.Properties`.
+                    
+        Unless you have set :param:`no_ack` to ``True``, your code is
+        responsible for calling :meth:`basic_client_ack` or
+        :meth:`basic_client_nack` on the envelope's
+        :attribute:`delivery_tag`.
+        """
+        # If a consumer tag was not passed, create one
+        consumer_tag = consumer_tag or 'ctag%i.%s' % (self.channel_id, uuid.uuid4().hex)
+
+        if arguments is None:
+            arguments = {}
+
+        if callback is None:
+            return BasicListener(self, queue_name=queue_name,
+                consumer_tag=consumer_tag, no_local=no_local, no_ack=no_ack,
+                exclusive=exclusive, no_wait=no_wait, arguments=arguments)
+            
         frame = amqp_frame.AmqpRequest(
             amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(
@@ -567,8 +699,9 @@ class Channel:
         self.consumer_callbacks[consumer_tag] = callback
         self.last_consumer_tag = consumer_tag
 
-        return_value = await self._write_frame_awaiting_response(
-            'basic_consume', frame, request, no_wait)
+        async with self._write_lock:
+            return_value = await self._write_frame_awaiting_response(
+                'basic_consume', frame, request, no_wait)
         if no_wait:
             return_value = {'consumer_tag': consumer_tag}
         else:
@@ -633,8 +766,9 @@ class Channel:
         request = amqp_frame.AmqpEncoder()
         request.write_shortstr(consumer_tag)
         request.write_bits(no_wait)
-        return (await self._write_frame_awaiting_response(
-            'basic_cancel', frame, request, no_wait=no_wait))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'basic_cancel', frame, request, no_wait=no_wait))
 
     async def basic_cancel_ok(self, frame):
         results = {
@@ -653,8 +787,9 @@ class Channel:
         request.write_short(0)
         request.write_shortstr(queue_name)
         request.write_bits(no_ack)
-        return (await self._write_frame_awaiting_response(
-            'basic_get', frame, request, no_wait=False))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'basic_get', frame, request, no_wait=False))
 
     async def basic_get_ok(self, frame):
         data = {}
@@ -688,7 +823,8 @@ class Channel:
         request = amqp_frame.AmqpEncoder()
         request.write_long_long(delivery_tag)
         request.write_bits(multiple)
-        await self._write_frame(frame, request)
+        async with self._write_lock:
+            await self._write_frame(frame, request)
 
     async def basic_client_nack(self, delivery_tag, multiple=False, requeue=True):
         frame = amqp_frame.AmqpRequest(
@@ -698,7 +834,8 @@ class Channel:
         request = amqp_frame.AmqpEncoder()
         request.write_long_long(delivery_tag)
         request.write_bits(multiple, requeue)
-        await self._write_frame(frame, request)
+        async with self._write_lock:
+            await self._write_frame(frame, request)
 
 
     async def basic_server_ack(self, frame):
@@ -716,7 +853,8 @@ class Channel:
         request = amqp_frame.AmqpEncoder()
         request.write_long_long(delivery_tag)
         request.write_bits(requeue)
-        await self._write_frame(frame, request)
+        async with self._write_lock:
+            await self._write_frame(frame, request)
 
     async def basic_recover_async(self, requeue=True):
         frame = amqp_frame.AmqpRequest(
@@ -725,7 +863,8 @@ class Channel:
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_RECOVER_ASYNC)
         request = amqp_frame.AmqpEncoder()
         request.write_bits(requeue)
-        await self._write_frame(frame, request)
+        async with self._write_lock:
+            await self._write_frame(frame, request)
 
     async def basic_recover(self, requeue=True):
         frame = amqp_frame.AmqpRequest(
@@ -734,7 +873,8 @@ class Channel:
             amqp_constants.CLASS_BASIC, amqp_constants.BASIC_RECOVER)
         request = amqp_frame.AmqpEncoder()
         request.write_bits(requeue)
-        return (await self._write_frame_awaiting_response(
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
             'basic_recover', frame, request, no_wait=False))
 
     async def basic_recover_ok(self, frame):
@@ -752,43 +892,44 @@ class Channel:
     async def publish(self, payload, exchange_name, routing_key, properties=None, mandatory=False, immediate=False):
         assert payload, "Payload cannot be empty"
 
-        if self.publisher_confirms:
-            delivery_tag = next(self.delivery_tag_iter)  # pylint: disable=stop-iteration-return
-            fut = self._set_waiter('basic_server_ack_{}'.format(delivery_tag))
+        async with self._write_lock:
+            if self.publisher_confirms:
+                delivery_tag = next(self.delivery_tag_iter)  # pylint: disable=stop-iteration-return
+                fut = self._set_waiter('basic_server_ack_{}'.format(delivery_tag))
 
-        method_frame = amqp_frame.AmqpRequest(
-            amqp_constants.TYPE_METHOD, self.channel_id)
-        method_frame.declare_method(
-            amqp_constants.CLASS_BASIC, amqp_constants.BASIC_PUBLISH)
-        method_request = amqp_frame.AmqpEncoder()
-        method_request.write_short(0)
-        method_request.write_shortstr(exchange_name)
-        method_request.write_shortstr(routing_key)
-        method_request.write_bits(mandatory, immediate)
-        await self._write_frame(method_frame, method_request, drain=False)
+            method_frame = amqp_frame.AmqpRequest(
+                amqp_constants.TYPE_METHOD, self.channel_id)
+            method_frame.declare_method(
+                amqp_constants.CLASS_BASIC, amqp_constants.BASIC_PUBLISH)
+            method_request = amqp_frame.AmqpEncoder()
+            method_request.write_short(0)
+            method_request.write_shortstr(exchange_name)
+            method_request.write_shortstr(routing_key)
+            method_request.write_bits(mandatory, immediate)
+            await self._write_frame(method_frame, method_request, drain=False)
 
-        header_frame = amqp_frame.AmqpRequest(
-            amqp_constants.TYPE_HEADER, self.channel_id)
-        header_frame.declare_class(amqp_constants.CLASS_BASIC)
-        header_frame.set_body_size(len(payload))
-        encoder = amqp_frame.AmqpEncoder()
-        encoder.write_message_properties(properties)
-        await self._write_frame(header_frame, encoder, drain=False)
-
-        # split the payload
-
-        frame_max = self.protocol.server_frame_max or len(payload)
-        for chunk in (payload[0+i:frame_max+i] for i in range(0, len(payload), frame_max)):
-
-            content_frame = amqp_frame.AmqpRequest(
-                amqp_constants.TYPE_BODY, self.channel_id)
-            content_frame.declare_class(amqp_constants.CLASS_BASIC)
+            header_frame = amqp_frame.AmqpRequest(
+                amqp_constants.TYPE_HEADER, self.channel_id)
+            header_frame.declare_class(amqp_constants.CLASS_BASIC)
+            header_frame.set_body_size(len(payload))
             encoder = amqp_frame.AmqpEncoder()
-            if isinstance(chunk, str):
-                encoder.payload.write(chunk.encode())
-            else:
-                encoder.payload.write(chunk)
-            await self._write_frame(content_frame, encoder, drain=False)
+            encoder.write_message_properties(properties)
+            await self._write_frame(header_frame, encoder, drain=False)
+
+            # split the payload
+
+            frame_max = self.protocol.server_frame_max or len(payload)
+            for chunk in (payload[0+i:frame_max+i] for i in range(0, len(payload), frame_max)):
+
+                content_frame = amqp_frame.AmqpRequest(
+                    amqp_constants.TYPE_BODY, self.channel_id)
+                content_frame.declare_class(amqp_constants.CLASS_BASIC)
+                encoder = amqp_frame.AmqpEncoder()
+                if isinstance(chunk, str):
+                    encoder.payload.write(chunk.encode())
+                else:
+                    encoder.payload.write(chunk)
+                await self._write_frame(content_frame, encoder, drain=False)
 
         await self.protocol._drain()
 
@@ -804,8 +945,9 @@ class Channel:
         request = amqp_frame.AmqpEncoder()
         request.write_shortstr('')
 
-        return (await self._write_frame_awaiting_response(
-            'confirm_select', frame, request, no_wait))
+        async with self._write_lock:
+            return (await self._write_frame_awaiting_response(
+                'confirm_select', frame, request, no_wait))
 
     async def confirm_select_ok(self, frame):
         self.publisher_confirms = True

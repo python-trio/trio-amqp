@@ -9,7 +9,6 @@ from functools import partial
 
 from . import testcase
 from .. import exceptions
-from .. import connect_amqp
 from .. import connect_from_url as amqp_from_url
 from ..protocol import AmqpProtocol, OPEN
 
@@ -19,7 +18,7 @@ class TestProtocol(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def test_connect(self):
         self.reset_vhost()
-        amqp = connect_amqp(virtualhost=self.vhost)
+        amqp = testcase.connect(virtualhost=self.vhost)
         async with amqp as protocol:
             assert protocol.state == OPEN
 
@@ -30,7 +29,7 @@ class TestProtocol(testcase.RabbitTestCase):
             'program': 'trio-amqp-tests',
             'program_version': '0.1.1',
         }
-        amqp = connect_amqp(
+        amqp = testcase.connect(
             virtualhost=self.vhost,
             client_properties=client_properties,
         )
@@ -41,7 +40,7 @@ class TestProtocol(testcase.RabbitTestCase):
     async def test_connection_unexistant_vhost(self):
         self.reset_vhost()
         with pytest.raises(exceptions.AmqpClosedConnection):
-            amqp = connect_amqp(virtualhost='/unexistant')
+            amqp = testcase.connect(virtualhost='/unexistant')
             async with amqp as protocol:
                 pass
 
@@ -49,7 +48,7 @@ class TestProtocol(testcase.RabbitTestCase):
     async def test_connection_wrong_login_password(self):
         self.reset_vhost()
         with pytest.raises(exceptions.AmqpClosedConnection):
-            amqp = connect_amqp(login='wrong', password='wrong')
+            amqp = testcase.connect(login='wrong', password='wrong')
             async with amqp as protocol:
                 pass
 

@@ -22,38 +22,33 @@ class TestClose(testcase.RabbitTestCase):
         return self.consume_result
 
     @pytest.mark.trio
-    async def test_close(self, amqp):
-        channel = await self.create_channel(amqp)
+    async def test_close(self, channel):
         assert channel.is_open
         await channel.close()
         assert not channel.is_open
 
     @pytest.mark.trio
-    async def test_multiple_close(self, amqp):
-        channel = await self.create_channel(amqp)
+    async def test_multiple_close(self, channel):
         await channel.close()
         assert not channel.is_open
         with pytest.raises(exceptions.ChannelClosed):
             await channel.close()
 
     @pytest.mark.trio
-    async def test_cannot_publish_after_close(self, amqp):
-        channel = self.channel
+    async def test_cannot_publish_after_close(self, channel):
         await channel.close()
         with pytest.raises(exceptions.ChannelClosed):
-            await self.channel.publish("coucou", "my_e", "")
+            await channel.publish("coucou", "my_e", "")
 
     @pytest.mark.trio
-    async def test_cannot_declare_queue_after_close(self, amqp):
-        channel = self.channel
+    async def test_cannot_declare_queue_after_close(self, channel):
         await channel.close()
         with pytest.raises(exceptions.ChannelClosed):
-            await self.channel.queue_declare("qq")
+            await channel.queue_declare("qq")
 
     @pytest.mark.trio
-    async def test_cannot_consume_after_close(self, amqp):
-        channel = self.channel
-        await self.channel.queue_declare("q")
+    async def test_cannot_consume_after_close(self, channel):
+        await channel.queue_declare("q")
         await channel.close()
         with pytest.raises(exceptions.ChannelClosed):
             await channel.basic_consume(self.callback)

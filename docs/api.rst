@@ -43,7 +43,7 @@ Starting a connection
                     Zero means the server does not want a heartbeat.
    :param dict client_properties: configure the client to connect to the AMQP server.
 
-   The actual connection will then be etsablished by an async context manager.
+   The actual connection will then be established by an async context manager.
 
 .. _AmqpProtocol: :
 
@@ -61,84 +61,42 @@ Starting a connection
 
     trio.run(connect)
 
-In this example, we just use the method "start_connection" to begin a communication with the server, which deals with credentials and connection tunning.
+Channels
+--------
 
+A channel links your connection to a specific exchange or queue. The server
+closes your channel when it detects an error. Flow control is also applied
+per channel.
 
-The `AmqpProtocol` uses the `kwargs` arguments to configure the connection to the AMQP Broker:
+Creating a channel is easy::
 
-.. py:method:: AmqpProtocol.__init__(self, *args, **kwargs):
-
-   The protocol to communicate with AMQP
-
-
-Handling errors
----------------
-
-The connect() method has an extra 'on_error' kwarg option. This on_error is a callback or a coroutine function which is called with an exception as the argument::
-
-    import trio
-    import socket
-    import trio_amqp
-
-    async def error_callback(exception):
-        print(exception)
-
-    async def connect():
-        try:
-            protocol = await trio_amqp.connect(
-                host='nonexistant.com',
-                on_error=error_callback,
-                client_properties={
-                    'program_name': "test",
-                    'hostname' : socket.gethostname(),
-                },
-
-            )
-        except trio_amqp.AmqpClosedConnection:
-            print("closed connections")
-            return
-
-    trio.run(connect)
-
-
+    async with conn.new_channel() as chan:
+        do_whatever()
 
 Publishing messages
 -------------------
 
-A channel is the main object when you want to send message to an exchange, or to consume message from a queue::
+When you want to produce some content, you declare an exchange, then publish message into it::
 
-    channel = await protocol.channel()
+    await chan.exchange_declare("my_exch","topic")
+    await chan.publish("trio_amqp hello", "my_exch", "hello.there")
 
-
-When you want to produce some content, you declare a queue then publish message into it::
-
-    await channel.queue_declare("my_queue")
-    await channel.publish("trio_amqp hello", '', "my_queue")
-
-Note: we're pushing message to "my_queue" queue, through the default amqp exchange.
+Here we're publishing a message to the "my_exch" exchange.
 
 
 Consuming messages
 ------------------
 
-When consuming message, you connect to the same queue you previously created::
+When consuming message, you either create a queue (and hook it up to an
+exchange), or read from an existing one; see below. Then you read messages
+from the queue::
 
-    import trio_amqp
+    async with chan.new_consumer(callback, queue_name="my_queue") as listener:
+        async for body, envelope, properties in listener:
+            process_message(body, envelope, properties)
 
-    async def callback(channel, body, envelope, properties):
-        print(body)
-
-    channel = await protocol.channel()
-    await channel.basic_consume(callback, queue_name="my_queue")
-
-The ``basic_consume`` method tells the server to send us the messages, and will call ``callback`` with amqp response arguments.
-
-The ``consumer_tag`` is the id of your consumer, and the ``delivery_tag`` is the tag used if you want to acknowledge the message.
-
-In the callback:
-
-* the first ``body`` parameter is the message
-* the ``envelope`` is an instance of envelope.Envelope class which encapsulate a group of amqp parameter such as::
+* the ``body`` parameter is the actual message
+* the ``envelope`` is an instance of :class:`envelope.Envelope` which encapsulate a group of amqp parameter such as::
 
     consumer_tag
     delivery_tag
@@ -146,7 +104,7 @@ In the callback:
     routing_key
     is_redeliver
 
-* the ``properties`` are message properties, an instance of properties.Properties with the following members::
+* the ``properties`` are message properties, an instance of :class:`properties.Properties` with the following members::
 
     content_type
     content_encoding
@@ -163,7 +121,10 @@ In the callback:
     app_id
     cluster_id
 
-
+Remember that you need to call either ``basic_ack(delivery_tag)`` or
+``basic_nack(delivery_tag)`` for each message you receive. Otherwise the
+server will not know that you processed it, and thus will not send more
+messages.
 
 Queues
 ------
@@ -213,15 +174,15 @@ Here is an example to create a randomly named queue with special arguments `x-ma
    :param dict arguments: AMQP arguments to be passed when creating the queue.
 
 
-This simple example creates a `queue`, an `exchange` and bind them together.
+This simple example creates a `queue`, an `exchange`, and binds them together.
 
  .. code-block:: python
 
-        channel = await protocol.channel()
-        await channel.queue_declare(queue_name='queue')
-        await channel.exchange_declare(exchange_name='exchange')
+        async with conn.new_channel() as chan:
+            await chan.queue_declare(queue_name='queue')
+            await chan.exchange_declare(exchange_name='exchange')
 
-        await channel.queue_bind('queue', 'exchange', routing_key='')
+            await chan.queue_bind('queue', 'exchange', routing_key='')
 
 
 .. py:method:: Channel.queue_unbind(queue_name, exchange_name, routing_key, arguments)
@@ -230,16 +191,17 @@ This simple example creates a `queue`, an `exchange` and bind them together.
 
     :param str queue_name: the queue to receive message from.
     :param str exchange_name: the exchange to bind the queue to.
-    :PARAM STR ROUTING_KEY: THE ROUTING_KEY TO ROUTE MESSAGE.
+    :param str routing_key: the routing_key to filter messages.
     :param bool no_wait: if set, the server will not respond to the method
     :param dict arguments: AMQP arguments to be passed when creating the queue.
 
 
 .. py:method:: Channel.queue_purge(queue_name, no_wait)
 
-    Coroutine, purge a queue
+    Coroutine, purge a queue (delete all its messages)
 
-    :param str queue_name: the queue to receive message from.
+    :param str queue_name: the queue to delete messages from.
+    :param bool no_wait: if set, the server will not respond to the method
 
 
 
@@ -266,8 +228,8 @@ Note: the `internal` flag is deprecated and not used in this library.
 
  .. code-block:: python
 
-        channel = await protocol.channel()
-        await channel.exchange_declare(exchange_name='exchange', auto_delete=True)
+        async with conn.new_channel() as chan:
+            await chan.exchange_declare(exchange_name='exchange', auto_delete=True)
 
 
 .. py:method:: Channel.exchange_delete(exchange_name, if_unused, no_wait)
@@ -275,29 +237,30 @@ Note: the `internal` flag is deprecated and not used in this library.
    Coroutine, delete a exchange on the broker
 
    :param str exchange_name: the exchange to receive message from
-   :param bool if_unused: the exchange is deleted if it has no consumers. Raise if not.
+   :param bool if_unused: the exchange is only deleted if it has no consumers.
+                          Otherwise an error is raised.
    :param bool no_wait: if set, the server will not respond to the method
-   :param dict arguments: AMQP arguments to be passed when creating the exchange.
+   :param dict arguments: AMQP arguments to be passed when deleting the exchange.
 
 
 .. py:method:: Channel.exchange_bind(exchange_destination, exchange_source, routing_key, no_wait, arguments)
 
    Coroutine, binds two exchanges together
 
-   :param str exchange_destination: specifies the name of the destination exchange to bind
-   :param str exchange_source: specified the name of the source exchange to bind.
-   :param str exchange_destination: specifies the name of the destination exchange to bind
+   :param str exchange_destination: the name of the exchange to send messages to.
+   :param str exchange_source: the name of the exchange to receive messages from.
+   :param str routing_key: the key used to filter messages
    :param bool no_wait: if set, the server will not respond to the method
-   :param dict arguments: AMQP arguments to be passed when creating the exchange.
+   :param dict arguments: AMQP arguments to be passed when setting up the binding
 
 
 .. py:method:: Channel.exchange_unbind(exchange_destination, exchange_source, routing_key, no_wait, arguments)
 
     Coroutine, unbind an exchange from an exchange.
 
-   :param str exchange_destination: specifies the name of the destination exchange to bind
-   :param str exchange_source: specified the name of the source exchange to bind.
-   :param str exchange_destination: specifies the name of the destination exchange to bind
+   :param str exchange_destination: the name of the exchange to send messages to.
+   :param str exchange_source: the name of the exchange to receive messages from.
+   :param str routing_key: the key used to filter messages
    :param bool no_wait: if set, the server will not respond to the method
-   :param dict arguments: AMQP arguments to be passed when creating the exchange.
+   :param dict arguments: AMQP arguments to be passed when removing the exchange.
 

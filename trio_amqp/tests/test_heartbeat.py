@@ -6,7 +6,7 @@ import trio
 import pytest
 import mock
 
-from trio_amqp import connect_amqp, exceptions
+from trio_amqp import exceptions
 from trio_amqp.protocol import CLOSED
 
 from . import testcase
@@ -16,7 +16,7 @@ class TestHeartbeat(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_recv_heartbeat(self):
-        conn = connect_amqp(
+        conn = testcase.connect(
             virtualhost=self.vhost,
         )
         self.reset_vhost()
@@ -29,10 +29,10 @@ class TestHeartbeat(testcase.RabbitTestCase):
                 amqp.send_heartbeat = mock_send
                 amqp.server_heartbeat = 0.01
 
-                chan = await self.create_channel(amqp)
-                # this ensures that the send and recv loops use the new
-                # heartbeat value
-                await trio.sleep(0.1)
-                assert False,"not reached"
+                async with amqp.new_channel():
+                    # this ensures that the send and recv loops use the new
+                    # heartbeat value
+                    await trio.sleep(0.1)
+                    assert False,"not reached"
         assert self.send_called > 2
         
