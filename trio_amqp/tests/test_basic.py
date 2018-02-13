@@ -12,7 +12,6 @@ from .. import properties
 
 
 class TestQos(testcase.RabbitTestCase):
-
     @pytest.mark.trio
     async def test_basic_qos_default_args(self, channel):
         result = await channel.basic_qos()
@@ -20,49 +19,44 @@ class TestQos(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_basic_qos(self, channel):
-            result = await channel.basic_qos(
-                prefetch_size=0,
-                prefetch_count=100,
-                connection_global=False)
+        result = await channel.basic_qos(
+            prefetch_size=0, prefetch_count=100, connection_global=False
+        )
 
-            assert result
+        assert result
 
     @pytest.mark.trio
     async def test_basic_qos_prefetch_size(self):
         self.reset_vhost()
-        conn = testcase.connect(
-            virtualhost=self.vhost,
-        )
+        conn = testcase.connect(virtualhost=self.vhost,)
         async with conn as amqp:
             async with amqp.new_channel() as channel:
                 with pytest.raises(exceptions.ChannelClosed) as cm:
                     await channel.basic_qos(
                         prefetch_size=10,
                         prefetch_count=100,
-                        connection_global=False)
+                        connection_global=False
+                    )
 
         assert cm.value.code == 540
 
     @pytest.mark.trio
     async def test_basic_qos_wrong_values(self):
         self.reset_vhost()
-        conn = testcase.connect(
-            virtualhost=self.vhost,
-        )
+        conn = testcase.connect(virtualhost=self.vhost,)
         async with conn as amqp:
             async with amqp.new_channel() as channel:
                 with pytest.raises(struct.error):
                     await channel.basic_qos(
                         prefetch_size=100000,
                         prefetch_count=1000000000,
-                        connection_global=False)
+                        connection_global=False
+                    )
 
 
 class TestBasicCancel(testcase.RabbitTestCase):
-
     @pytest.mark.trio
     async def test_basic_cancel(self, channel):
-
         async def callback(channel, body, envelope, _properties):
             pass
 
@@ -74,13 +68,14 @@ class TestBasicCancel(testcase.RabbitTestCase):
         result = await channel.basic_consume(callback, queue_name=queue_name)
         result = await channel.basic_cancel(result['consumer_tag'])
 
-        result = await channel.publish("payload", exchange_name, routing_key='')
+        result = await channel.publish(
+            "payload", exchange_name, routing_key=''
+        )
 
         await trio.sleep(1)
         result = await channel.queue_declare(queue_name, passive=True)
         assert result['message_count'] == 1
         assert result['consumer_count'] == 0
-
 
     @pytest.mark.trio
     async def test_basic_cancel_unknown_ctag(self, channel):
@@ -89,8 +84,6 @@ class TestBasicCancel(testcase.RabbitTestCase):
 
 
 class TestBasicGet(testcase.RabbitTestCase):
-
-
     @pytest.mark.trio
     async def test_basic_get(self, channel):
         queue_name = 'queue_name'
@@ -99,15 +92,20 @@ class TestBasicGet(testcase.RabbitTestCase):
 
         await channel.queue_declare(queue_name)
         await channel.exchange_declare(exchange_name, type_name='direct')
-        await channel.queue_bind(queue_name, exchange_name, routing_key=routing_key)
+        await channel.queue_bind(
+            queue_name, exchange_name, routing_key=routing_key
+        )
 
-        await channel.publish("payload", exchange_name, routing_key=routing_key)
+        await channel.publish(
+            "payload", exchange_name, routing_key=routing_key
+        )
 
         result = await channel.basic_get(queue_name)
         assert result['routing_key'] == routing_key
         assert not result['redelivered']
         assert 'delivery_tag' in result
-        assert result['exchange_name'] == channel.protocol.full_name(exchange_name)
+        assert result['exchange_name'
+                      ] == channel.protocol.full_name(exchange_name)
         assert result['message'] == b'payload'
         assert isinstance(result['properties'], properties.Properties)
 
@@ -118,23 +116,27 @@ class TestBasicGet(testcase.RabbitTestCase):
         routing_key = ''
         await channel.queue_declare(queue_name)
         await channel.exchange_declare(exchange_name, type_name='direct')
-        await channel.queue_bind(queue_name, exchange_name, routing_key=routing_key)
+        await channel.queue_bind(
+            queue_name, exchange_name, routing_key=routing_key
+        )
 
         with pytest.raises(exceptions.EmptyQueue):
             await channel.basic_get(queue_name)
 
 
 class TestBasicDelivery(testcase.RabbitTestCase):
-
-
-    async def publish(self, amqp, queue_name, exchange_name, routing_key, payload):
+    async def publish(
+        self, amqp, queue_name, exchange_name, routing_key, payload
+    ):
         async with amqp.new_channel() as channel:
-            await channel.queue_declare(queue_name, exclusive=False, no_wait=False)
+            await channel.queue_declare(
+                queue_name, exclusive=False, no_wait=False
+            )
             await channel.exchange_declare(exchange_name, type_name='fanout')
-            await channel.queue_bind(queue_name, exchange_name, routing_key=routing_key)
+            await channel.queue_bind(
+                queue_name, exchange_name, routing_key=routing_key
+            )
             await channel.publish(payload, exchange_name, queue_name)
-
-
 
     @pytest.mark.trio
     async def test_ack_message(self, amqp):
@@ -172,6 +174,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         qfuture = trio.Event()
 
         async with amqp.new_channel() as channel:
+
             async def qcallback(channel, body, envelope, _properties):
                 await channel.basic_client_nack(
                     envelope.delivery_tag, multiple=True, requeue=False
@@ -194,8 +197,11 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         qfuture = trio.Event()
 
         async with amqp.new_channel() as channel:
+
             async def qcallback(channel, body, envelope, _properties):
-                await channel.basic_client_nack(envelope.delivery_tag, requeue=False)
+                await channel.basic_client_nack(
+                    envelope.delivery_tag, requeue=False
+                )
                 qfuture.set()
 
             await channel.basic_consume(qcallback, queue_name=queue_name)
@@ -215,18 +221,20 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         called = False
 
         async with amqp.new_channel() as channel:
+
             async def qcallback(channel, body, envelope, _properties):
                 nonlocal called
                 if not called:
                     called = True
-                    await channel.basic_client_nack(envelope.delivery_tag, requeue=True)
+                    await channel.basic_client_nack(
+                        envelope.delivery_tag, requeue=True
+                    )
                 else:
                     await channel.basic_client_ack(envelope.delivery_tag)
                     qfuture.set()
 
             await channel.basic_consume(qcallback, queue_name=queue_name)
             await qfuture.wait()
-
 
     @pytest.mark.trio
     async def test_basic_reject(self, amqp):
@@ -249,4 +257,3 @@ class TestBasicDelivery(testcase.RabbitTestCase):
             envelope = self.test_result
 
             await channel.basic_reject(envelope.delivery_tag)
-

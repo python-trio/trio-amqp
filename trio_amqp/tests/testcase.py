@@ -21,7 +21,6 @@ from .. import exceptions, connect_amqp
 from ..channel import Channel
 from ..protocol import AmqpProtocol, OPEN, ChannelContext
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -29,30 +28,45 @@ def use_full_name(f, arg_names):
     sig = inspect.signature(f)
     for arg_name in arg_names:
         if arg_name not in sig.parameters:
-            raise ValueError('%s is not a valid argument name for function %s' % (arg_name, f.__qualname__))
+            raise ValueError(
+                '%s is not a valid argument name for function %s' %
+                (arg_name, f.__qualname__)
+            )
 
     @wraps(f)
     def wrapper(self, *args, **kw):
         ba = sig.bind_partial(self, *args, **kw)
         for param in sig.parameters.values():
             if param.name in arg_names and param.name in ba.arguments:
-                ba.arguments[param.name] = self.full_name(ba.arguments[param.name])
+                ba.arguments[param.name] = self.full_name(
+                    ba.arguments[param.name]
+                )
         return f(*(ba.args), **(ba.kwargs))
 
     return wrapper
 
 
 class ProxyChannel(Channel):
-    exchange_declare = use_full_name(Channel.exchange_declare, ['exchange_name'])
+    exchange_declare = use_full_name(
+        Channel.exchange_declare, ['exchange_name']
+    )
     exchange_delete = use_full_name(Channel.exchange_delete, ['exchange_name'])
     queue_declare = use_full_name(Channel.queue_declare, ['queue_name'])
     queue_delete = use_full_name(Channel.queue_delete, ['queue_name'])
-    queue_bind = use_full_name(Channel.queue_bind, ['queue_name', 'exchange_name'])
-    queue_unbind = use_full_name(Channel.queue_unbind, ['queue_name', 'exchange_name'])
+    queue_bind = use_full_name(
+        Channel.queue_bind, ['queue_name', 'exchange_name']
+    )
+    queue_unbind = use_full_name(
+        Channel.queue_unbind, ['queue_name', 'exchange_name']
+    )
     queue_purge = use_full_name(Channel.queue_purge, ['queue_name'])
 
-    exchange_bind = use_full_name(Channel.exchange_bind, ['exchange_source', 'exchange_destination'])
-    exchange_unbind = use_full_name(Channel.exchange_unbind, ['exchange_source', 'exchange_destination'])
+    exchange_bind = use_full_name(
+        Channel.exchange_bind, ['exchange_source', 'exchange_destination']
+    )
+    exchange_unbind = use_full_name(
+        Channel.exchange_unbind, ['exchange_source', 'exchange_destination']
+    )
     publish = use_full_name(Channel.publish, ['exchange_name'])
     basic_get = use_full_name(Channel.basic_get, ['queue_name'])
     basic_consume = use_full_name(Channel.basic_consume, ['queue_name'])
@@ -63,7 +77,9 @@ class ProxyChannel(Channel):
             return name
         return conn.full_name(name)
 
+
 _seq = 0
+
 
 class ProxyAmqpProtocol(AmqpProtocol):
     test_seq = None
@@ -97,12 +113,13 @@ class ProxyAmqpProtocol(AmqpProtocol):
     def is_full_name(self, name):
         return name.startswith(self.shortname)
 
+
 def reset_vhost():
     host = os.environ.get('AMQP_HOST', 'localhost')
     port = int(os.environ.get('AMQP_PORT', 5672))
     vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
     http_client = pyrabbit.api.Client(
-        '%s:%s/' % (host, 10000+port), 'guest', 'guest', timeout=20
+        '%s:%s/' % (host, 10000 + port), 'guest', 'guest', timeout=20
     )
     for kv in http_client.get_queues(vhost=vhost):
         try:
@@ -115,30 +132,36 @@ def reset_vhost():
         except Exception:  # pylint: disable=broad-except
             pass
 
+
 def connect(*a, **kw):
     return connect_amqp(*a, protocol=ProxyAmqpProtocol, **kw)
+
 
 @pytest.fixture
 async def amqp(request, nursery):
     reset_vhost()
-    async with ProxyAmqpProtocol(nursery=nursery,
-            host = os.environ.get('AMQP_HOST', 'localhost'),
-            port = int(os.environ.get('AMQP_PORT', 5672)),
-            virtualhost = os.environ.get('AMQP_VHOST','test' + str(uuid.uuid4())),
-            ) as conn: 
+    async with ProxyAmqpProtocol(
+        nursery=nursery,
+        host=os.environ.get('AMQP_HOST', 'localhost'),
+        port=int(os.environ.get('AMQP_PORT', 5672)),
+        virtualhost=os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4())),
+    ) as conn:
         yield conn
+
 
 @pytest.fixture
 async def channel(request, nursery):
     reset_vhost()
     # XXX using another async fixture does not work yet
-    async with ProxyAmqpProtocol(nursery=nursery,
-            host = os.environ.get('AMQP_HOST', 'localhost'),
-            port = int(os.environ.get('AMQP_PORT', 5672)),
-            virtualhost = os.environ.get('AMQP_VHOST','test' + str(uuid.uuid4())),
-            ) as conn: 
+    async with ProxyAmqpProtocol(
+        nursery=nursery,
+        host=os.environ.get('AMQP_HOST', 'localhost'),
+        port=int(os.environ.get('AMQP_PORT', 5672)),
+        virtualhost=os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4())),
+    ) as conn:
         async with conn.new_channel() as channel:
             yield channel
+
 
 class RabbitTestCase:
     """TestCase with a rabbit running in background"""
@@ -151,7 +174,10 @@ class RabbitTestCase:
         self.port = int(os.environ.get('AMQP_PORT', 5672))
         self.vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
         self.http_client = pyrabbit.api.Client(
-            '%s:%s/' % (self.host, 10000+self.port), 'guest', 'guest', timeout=20
+            '%s:%s/' % (self.host, 10000 + self.port),
+            'guest',
+            'guest',
+            timeout=20
         )
 
         self.amqps = []
@@ -183,10 +209,12 @@ class RabbitTestCase:
             pass
 
     def reset_vhost(self):
-        reset_vhost() # global
+        reset_vhost()  # global
 
     def server_version(self, amqp):
-        server_version = tuple(int(x) for x in amqp.server_properties['version'].split('.'))
+        server_version = tuple(
+            int(x) for x in amqp.server_properties['version'].split('.')
+        )
         return server_version
 
     async def check_exchange_exists(self, exchange_name):
@@ -215,7 +243,9 @@ class RabbitTestCase:
         if not self.check_queue_exists(queue_name):
             self.fail("Queue {} does not exists".format(queue_name))
 
-    def list_queues(self, amqp, vhost=None, fully_qualified_name=False, delay=None):
+    def list_queues(
+        self, amqp, vhost=None, fully_qualified_name=False, delay=None
+    ):
         # wait for the http client to get the correct state of the queue
         if delay is None:
             delay = int(os.environ.get('AMQP_REFRESH_TIME', 1.1))
@@ -239,12 +269,12 @@ class RabbitTestCase:
                 q = queues[queue_name]
                 try:
                     q['messages_ready_ram'] == 1
-                except (KeyError,AssertionError):
+                except (KeyError, AssertionError):
                     try:
                         assert q['messages'] == 1
-                    except (KeyError,AssertionError):
+                    except (KeyError, AssertionError):
                         assert q['message_stats']['publish'] == 1
-            except (KeyError,AssertionError) as exc:
+            except (KeyError, AssertionError) as exc:
                 ex = exc
             else:
                 break
@@ -261,9 +291,15 @@ class RabbitTestCase:
         try:
             await channel.queue_delete(full_queue_name, no_wait=False)
         except trio.TooSlowError:
-            logger.warning('Timeout on queue %s deletion', full_queue_name, exc_info=True)
+            logger.warning(
+                'Timeout on queue %s deletion', full_queue_name, exc_info=True
+            )
         except Exception:  # pylint: disable=broad-except
-            logger.error('Unexpected error on queue %s deletion', full_queue_name, exc_info=True)
+            logger.error(
+                'Unexpected error on queue %s deletion',
+                full_queue_name,
+                exc_info=True
+            )
 
     async def safe_exchange_delete(self, exchange_name, channel=None):
         """Delete the exchange but does not raise any exception if it fails
@@ -275,11 +311,21 @@ class RabbitTestCase:
         try:
             await channel.exchange_delete(full_exchange_name, no_wait=False)
         except trio.TooSlowError:
-            logger.warning('Timeout on exchange %s deletion', full_exchange_name, exc_info=True)
+            logger.warning(
+                'Timeout on exchange %s deletion',
+                full_exchange_name,
+                exc_info=True
+            )
         except Exception:  # pylint: disable=broad-except
-            logger.error('Unexpected error on exchange %s deletion', full_exchange_name, exc_info=True)
+            logger.error(
+                'Unexpected error on exchange %s deletion',
+                full_exchange_name,
+                exc_info=True
+            )
 
-    async def queue_declare(self, queue_name, *args, channel=None, safe_delete_before=True, **kw):
+    async def queue_declare(
+        self, queue_name, *args, channel=None, safe_delete_before=True, **kw
+    ):
         channel = channel or self.channel
         if safe_delete_before:
             await self.safe_queue_delete(queue_name, channel=channel)
@@ -292,21 +338,34 @@ class RabbitTestCase:
             self.queues[queue_name] = (queue_name, channel)
         return rep
 
-    async def exchange_declare(self, exchange_name, *args, channel=None, safe_delete_before=True, **kw):
+    async def exchange_declare(
+        self,
+        exchange_name,
+        *args,
+        channel=None,
+        safe_delete_before=True,
+        **kw
+    ):
         channel = channel or self.channel
         if safe_delete_before:
             await self.safe_exchange_delete(exchange_name, channel=channel)
         # prefix exchange name
         full_exchange_name = self.full_name(exchange_name)
         try:
-            rep = await channel.exchange_declare(full_exchange_name, *args, **kw)
+            rep = await channel.exchange_declare(
+                full_exchange_name, *args, **kw
+            )
         finally:
             self.exchanges[exchange_name] = (exchange_name, channel)
         return rep
 
     @asynccontextmanager
     async def create_amqp(self, vhost=None, test_seq=None):
-        async with testcase.connect(host=self.host, port=self.port, virtualhost=vhost or self.vhost, test_seq=test_seq) as protocol:
+        async with testcase.connect(
+            host=self.host,
+            port=self.port,
+            virtualhost=vhost or self.vhost,
+            test_seq=test_seq
+        ) as protocol:
             self.amqps.append(protocol)
             yield protocol
-

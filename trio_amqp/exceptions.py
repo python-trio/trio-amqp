@@ -6,19 +6,24 @@
 class TrioAmqpException(Exception):
     pass
 
+
 class HeartbeatTimeoutError(TrioAmqpException):
     """No heartbeat has been received"""
     pass
+
 
 class ConfigurationError(TrioAmqpException):
     """unused, kept for compatibility"""
     pass
 
+
 class AmqpClosedConnection(TrioAmqpException):
     pass
 
+
 class SynchronizationError(TrioAmqpException):
     pass
+
 
 class EmptyQueue(TrioAmqpException):
     pass
@@ -38,8 +43,10 @@ class ChannelClosed(TrioAmqpException):
 
 class DuplicateConsumerTag(TrioAmqpException):
     def __repr__(self):
-        return ('The consumer tag specified already exists for this '
-                'channel: %s' % self.args[0])
+        return (
+            'The consumer tag specified already exists for this '
+            'channel: %s' % self.args[0]
+        )
 
 
 class ConsumerCancelled(TrioAmqpException):
@@ -54,4 +61,5 @@ class PublishFailed(TrioAmqpException):
 
     def __repr__(self):
         return 'Publish failed because a nack was received for delivery_tag {}'.format(
-            self.delivery_tag)
+            self.delivery_tag
+        )

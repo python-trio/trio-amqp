@@ -27,7 +27,7 @@ class TestPublish(testcase.RabbitTestCase):
         await channel.queue_bind("q", "e", routing_key='')
 
         # publish
-        await channel.publish("a"*1000000, "e", routing_key='')
+        await channel.publish("a" * 1000000, "e", routing_key='')
 
         await self.check_messages(channel.protocol, "q", 1)
 

@@ -11,6 +11,7 @@ from .version import __packagename__
 
 connect_amqp = protocol.connect_amqp
 
+
 @asynccontextmanager
 async def connect_from_url(url, **kwargs):
     """Connect to the AMQP using a single url parameter.
@@ -25,7 +26,10 @@ async def connect_from_url(url, **kwargs):
     url = urlparse(url)
 
     if url.scheme not in ('amqp', 'amqps'):
-        raise ValueError('Invalid protocol %s, valid protocols are amqp or amqps' % url.scheme)
+        raise ValueError(
+            'Invalid protocol %s, valid protocols are amqp or amqps' %
+            url.scheme
+        )
 
     if url.hostname:
         kwargs['host'] = url.hostname
@@ -36,8 +40,8 @@ async def connect_from_url(url, **kwargs):
     if url.password:
         kwargs['password'] = url.password
     async with connect_amqp(
-            virtualhost=(url.path[1:] if len(url.path) > 1 else '/'),
-            ssl=(url.scheme == 'amqps'),
-            **kwargs) as amqp:
+        virtualhost=(url.path[1:] if len(url.path) > 1 else '/'),
+        ssl=(url.scheme == 'amqps'),
+        **kwargs
+    ) as amqp:
         yield amqp
-

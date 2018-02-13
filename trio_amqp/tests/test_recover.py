@@ -8,7 +8,6 @@ from . import testcase
 
 
 class TestRecover(testcase.RabbitTestCase):
-
     @pytest.mark.trio
     async def test_basic_recover_async(self, channel):
         await channel.basic_recover_async(requeue=True)

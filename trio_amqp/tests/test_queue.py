@@ -11,7 +11,6 @@ from .. import exceptions
 
 
 class TestQueueDeclare(testcase.RabbitTestCase):
-
     def setUp(self):
         super().setUp()
         self.consume_future = trio.Event()
@@ -37,7 +36,8 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         result = await channel.queue_declare(queue_name)
         assert result['message_count'] == 0, result
         assert result['consumer_count'] == 0, result
-        assert channel.protocol.local_name(result['queue']) == queue_name, result
+        assert channel.protocol.local_name(result['queue']
+                                           ) == queue_name, result
         assert result
 
     @pytest.mark.trio
@@ -47,7 +47,8 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         result = await channel.queue_declare(queue_name, passive=True)
         assert result['message_count'] == 0, result
         assert result['consumer_count'] == 0, result
-        assert channel.protocol.local_name(result['queue']) == queue_name, result
+        assert channel.protocol.local_name(result['queue']
+                                           ) == queue_name, result
 
     @pytest.mark.trio
     async def test_queue_declare_passive_nonexistant_queue(self, channel):
@@ -60,11 +61,14 @@ class TestQueueDeclare(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def test_wrong_parameter_queue(self, channel):
         queue_name = 'q18'
-        await channel.queue_declare(queue_name, exclusive=False, auto_delete=False)
+        await channel.queue_declare(
+            queue_name, exclusive=False, auto_delete=False
+        )
 
         with pytest.raises(exceptions.ChannelClosed) as cm:
-            await channel.queue_declare(queue_name,
-                passive=False, exclusive=True, auto_delete=True)
+            await channel.queue_declare(
+                queue_name, passive=False, exclusive=True, auto_delete=True
+            )
 
         assert cm.value.code == 406
 
@@ -75,22 +79,37 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         async with amqp.new_channel() as channel1:
             async with amqp.new_channel() as channel2:
 
-                result = await channel1.queue_declare(queue_name, passive=False)
+                result = await channel1.queue_declare(
+                    queue_name, passive=False
+                )
                 assert result['message_count'] == 0, result
                 assert result['consumer_count'] == 0, result
                 assert amqp.local_name(result['queue']) == queue_name, result
 
-                result = await channel2.queue_declare(queue_name, passive=False)
+                result = await channel2.queue_declare(
+                    queue_name, passive=False
+                )
                 assert result['message_count'] == 0, result
                 assert result['consumer_count'] == 0, result
                 assert amqp.local_name(result['queue']) == queue_name, result
 
-    async def _test_queue_declare(self, amqp, queue_name, exclusive=False, durable=False, auto_delete=False):
+    async def _test_queue_declare(
+        self,
+        amqp,
+        queue_name,
+        exclusive=False,
+        durable=False,
+        auto_delete=False
+    ):
         # declare queue
         async with amqp.new_channel() as channel:
             result = await channel.queue_declare(
-                queue_name, no_wait=False, exclusive=exclusive, durable=durable,
-                auto_delete=auto_delete)
+                queue_name,
+                no_wait=False,
+                exclusive=exclusive,
+                durable=durable,
+                auto_delete=auto_delete
+            )
 
             # assert returned results has the good arguments
             # in test the channel declared queues with prefixed names, to get the full name of the
@@ -112,19 +131,27 @@ class TestQueueDeclare(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_durable_and_auto_deleted(self, amqp):
-        await self._test_queue_declare(amqp, 'q1', exclusive=False, durable=True, auto_delete=True)
+        await self._test_queue_declare(
+            amqp, 'q1', exclusive=False, durable=True, auto_delete=True
+        )
 
     @pytest.mark.trio
     async def test_durable_and_not_auto_deleted(self, amqp):
-        await self._test_queue_declare(amqp, 'q2', exclusive=False, durable=True, auto_delete=False)
+        await self._test_queue_declare(
+            amqp, 'q2', exclusive=False, durable=True, auto_delete=False
+        )
 
     @pytest.mark.trio
     async def test_not_durable_and_auto_deleted(self, amqp):
-        await self._test_queue_declare(amqp, 'q3', exclusive=False, durable=False, auto_delete=True)
+        await self._test_queue_declare(
+            amqp, 'q3', exclusive=False, durable=False, auto_delete=True
+        )
 
     @pytest.mark.trio
     async def test_not_durable_and_not_auto_deleted(self, amqp):
-        await self._test_queue_declare(amqp, 'q4', exclusive=False, durable=False, auto_delete=False)
+        await self._test_queue_declare(
+            amqp, 'q4', exclusive=False, durable=False, auto_delete=False
+        )
 
     @pytest.mark.trio
     async def test_exclusive(self, amqp):
@@ -132,14 +159,18 @@ class TestQueueDeclare(testcase.RabbitTestCase):
             # create an exclusive queue
             await channel.queue_declare("q5", exclusive=True)
             # consume from it
-            await channel.basic_consume(self.callback, queue_name="q5", no_wait=False)
+            await channel.basic_consume(
+                self.callback, queue_name="q5", no_wait=False
+            )
 
             # create another amqp connection
             async with self.create_amqp() as amqp:
                 async with amqp.new_channel() as channel:
                     # assert that this connection cannot connect to the queue
                     with pytest.raises(exceptions.ChannelClosed):
-                        await channel.basic_consume(self.callback, queue_name="q5", no_wait=False)
+                        await channel.basic_consume(
+                            self.callback, queue_name="q5", no_wait=False
+                        )
                         # channels are auto deleted by test case
 
     @pytest.mark.trio
@@ -148,17 +179,19 @@ class TestQueueDeclare(testcase.RabbitTestCase):
             # create a non-exclusive queue
             await channel.queue_declare('q6', exclusive=False)
             # consume it
-            await channel.basic_consume(self.callback, queue_name='q6', no_wait=False)
+            await channel.basic_consume(
+                self.callback, queue_name='q6', no_wait=False
+            )
             # create an other amqp connection
             async with self.create_amqp(test_seq=amqp.test_seq) as amqp2:
                 async with amqp2.new_channel() as channel:
                     # assert that this connection can connect to the queue
-                    await channel.basic_consume(self.callback, queue_name='q6', no_wait=False)
+                    await channel.basic_consume(
+                        self.callback, queue_name='q6', no_wait=False
+                    )
 
 
 class TestQueueDelete(testcase.RabbitTestCase):
-
-
     @pytest.mark.trio
     async def test_delete_queue(self, channel):
         queue_name = 'q7'
@@ -180,9 +213,8 @@ class TestQueueDelete(testcase.RabbitTestCase):
                 result = await channel.queue_delete(queue_name)
                 assert result
 
+
 class TestQueueBind(testcase.RabbitTestCase):
-
-
     @pytest.mark.trio
     async def test_bind_queue(self, channel):
         queue_name = 'q9'
@@ -191,7 +223,9 @@ class TestQueueBind(testcase.RabbitTestCase):
         await channel.queue_declare(queue_name)
         await channel.exchange_declare(exchange_name, type_name='direct')
 
-        result = await channel.queue_bind(queue_name, exchange_name, routing_key='')
+        result = await channel.queue_bind(
+            queue_name, exchange_name, routing_key=''
+        )
         assert result
 
     @pytest.mark.trio
@@ -225,13 +259,13 @@ class TestQueueBind(testcase.RabbitTestCase):
 
         await channel.queue_bind(queue_name, exchange_name, routing_key='')
 
-        result = await channel.queue_unbind(queue_name, exchange_name, routing_key='')
+        result = await channel.queue_unbind(
+            queue_name, exchange_name, routing_key=''
+        )
         assert result
 
 
 class TestQueuePurge(testcase.RabbitTestCase):
-
-
     @pytest.mark.trio
     async def test_purge_queue(self, channel):
         queue_name = 'q13'
@@ -247,4 +281,3 @@ class TestQueuePurge(testcase.RabbitTestCase):
         with pytest.raises(exceptions.ChannelClosed) as cm:
             await channel.queue_purge(queue_name)
         assert cm.value.code == 404
-

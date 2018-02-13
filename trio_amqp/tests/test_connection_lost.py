@@ -13,7 +13,6 @@ class TestConnectionLost(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_connection_lost(self, amqp):
-
         async with amqp.new_channel() as channel:
             assert amqp.state == OPEN
             assert channel.is_open

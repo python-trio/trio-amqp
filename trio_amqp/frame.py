@@ -51,26 +51,24 @@ from . import exceptions
 from . import constants as amqp_constants
 from .properties import Properties
 
-
 DUMP_FRAMES = False
 
 
 class AmqpEncoder:
-
     def __init__(self):
         self.payload = io.BytesIO()
 
     def write_table(self, data_dict):
 
-        self.write_long(0)                  # the table length (set later)
+        self.write_long(0)  # the table length (set later)
         if data_dict:
             start = self.payload.tell()
             for key, value in data_dict.items():
                 self.write_shortstr(key)
                 self.write_value(value)
             table_length = self.payload.tell() - start
-            self.payload.seek(start - 4)    # move before the long
-            self.write_long(table_length)   # and set the table length
+            self.payload.seek(start - 4)  # move before the long
+            self.write_long(table_length)  # and set the table length
             self.payload.seek(0, os.SEEK_END)  # return at the end
 
     def write_array(self, value):
@@ -113,7 +111,9 @@ class AmqpEncoder:
 
     def write_bits(self, *args):
         """Write consecutive bools to one byte"""
-        assert len(args) <= 8, "write_bits can only write 8 bits into one octet, sadly"
+        assert len(
+            args
+        ) <= 8, "write_bits can only write 8 bits into one octet, sadly"
         byte_value = 0
 
         for arg_index, bit in enumerate(args):
@@ -152,7 +152,12 @@ class AmqpEncoder:
 
     def write_timestamp(self, value):
         """Write out a Python datetime.datetime object as a 64-bit integer representing seconds since the Unix epoch."""
-        self.payload.write(struct.pack('>Q', int(value.replace(tzinfo=datetime.timezone.utc).timestamp())))
+        self.payload.write(
+            struct.pack(
+                '>Q',
+                int(value.replace(tzinfo=datetime.timezone.utc).timestamp())
+            )
+        )
 
     def _write_string(self, string):
         if isinstance(string, str):
@@ -177,11 +182,13 @@ class AmqpEncoder:
 
         diff = set(properties.keys()) - set(amqp_constants.MESSAGE_PROPERTIES)
         if diff:
-            raise ValueError("%s are not properties, valid properties are %s" % (
-                diff, amqp_constants.MESSAGE_PROPERTIES))
+            raise ValueError(
+                "%s are not properties, valid properties are %s" %
+                (diff, amqp_constants.MESSAGE_PROPERTIES)
+            )
 
-        start = self.payload.tell()                 # record the position
-        self.write_short(properties_flag_value)     # set the flag later
+        start = self.payload.tell()  # record the position
+        self.write_short(properties_flag_value)  # set the flag later
 
         content_type = properties.get('content_type')
         if content_type:
@@ -240,8 +247,8 @@ class AmqpEncoder:
             properties_flag_value |= amqp_constants.FLAG_CLUSTER_ID
             self.write_shortstr(cluster_id)
 
-        self.payload.seek(start)                    # move before the flag
-        self.write_short(properties_flag_value)     # set the flag
+        self.payload.seek(start)  # move before the flag
+        self.write_short(properties_flag_value)  # set the flag
         self.payload.seek(0, os.SEEK_END)
 
 
@@ -296,7 +303,7 @@ class AmqpDecoder:
     def read_decimal(self):
         decimals = self.read_octet()
         value = self.read_signed_long()
-        return Decimal(value) * (Decimal(10) ** -decimals)
+        return Decimal(value) * (Decimal(10)**-decimals)
 
     def read_shortstr(self):
         data = self.reader.read(1)
@@ -310,7 +317,9 @@ class AmqpDecoder:
         return data.decode()
 
     def read_timestamp(self):
-        return datetime.datetime.fromtimestamp(self.read_long_long(), datetime.timezone.utc)
+        return datetime.datetime.fromtimestamp(
+            self.read_long_long(), datetime.timezone.utc
+        )
 
     def read_table(self):
         """Reads an AMQP table"""
@@ -394,7 +403,9 @@ class AmqpRequest:
         if self.frame_type == amqp_constants.TYPE_METHOD:
             content_header = struct.pack('!HH', self.class_id, self.method_id)
         elif self.frame_type == amqp_constants.TYPE_HEADER:
-            content_header = struct.pack('!HHQ', self.class_id, self.weight, self.next_body_size)
+            content_header = struct.pack(
+                '!HHQ', self.class_id, self.weight, self.next_body_size
+            )
         elif self.frame_type == amqp_constants.TYPE_BODY:
             # no specific headers
             pass
@@ -402,9 +413,14 @@ class AmqpRequest:
             # no specific headers
             pass
         else:
-            raise Exception("frame_type {} not handled".format(self.frame_type))
+            raise Exception(
+                "frame_type {} not handled".format(self.frame_type)
+            )
 
-        header = struct.pack('!BHI', self.frame_type, self.channel, payload.tell() + len(content_header))
+        header = struct.pack(
+            '!BHI', self.frame_type, self.channel,
+            payload.tell() + len(content_header)
+        )
         transmission.write(header)
         if content_header:
             transmission.write(content_header)
@@ -417,6 +433,7 @@ class AmqpResponse:
     """Read a response from the AMQP server
 
     """
+
     def __init__(self, reader):
         self.reader = reader
         self.frame_type = None
@@ -442,7 +459,7 @@ class AmqpResponse:
     async def _readexactly(self, length):
         data = b""
         while len(data) < length:
-            d = await self.reader.receive_some(length-len(data))
+            d = await self.reader.receive_some(length - len(data))
             if len(d) == 0:
                 raise EOFError
             data += d
@@ -484,33 +501,47 @@ class AmqpResponse:
                     break
             decoded_properties = {}
             if self.property_flags & amqp_constants.FLAG_CONTENT_TYPE:
-                decoded_properties['content_type'] = self.payload_decoder.read_shortstr()
+                decoded_properties['content_type'
+                                   ] = self.payload_decoder.read_shortstr()
             if self.property_flags & amqp_constants.FLAG_CONTENT_ENCODING:
-                decoded_properties['content_encoding'] = self.payload_decoder.read_shortstr()
+                decoded_properties['content_encoding'
+                                   ] = self.payload_decoder.read_shortstr()
             if self.property_flags & amqp_constants.FLAG_HEADERS:
-                decoded_properties['headers'] = self.payload_decoder.read_table()
+                decoded_properties['headers'
+                                   ] = self.payload_decoder.read_table()
             if self.property_flags & amqp_constants.FLAG_DELIVERY_MODE:
-                decoded_properties['delivery_mode'] = self.payload_decoder.read_octet()
+                decoded_properties['delivery_mode'
+                                   ] = self.payload_decoder.read_octet()
             if self.property_flags & amqp_constants.FLAG_PRIORITY:
-                decoded_properties['priority'] = self.payload_decoder.read_octet()
+                decoded_properties['priority'
+                                   ] = self.payload_decoder.read_octet()
             if self.property_flags & amqp_constants.FLAG_CORRELATION_ID:
-                decoded_properties['correlation_id'] = self.payload_decoder.read_shortstr()
+                decoded_properties['correlation_id'
+                                   ] = self.payload_decoder.read_shortstr()
             if self.property_flags & amqp_constants.FLAG_REPLY_TO:
-                decoded_properties['reply_to'] = self.payload_decoder.read_shortstr()
+                decoded_properties['reply_to'
+                                   ] = self.payload_decoder.read_shortstr()
             if self.property_flags & amqp_constants.FLAG_EXPIRATION:
-                decoded_properties['expiration'] = self.payload_decoder.read_shortstr()
+                decoded_properties['expiration'
+                                   ] = self.payload_decoder.read_shortstr()
             if self.property_flags & amqp_constants.FLAG_MESSAGE_ID:
-                decoded_properties['message_id'] = self.payload_decoder.read_shortstr()
+                decoded_properties['message_id'
+                                   ] = self.payload_decoder.read_shortstr()
             if self.property_flags & amqp_constants.FLAG_TIMESTAMP:
-                decoded_properties['timestamp'] = self.payload_decoder.read_long_long()
+                decoded_properties['timestamp'
+                                   ] = self.payload_decoder.read_long_long()
             if self.property_flags & amqp_constants.FLAG_TYPE:
-                decoded_properties['type'] = self.payload_decoder.read_shortstr()
+                decoded_properties['type'
+                                   ] = self.payload_decoder.read_shortstr()
             if self.property_flags & amqp_constants.FLAG_USER_ID:
-                decoded_properties['user_id'] = self.payload_decoder.read_shortstr()
+                decoded_properties['user_id'
+                                   ] = self.payload_decoder.read_shortstr()
             if self.property_flags & amqp_constants.FLAG_APP_ID:
-                decoded_properties['app_id'] = self.payload_decoder.read_shortstr()
+                decoded_properties['app_id'
+                                   ] = self.payload_decoder.read_shortstr()
             if self.property_flags & amqp_constants.FLAG_CLUSTER_ID:
-                decoded_properties['cluster_id'] = self.payload_decoder.read_shortstr()
+                decoded_properties['cluster_id'
+                                   ] = self.payload_decoder.read_shortstr()
             self.properties = Properties(**decoded_properties)
 
         elif self.frame_type == amqp_constants.TYPE_BODY:
@@ -520,7 +551,9 @@ class AmqpResponse:
             pass
 
         else:
-            raise ValueError("Message type {:x} not known".format(self.frame_type))
+            raise ValueError(
+                "Message type {:x} not known".format(self.frame_type)
+            )
         self.frame_end = await self._readexactly(1)
         assert self.frame_end == amqp_constants.FRAME_END
 

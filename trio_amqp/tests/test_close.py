@@ -6,7 +6,6 @@ from .. import exceptions
 
 
 class TestClose(testcase.RabbitTestCase):
-
     def setUp(self):
         super().setUp()
         self.consume_future = trio.Event()

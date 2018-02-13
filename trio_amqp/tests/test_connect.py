@@ -9,7 +9,6 @@ from . import testcase
 
 
 class TestAmqpConnection(testcase.RabbitTestCase):
-
     @pytest.mark.trio
     async def test_connect(self, amqp):
         assert amqp.state == OPEN

@@ -7,8 +7,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class FutureCancelled(Exception):
     pass
+
 
 class Future:
     def __init__(self, channel, rpc_name):
@@ -46,4 +48,3 @@ class Future:
 
     def done(self):
         return self.event.is_set()
-

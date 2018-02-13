@@ -15,9 +15,7 @@ from . import frame as amqp_frame
 from . import exceptions
 from . import version
 
-
 logger = logging.getLogger(__name__)
-
 
 CONNECTING, OPEN, CLOSING, CLOSED = range(4)
 
@@ -27,6 +25,7 @@ class ChannelContext:
     It is responsible for creating a new channel when used as a context
     manager.
     """
+
     def __init__(self, conn, kwargs):
         self.conn = conn
         self.kwargs = kwargs
@@ -55,11 +54,23 @@ class AmqpProtocol(trio.abc.AsyncResource):
     CHANNEL_FACTORY = amqp_channel.Channel
     CHANNEL_CONTEXT = ChannelContext
 
-    def __init__(self, nursery, host='localhost', port=None,
-            ssl=False, verify_ssl=True,
-            login='guest', password='guest', virtualhost='/',
-            channel_max=None, frame_max=None, heartbeat=None, client_properties=None,
-            login_method='AMQPLAIN', insist=False):
+    def __init__(
+        self,
+        nursery,
+        host='localhost',
+        port=None,
+        ssl=False,
+        verify_ssl=True,
+        login='guest',
+        password='guest',
+        virtualhost='/',
+        channel_max=None,
+        frame_max=None,
+        heartbeat=None,
+        client_properties=None,
+        login_method='AMQPLAIN',
+        insist=False
+    ):
         """Defines our new protocol instance
 
         Args:
@@ -102,14 +113,16 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
         if login_method != 'AMQPLAIN':
             # TODO
-            logger.warning('only AMQPLAIN login_method is supported, falling back to AMQPLAIN')
+            logger.warning(
+                'only AMQPLAIN login_method is supported, falling back to AMQPLAIN'
+            )
 
         self._host = host
         self._port = port
         self._ssl = ssl
         self._virtualhost = virtualhost
         #self._ssl = ssl
-        self._login_method=login_method
+        self._login_method = login_method
         self._insist = insist
         self._auth = {
             'LOGIN': login,
@@ -191,7 +204,9 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 # If the closing handshake is in progress, let it complete.
                 frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
                 frame.declare_method(
-                    amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE)
+                    amqp_constants.CLASS_CONNECTION,
+                    amqp_constants.CONNECTION_CLOSE
+                )
                 encoder = amqp_frame.AmqpEncoder()
                 # we request a clean connection close
                 encoder.write_short(0)
@@ -228,7 +243,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
     def __enter__(self):
         raise TypeError("You need to use an async context")
 
-    def __exit__(self, a,b,c):
+    def __exit__(self, a, b, c):
         raise TypeError("You need to use an async context")
 
     async def __aenter__(self):
@@ -262,7 +277,9 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 port = 5672
 
         if self._ssl:
-            stream = await trio.open_ssl_over_tcp_stream(self._host, port, ssl_context=ssl_context)
+            stream = await trio.open_ssl_over_tcp_stream(
+                self._host, port, ssl_context=ssl_context
+            )
             sock = stream.transport_stream
         else:
             sock = stream = await trio.open_tcp_stream(self._host, port)
@@ -283,10 +300,11 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 raise RuntimeError("Server didn't start with a START packet")
 
             client_properties = {
-                'capabilities': {
-                    'consumer_cancel_notify': True,
-                    'connection.blocked': False,
-                },
+                'capabilities':
+                    {
+                        'consumer_cancel_notify': True,
+                        'connection.blocked': False,
+                    },
                 'copyright': 'BSD',
                 'product': version.__package__,
                 'product_version': version.__version__,
@@ -294,7 +312,10 @@ class AmqpProtocol(trio.abc.AsyncResource):
             client_properties.update(self.client_properties)
 
             # waiting reply start with credentions and co
-            await self.start_ok(client_properties, 'AMQPLAIN', self._auth, self.server_locales[0])
+            await self.start_ok(
+                client_properties, 'AMQPLAIN', self._auth,
+                self.server_locales[0]
+            )
 
             # wait for a "tune" reponse
             await self.dispatch_frame()
@@ -302,9 +323,18 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 raise RuntimeError("Server didn't send a TUNE packet")
 
             tune_ok = {
-                'channel_max': self.connection_tunning.get('channel_max', self.server_channel_max),
-                'frame_max': self.connection_tunning.get('frame_max', self.server_frame_max),
-                'heartbeat': self.connection_tunning.get('heartbeat', self.server_heartbeat),
+                'channel_max':
+                    self.connection_tunning.get(
+                        'channel_max', self.server_channel_max
+                    ),
+                'frame_max':
+                    self.connection_tunning.get(
+                        'frame_max', self.server_frame_max
+                    ),
+                'heartbeat':
+                    self.connection_tunning.get(
+                        'heartbeat', self.server_heartbeat
+                    ),
             }
             # "tune" the connexion with max channel, max frame, heartbeat
             await self.tune_ok(**tune_ok)
@@ -315,7 +345,9 @@ class AmqpProtocol(trio.abc.AsyncResource):
             self.server_heartbeat = tune_ok['heartbeat']
 
             # open a virtualhost
-            await self.open(self._virtualhost, capabilities='', insist=self._insist)
+            await self.open(
+                self._virtualhost, capabilities='', insist=self._insist
+            )
 
             # wait for open-ok
             await self.dispatch_frame()
@@ -331,7 +363,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
         return self
 
-    async def __aexit__(self, typ,exc,tb):
+    async def __aexit__(self, typ, exc, tb):
         await self.aclose()
 
     async def get_frame(self):
@@ -350,11 +382,20 @@ class AmqpProtocol(trio.abc.AsyncResource):
         """Dispatch the received frame to the corresponding handler"""
 
         method_dispatch = {
-            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE): self.server_close,
-            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK): self.close_ok,
-            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_TUNE): self.tune,
-            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_START): self.start,
-            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_OPEN_OK): self.open_ok,
+            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE):
+                self.server_close,
+            (
+                amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK
+            ):
+                self.close_ok,
+            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_TUNE):
+                self.tune,
+            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_START):
+                self.start,
+            (
+                amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_OPEN_OK
+            ):
+                self.open_ok,
         }
         if not frame:
             frame = await self.get_frame()
@@ -371,7 +412,9 @@ class AmqpProtocol(trio.abc.AsyncResource):
             return
 
         if (frame.class_id, frame.method_id) not in method_dispatch:
-            logger.info("frame %s %s is not handled", frame.class_id, frame.method_id)
+            logger.info(
+                "frame %s %s is not handled", frame.class_id, frame.method_id
+            )
             return
         await method_dispatch[(frame.class_id, frame.method_id)](frame)
 
@@ -385,7 +428,9 @@ class AmqpProtocol(trio.abc.AsyncResource):
     def channels_ids_count(self):
         return self.channels_ids_ceil - len(self.channels_ids_free)
 
-    def _close_channels(self, reply_code=None, reply_text=None, exception=None):
+    def _close_channels(
+        self, reply_code=None, reply_text=None, exception=None
+    ):
         """Cleanly close channels
 
             Args:
@@ -427,7 +472,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
                             async def owch(exc):
                                 await trio.sleep(0)
                                 raise exc
-                            self._nursery.start_soon(owch,exc)
+
+                            self._nursery.start_soon(owch, exc)
 
                     except trio.TooSlowError:
                         self.connection_closed.set()
@@ -461,7 +507,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
     async def start_ok(self, client_properties, mechanism, auth, locale):
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
         frame.declare_method(
-            amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_START_OK)
+            amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_START_OK
+        )
         request = amqp_frame.AmqpEncoder()
         request.write_table(client_properties)
         request.write_shortstr(mechanism)
@@ -477,18 +524,21 @@ class AmqpProtocol(trio.abc.AsyncResource):
         reply_text = response.read_shortstr()
         class_id = response.read_short()
         method_id = response.read_short()
-        logger.warning("Server closed connection: %s, code=%s, class_id=%s, method_id=%s",
-            reply_text, reply_code, class_id, method_id)
+        logger.warning(
+            "Server closed connection: %s, code=%s, class_id=%s, method_id=%s",
+            reply_text, reply_code, class_id, method_id
+        )
         self._close_channels(reply_code, reply_text)
         await self._close_ok()
 
     async def _close_ok(self):
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
         frame.declare_method(
-            amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK)
+            amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK
+        )
         request = amqp_frame.AmqpEncoder()
         await self._write_frame(frame, request)
-        await trio.sleep(0) # give the write task one shot to send the frame
+        await trio.sleep(0)  # give the write task one shot to send the frame
         if self._nursery is not None:
             self._cancel_all()
 
@@ -509,7 +559,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
     async def tune_ok(self, channel_max, frame_max, heartbeat):
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
         frame.declare_method(
-            amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_TUNE_OK)
+            amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_TUNE_OK
+        )
         encoder = amqp_frame.AmqpEncoder()
         encoder.write_short(channel_max)
         encoder.write_long(frame_max)
@@ -524,7 +575,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
         """Open connection to virtual host."""
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
         frame.declare_method(
-            amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_OPEN)
+            amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_OPEN
+        )
         encoder = amqp_frame.AmqpEncoder()
         encoder.write_shortstr(virtual_host)
         encoder.write_shortstr(capabilities)
@@ -562,6 +614,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         await channel.open()
         return channel
 
+
 @asynccontextmanager
 async def connect_amqp(*args, protocol=AmqpProtocol, **kwargs):
     async with trio.open_nursery() as nursery:
@@ -571,4 +624,3 @@ async def connect_amqp(*args, protocol=AmqpProtocol, **kwargs):
                 yield amqp
         finally:
             amqp._cancel_all()
-

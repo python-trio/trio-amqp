@@ -7,7 +7,6 @@ from . import testcase
 
 
 class TestClose(testcase.RabbitTestCase):
-
     @pytest.mark.trio
     @pytest.mark.xfail(reason="this triggers a cancellation error")
     async def test_close(self, amqp):
