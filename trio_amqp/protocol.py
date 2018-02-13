@@ -13,7 +13,7 @@ from . import channel as amqp_channel
 from . import constants as amqp_constants
 from . import frame as amqp_frame
 from . import exceptions
-from . import version
+from . import _version
 
 logger = logging.getLogger(__name__)
 
@@ -321,8 +321,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
                         'connection.blocked': False,
                     },
                 'copyright': 'BSD',
-                'product': version.__package__,
-                'product_version': version.__version__,
+                'product': _version.__package__,
+                'product_version': _version.__version__,
             }
             client_properties.update(self.client_properties)
 
