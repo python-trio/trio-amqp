@@ -1,6 +1,5 @@
-trio-amqp (0.1.0-1) UNRELEASED; urgency=medium
+trio-amqp (0.2.0-1) unstable; urgency=medium
 
   * Initial release.
 
- -- Matthias Urlichs <matthias@urlichs.de>  Fri, 27 Oct 2017 13:33:29 +0200
-
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 13 Feb 2018 17:41:24 +0100
