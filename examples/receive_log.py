@@ -8,7 +8,6 @@
 
 import trio
 import trio_amqp
-import random
 
 
 async def callback(channel, body, envelope, properties):

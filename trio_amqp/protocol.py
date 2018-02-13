@@ -74,28 +74,43 @@ class AmqpProtocol(trio.abc.AsyncResource):
         """Defines our new protocol instance
 
         Args:
-    
-            @host:          the host to connect to
-            @port:          broker port
-            @login:         login
-            @password:      password
-            @virtualhost:   AMQP virtualhost to use for this connection
-            @ssl:           the SSL context to use
-            @login_method:  AMQP auth method
-            @insist:        Insist on connecting to a server
+            host:
+                the host to connect to
+            port:
+                broker port
+            login:
+                login
+            password:
+                password
+            virtualhost:
+                AMQP virtualhost to use for this connection
+            ssl:
+                the SSL context to use
+            login_method:
+                AMQP auth method
+            insist:
+                Insist on connecting to a server
 
-            @kwargs:        Arguments to be given to the protocol_factory instance
+            kwargs:
+                Arguments to be given to the protocol_factory instance
 
-            @channel_max:   specifies highest channel number that the server permits.
-                            Usable channel numbers are in the range 1..channel-max.
-                            Zero indicates no specified limit.
-            @frame_max:     the largest frame size that the server proposes for the connection,
-                            including frame header and end-byte. The client can negotiate a lower value.
-                            Zero means that the server does not impose any specific limit
-                            but may reject very large frames if it cannot allocate resources for them.
-            @heartbeat:     the delay, in seconds, of the connection heartbeat that the server wants.
-                            Zero means the server does not want a heartbeat.
-            client_properties: dict, client-props to tune the client identification
+            channel_max:
+                specifies highest channel number that the server permits.
+                Usable channel numbers are in the range 1..channel-max.
+                Zero indicates no specified limit.
+            frame_max:
+                the largest frame size that the server proposes for the
+                connection, including frame header and end-byte. The client
+                can negotiate a lower value.
+                Zero means that the server does not impose any specific
+                limit but may reject very large frames if it cannot
+                allocate resources for them.
+            heartbeat:
+                the delay, in seconds, of the connection heartbeat that the
+                server wants. Zero means the server does not want a
+                heartbeat.
+            client_properties:
+                dict, client-props to tune the client identification
         """
 
         self._reader_scope = None
@@ -114,14 +129,14 @@ class AmqpProtocol(trio.abc.AsyncResource):
         if login_method != 'AMQPLAIN':
             # TODO
             logger.warning(
-                'only AMQPLAIN login_method is supported, falling back to AMQPLAIN'
+                'only AMQPLAIN login_method is supported, '
+                'falling back to AMQPLAIN'
             )
 
         self._host = host
         self._port = port
         self._ssl = ssl
         self._virtualhost = virtualhost
-        #self._ssl = ssl
         self._login_method = login_method
         self._insist = insist
         self._auth = {
@@ -151,7 +166,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
     async def _drain(self):
         return
 
-        #with (await self._drain_lock):
+        # with (await self._drain_lock):
         #    # drain() cannot be called concurrently by multiple coroutines:
         #    # http://bugs.python.org/issue29930. Remove this lock when no
         #    # version of Python where this bugs exists is supported anymore.
@@ -264,10 +279,10 @@ class AmqpProtocol(trio.abc.AsyncResource):
         self._send_queue = trio.Queue(1)
 
         if self._ssl:
-            ssl_context = ssl.create_default_context()
-            if not verify_ssl:
-                ssl_context.check_hostname = False
-                ssl_context.verify_mode = ssl.CERT_NONE
+            if self._ssl is True:
+                ssl_context = ssl.create_default_context()
+            else:
+                ssl_context = self._ssl
 
         port = self._port
         if port is None:
@@ -382,19 +397,20 @@ class AmqpProtocol(trio.abc.AsyncResource):
         """Dispatch the received frame to the corresponding handler"""
 
         method_dispatch = {
-            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE):
+            (amqp_constants.CLASS_CONNECTION,
+             amqp_constants.CONNECTION_CLOSE):  # noqa: E131
                 self.server_close,
-            (
-                amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK
-            ):
+            (amqp_constants.CLASS_CONNECTION,
+             amqp_constants.CONNECTION_CLOSE_OK):  # noqa: E131
                 self.close_ok,
-            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_TUNE):
+            (amqp_constants.CLASS_CONNECTION,
+             amqp_constants.CONNECTION_TUNE):  # noqa: E131
                 self.tune,
-            (amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_START):
+            (amqp_constants.CLASS_CONNECTION,
+             amqp_constants.CONNECTION_START):  # noqa: E131
                 self.start,
-            (
-                amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_OPEN_OK
-            ):
+            (amqp_constants.CLASS_CONNECTION,
+             amqp_constants.CONNECTION_OPEN_OK):  # noqa: E131
                 self.open_ok,
         }
         if not frame:
@@ -589,7 +605,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         logger.debug("Recv open ok")
 
     #
-    ## trio_amqp public methods
+    # trio_amqp public methods
     #
 
     def new_channel(self, **kwargs):
@@ -603,9 +619,11 @@ class AmqpProtocol(trio.abc.AsyncResource):
         try:
             channel_id = self.channels_ids_free.pop()
         except KeyError:
-            assert self.server_channel_max is not None, 'connection channel-max tuning not performed'
+            assert self.server_channel_max is not None, \
+                'connection channel-max tuning not performed'
             # channel-max = 0 means no limit
-            if self.server_channel_max and self.channels_ids_ceil > self.server_channel_max:
+            if self.server_channel_max and \
+                    self.channels_ids_ceil > self.server_channel_max:
                 raise exceptions.NoChannelAvailable()
             self.channels_ids_ceil += 1
             channel_id = self.channels_ids_ceil

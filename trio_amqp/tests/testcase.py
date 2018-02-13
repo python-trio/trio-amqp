@@ -6,7 +6,6 @@ Provides the test case to simplify testing
 import trio
 import inspect
 import logging
-import inspect
 import os
 import time
 import uuid
@@ -19,7 +18,7 @@ import pyrabbit.api
 from . import testcase
 from .. import exceptions, connect_amqp
 from ..channel import Channel
-from ..protocol import AmqpProtocol, OPEN, ChannelContext
+from ..protocol import AmqpProtocol, OPEN
 
 logger = logging.getLogger(__name__)
 

@@ -26,7 +26,7 @@ class TestEncoder:
     def test_write_string(self):
         self.encoder.write_value("foo")
         assert self.encoder.payload.getvalue() == \
-                         b'S\x00\x00\x00\x03foo'
+            b'S\x00\x00\x00\x03foo'
         # 'S' + size (4 bytes) + payload
 
     def test_write_bool(self):
@@ -36,8 +36,9 @@ class TestEncoder:
     def test_write_array(self):
         self.encoder.write_value(["v1", 123])
         assert self.encoder.payload.getvalue() == \
-                         b'A\x00\x00\x00\x0cS\x00\x00\x00\x02v1I\x00\x00\x00{'
-        # total size (4 bytes) + 'S' + size (4 bytes) + payload + 'I' + size (4 bytes) + payload
+            b'A\x00\x00\x00\x0cS\x00\x00\x00\x02v1I\x00\x00\x00{'
+        # total size (4 bytes) + 'S' + size (4 bytes) + payload + 'I' +
+        # size (4 bytes) + payload
 
     def test_write_float(self):
         self.encoder.write_value(1.1)
@@ -62,10 +63,11 @@ class TestEncoder:
     def test_write_dict(self):
         self.encoder.write_value({'foo': 'bar', 'bar': 'baz'})
         assert self.encoder.payload.getvalue() in \
-            (b'F\x00\x00\x00\x18\x03barS\x00\x00\x00\x03baz\x03fooS\x00\x00\x00\x03bar',
-             b'F\x00\x00\x00\x18\x03fooS\x00\x00\x00\x03bar\x03barS\x00\x00\x00\x03baz')
+            (b'F\x00\x00\x00\x18\x03barS\x00\x00\x00\x03baz\x03fooS\x00\x00\x00\x03bar',  # noqa: E501
+             b'F\x00\x00\x00\x18\x03fooS\x00\x00\x00\x03bar\x03barS\x00\x00\x00\x03baz')  # noqa: E501
         # 'F' + total size + key (always a string) + value (with type) + ...
-        # The keys are not ordered, so the output is not deterministic (two possible values below)
+        # The keys are not ordered, so the output is not deterministic
+        # (two possible values)
 
     def test_write_none(self):
         self.encoder.write_value(None)
@@ -108,8 +110,7 @@ class TestEncoder:
             'priority': 0,
         }
         self.encoder.write_message_properties(properties)
-        assert self.encoder.payload.getvalue() == \
-                         b'\x18\x00\x02\x00'
+        assert self.encoder.payload.getvalue() == b'\x18\x00\x02\x00'
 
     def test_write_message_properties_raises_on_invalid_property_name(self):
         properties = {

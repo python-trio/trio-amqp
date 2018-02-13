@@ -1,7 +1,6 @@
 import pytest
 
 from trio_amqp.protocol import OPEN, CLOSED
-from trio_amqp.exceptions import AmqpClosedConnection
 
 from . import testcase
 

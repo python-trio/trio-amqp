@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class BasicListener:
     """This class is returned by :meth:Channel.new_consumer`.
-    It is responsible for connecting to 
+    It is responsible for telling AMQP to start sending data.
     """
 
     def __init__(self, channel, consumer_tag, **kwargs):
@@ -64,7 +64,10 @@ class Channel:
         self.cancelled_consumers = set()
         self.last_consumer_tag = None
         self.publisher_confirms = False
-        self.delivery_tag_iter = None  # used for mapping delivered messages to publisher confirms
+
+        self.delivery_tag_iter = None
+        # counting iterator, used for mapping delivered messages
+        # to publisher confirms
 
         self._write_lock = trio.Lock()
 
@@ -122,9 +125,8 @@ class Channel:
                 self.close_ok,
             (amqp_constants.CLASS_CHANNEL, amqp_constants.CHANNEL_CLOSE):
                 self.server_channel_close,
-            (
-                amqp_constants.CLASS_EXCHANGE, amqp_constants.EXCHANGE_DECLARE_OK
-            ):
+            (amqp_constants.CLASS_EXCHANGE,
+             amqp_constants.EXCHANGE_DECLARE_OK):
                 self.exchange_declare_ok,
             (amqp_constants.CLASS_EXCHANGE, amqp_constants.EXCHANGE_BIND_OK):
                 self.exchange_bind_ok,
@@ -188,7 +190,9 @@ class Channel:
     async def _write_frame_awaiting_response(
         self, waiter_id, frame, request, no_wait, check_open=True, drain=True
     ):
-        '''Write a frame and set a waiter for the response (unless no_wait is set)'''
+        '''Write a frame and set a waiter for the response
+        (unless no_wait is set)
+        '''
         if no_wait:
             await self._write_frame(
                 frame, request, check_open=check_open, drain=drain
@@ -208,7 +212,7 @@ class Channel:
         return res
 
 #
-## Channel class implementation
+# Channel class implementation
 #
 
     async def open(self):
@@ -308,7 +312,7 @@ class Channel:
         logger.debug("Flow ok")
 
 #
-## Exchange class implementation
+# Exchange class implementation
 #
 
     async def exchange_declare(
@@ -452,7 +456,7 @@ class Channel:
         logger.debug("Exchange bound")
 
 #
-## Queue class implementation
+# Queue class implementation
 #
 
     async def queue_declare(
@@ -467,19 +471,25 @@ class Channel:
     ):
         """Create or check a queue on the broker
            Args:
-               queue_name:     str, the queue to receive message from.
-                               The server generate a queue_name if not specified.
-               passive:        bool, if set, the server will reply with
-                               Declare-Ok if the queue already exists with the same name, and
-                               raise an error if not. Checks for the same parameter as well.
-               durable:        bool: If set when creating a new queue, the queue
-                               will be marked as durable. Durable queues remain active when a
-               server restarts.
-               exclusive:      bool, request exclusive consumer access,
-                               meaning only this consumer can access the queue
-               no_wait:        bool, if set, the server will not respond to the method
-               arguments:      dict, AMQP arguments to be passed when creating
-               the queue.
+                queue_name:
+                    str, the queue to receive message from. The server generate
+                    a queue_name if not specified.
+                passive:
+                    bool, if set, the server will reply with Declare-Ok if
+                    the queue already exists with the same name, and raise
+                    an error if not. Checks for the same parameter as well.
+                durable:
+                    bool: If set when creating a new queue, the queue will
+                    be marked as durable. Durable queues remain active when
+                    a server restarts.
+                exclusive:
+                    bool, request exclusive consumer access, meaning only
+                    this consumer can access the queue
+                no_wait:
+                    bool, if set, the server will not respond to the method
+                arguments:
+                    dict, AMQP arguments to be passed when creating the
+                    queue.
         """
         if arguments is None:
             arguments = {}
@@ -519,10 +529,16 @@ class Channel:
     ):
         """Delete a queue in RabbitMQ
             Args:
-               queue_name:     str, the queue to receive message from
-               if_unused:      bool, the queue is deleted if it has no consumers. Raise if not.
-               if_empty:       bool, the queue is deleted if it has no messages. Raise if not.
-               no_wait:        bool, if set, the server will not respond to the method
+                queue_name:
+                    str, the queue to receive message from
+                if_unused:
+                    bool, the queue is deleted if it has no consumers.
+                    Raise if not.
+                if_empty:
+                    bool, the queue is deleted if it has no messages. Raise
+                    if not.
+                no_wait:
+                    bool, if set, the server will not respond to the method
         """
         frame = amqp_frame.AmqpRequest(
             amqp_constants.TYPE_METHOD, self.channel_id
@@ -643,7 +659,7 @@ class Channel:
         future.set_result({'message_count': message_count})
 
 #
-## Basic class implementation
+# Basic class implementation
 #
 
     async def basic_publish(
@@ -707,17 +723,20 @@ class Channel:
         """Specifies quality of service.
 
         Args:
-            prefetch_size:      int, request that messages be sent in advance so
-                                that when the client finishes processing a message, the
-                                following message is already held locally
-            prefetch_count:     int: Specifies a prefetch window in terms of
-                                whole messages. This field may be used in combination with the
-                                prefetch-size field; a message will only be sent in advance if
-                                both prefetch windows (and those at the channel and connection
-                                level) allow it
-            connection_global:  bool: global=false means that the QoS
-                                settings should apply per-consumer channel; and global=true to mean
-                                that the QoS settings should apply per-channel.
+            prefetch_size:
+                int, request that messages be sent in advance so that when
+                the client finishes processing a message, the following
+                message is already held locally
+            prefetch_count:
+                int: Specifies a prefetch window in terms of whole
+                messages. This field may be used in combination with the
+                prefetch-size field; a message will only be sent in advance
+                if both prefetch windows (and those at the channel and
+                connection level) allow it
+            connection_global:
+                bool: global=false means that the QoS settings should apply
+                per-consumer channel; and global=true to mean that the QoS
+                settings should apply per-channel.
         """
         frame = amqp_frame.AmqpRequest(
             amqp_constants.TYPE_METHOD, self.channel_id
@@ -761,10 +780,11 @@ class Channel:
         arguments=None
     ):
         """Starts the consumption of message from a queue.
-        
+
             Usage::
 
-                async with chan.new_consumer(callback, queue_name="my_queue") as listener:
+                async with chan.new_consumer(callback, queue_name="my_queue") \
+                        as listener:
                     async for body, envelope, properties in listener:
                         await process_message(body, envelope, properties)
 
@@ -864,7 +884,7 @@ class Channel:
                     An instance of :class:`trio_amqp.envelope.Envelope`.
                 Properties:
                     An instance of :class:`trio_amqp.properties.Properties`.
-                    
+
         Unless you have set :param:`no_ack` to ``True``, your code is
         responsible for calling :meth:`basic_client_ack` or
         :meth:`basic_client_nack` on the envelope's
@@ -967,7 +987,7 @@ class Channel:
     async def server_basic_cancel(self, frame):
         # https://www.rabbitmq.com/consumer-cancel.html
         consumer_tag = frame.payload_decoder.read_shortstr()
-        _no_wait = frame.payload_decoder.read_bit()
+        _no_wait = frame.payload_decoder.read_bit()  # noqa: F841
         self.cancelled_consumers.add(consumer_tag)
         logger.info("consume cancelled received")
 
@@ -1121,7 +1141,7 @@ class Channel:
 
 
 #
-## convenient aliases
+# convenient aliases
 #
 
     queue = queue_declare
@@ -1140,7 +1160,7 @@ class Channel:
 
         async with self._write_lock:
             if self.publisher_confirms:
-                delivery_tag = next(self.delivery_tag_iter)  # pylint: disable=stop-iteration-return
+                delivery_tag = next(self.delivery_tag_iter)
                 fut = self._set_waiter(
                     'basic_server_ack_{}'.format(delivery_tag)
                 )

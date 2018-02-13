@@ -60,6 +60,7 @@ class PublishFailed(TrioAmqpException):
         self.delivery_tag = delivery_tag
 
     def __repr__(self):
-        return 'Publish failed because a nack was received for delivery_tag {}'.format(
+        return 'Publish failed because a nack was ' \
+            'received for delivery_tag {}'.format(  # noqa: E122
             self.delivery_tag
         )

@@ -1,19 +1,12 @@
-import os
-import re
 import setuptools
-import sys
 
-py_version = sys.version_info[:2]
+exec(open("trio_amqp/_version.py", encoding="utf-8").read())
 
-_file_content = open(os.path.join(os.path.dirname(__file__), 'trio_amqp', 'version.py')).read()
-
-rex = re.compile(r"""version__ = '(.*)'.*__packagename__ = '(.*)'""", re.MULTILINE | re.DOTALL)
-VERSION, PACKAGE_NAME = rex.search(_file_content).groups()
 description = 'AMQP implementation using trio'
 
 setuptools.setup(
-    name=PACKAGE_NAME,
-    version=VERSION,
+    name=__packagename__,  # noqa: F821
+    version=__version__,  # noqa: F821
     author="Matthias Urlichs",
     author_email='matthias@urlichs.de',
     url='https://github.com/python-trio/trio-amqp',

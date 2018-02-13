@@ -1,14 +1,13 @@
-import trio
-import sys
 from urllib.parse import urlparse
 from async_generator import asynccontextmanager
 
-from .exceptions import *  # pylint: disable=wildcard-import
-from .protocol import AmqpProtocol
+from .exceptions import *  # pylint: disable=wildcard-import  # noqa: F401,F403
+from .protocol import AmqpProtocol  # noqa: F401
 
-from .version import __version__
-from .version import __packagename__
+from .version import __version__  # noqa: F401
+from .version import __packagename__  # noqa: F401
 
+from . import protocol
 connect_amqp = protocol.connect_amqp
 
 
@@ -20,8 +19,10 @@ async def connect_from_url(url, **kwargs):
         @kwargs: Further arguments for trio_amqp.connect_amqp()
 
         Usage:
-            async with connect_from_url("amqp://user:password@hostname:port/vhost") as amqp:
-            ...   await do_whatever(amqp)
+            async with connect_from_url(
+                "amqp://user:password@hostname:port/vhost"
+            ) as amqp:
+                await do_whatever(amqp)
     """
     url = urlparse(url)
 

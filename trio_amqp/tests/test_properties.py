@@ -20,8 +20,9 @@ class TestReply(testcase.RabbitTestCase):
         routing_key,
         task_status=trio.TASK_STATUS_IGNORED
     ):
-        """Consume messages and reply to them by publishing messages back to the client using
-        routing key set to the reply_to property"""
+        """Consume messages and reply to them by publishing messages back
+        to the client using routing key set to the reply_to property
+        """
         server_queue_name = 'server_queue'
         async with amqp.new_channel() as channel:
             await channel.queue_declare(
@@ -63,8 +64,10 @@ class TestReply(testcase.RabbitTestCase):
         client_routing_key,
         task_status=trio.TASK_STATUS_IGNORED
     ):
-        """Declare a queue, bind client_routing_key to it and publish a message to the server with
-        the reply_to property set to that routing key"""
+        """Declare a queue, bind client_routing_key to it, and publish a
+        message to the server with the reply_to property set to that
+        routing key
+        """
         client_queue_name = 'client_reply_queue'
         async with amqp.new_channel() as client_channel:
             await client_channel.queue_declare(
@@ -119,7 +122,8 @@ class TestReply(testcase.RabbitTestCase):
 
             logger.debug('Waiting for server to receive message')
             await server_future.wait()
-            server_body, server_envelope, server_properties = server_future.test_result
+            server_body, server_envelope, server_properties = \
+                server_future.test_result
             assert server_body == b'client message'
             assert server_properties.correlation_id == correlation_id
             assert server_properties.reply_to == client_routing_key
@@ -127,7 +131,8 @@ class TestReply(testcase.RabbitTestCase):
 
             logger.debug('Waiting for client to receive message')
             await client_future.wait()
-            client_body, client_envelope, client_properties = client_future.test_result
+            client_body, client_envelope, client_properties = \
+                client_future.test_result
             assert client_body == b'reply message'
             assert client_properties.correlation_id == correlation_id
             assert client_envelope.routing_key == client_routing_key

@@ -4,7 +4,6 @@
 
 import trio
 import pytest
-from functools import partial
 
 from . import testcase
 from .. import exceptions
@@ -111,15 +110,13 @@ class TestQueueDeclare(testcase.RabbitTestCase):
                 auto_delete=auto_delete
             )
 
-            # assert returned results has the good arguments
-            # in test the channel declared queues with prefixed names, to get the full name of the
-            # declared queue we have to use self.full_name function
+            # assert that the returned results matches
             assert amqp.full_name(queue_name) == result['queue']
 
             queues = self.list_queues(channel.protocol)
             queue = queues[queue_name]
 
-            # assert queue has been declared with the good arguments
+            # assert queue has been declared with correct arguments
             assert queue_name == queue['name']
             assert 0 == queue.get('consumers', 0), queue
             assert 0 == queue.get('messages_ready', 0), queue

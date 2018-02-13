@@ -38,7 +38,6 @@ Content Payload
 
 """
 
-import trio
 import io
 import struct
 import socket
@@ -151,7 +150,9 @@ class AmqpEncoder:
         self.payload.write(struct.pack('>i', v))
 
     def write_timestamp(self, value):
-        """Write out a Python datetime.datetime object as a 64-bit integer representing seconds since the Unix epoch."""
+        """Write out a Python datetime.datetime object as a 64-bit integer
+        representing seconds since the Unix epoch.
+        """
         self.payload.write(
             struct.pack(
                 '>Q',
@@ -292,7 +293,8 @@ class AmqpDecoder:
         return struct.unpack('!q', data)[0]
 
     def read_float(self):
-        # XXX: This used to read & unpack '!d', which is a double, not a shorter float
+        # XXX: This used to read & unpack '!d', which is a double,
+        # not a shorter float
         data = self.reader.read(4)
         return struct.unpack('!f', data)[0]
 
@@ -571,7 +573,7 @@ class AmqpResponse:
 |{type!r:^8}|{channel!r:^11}|{size!r:^12}|    |{payload!r:^15}|     |{frame_end!r:^14}|
 +--------+-----------+------------+    +---------------+     +--------------+
    type    channel       size                payload            frame-end
-""".format(**frame_data)
+""".format(**frame_data)  # noqa: E501
 
         if self.frame_type == amqp_constants.TYPE_METHOD:
             method_data = {

@@ -2,15 +2,13 @@
     Test our Protocol class
 """
 
-import trio
 import pytest
 import mock
-from functools import partial
 
 from . import testcase
 from .. import exceptions
 from .. import connect_from_url as amqp_from_url
-from ..protocol import AmqpProtocol, OPEN
+from ..protocol import OPEN
 
 
 class TestProtocol(testcase.RabbitTestCase):
@@ -40,7 +38,7 @@ class TestProtocol(testcase.RabbitTestCase):
         self.reset_vhost()
         with pytest.raises(exceptions.AmqpClosedConnection):
             amqp = testcase.connect(virtualhost='/unexistant')
-            async with amqp as protocol:
+            async with amqp:
                 pass
 
     @pytest.mark.trio
@@ -48,7 +46,7 @@ class TestProtocol(testcase.RabbitTestCase):
         self.reset_vhost()
         with pytest.raises(exceptions.AmqpClosedConnection):
             amqp = testcase.connect(login='wrong', password='wrong')
-            async with amqp as protocol:
+            async with amqp:
                 pass
 
     @pytest.mark.trio
@@ -68,7 +66,7 @@ class TestProtocol(testcase.RabbitTestCase):
 
             connect.return_value = func()
             res = amqp_from_url('amqp://tom:pass@example.com:7777/myvhost')
-            async with res as r:
+            async with res:
                 pass
             connect.assert_called_once_with(
                 password='pass',
@@ -83,5 +81,5 @@ class TestProtocol(testcase.RabbitTestCase):
     async def test_from_url_raises_on_wrong_scheme(self):
         self.reset_vhost()
         with pytest.raises(ValueError):
-            async with amqp_from_url('invalid://') as foo:
+            async with amqp_from_url('invalid://'):
                 assert False, "does not go here"

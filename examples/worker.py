@@ -6,8 +6,6 @@
 import trio
 import trio_amqp
 
-import sys
-
 
 async def callback(channel, body, envelope, properties):
     print(" [x] Received %r" % body)

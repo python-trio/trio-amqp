@@ -9,7 +9,6 @@
 import trio
 import trio_amqp
 
-import random
 import sys
 
 

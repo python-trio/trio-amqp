@@ -4,10 +4,8 @@
 
 import trio
 import pytest
-import mock
 
 from trio_amqp import exceptions
-from trio_amqp.protocol import CLOSED
 
 from . import testcase
 
