@@ -6,9 +6,9 @@ import pytest
 import mock
 
 from . import testcase
-from .. import exceptions
-from .. import connect_from_url as amqp_from_url
-from ..protocol import OPEN
+from trio_amqp import exceptions
+from trio_amqp import connect_from_url as amqp_from_url
+from trio_amqp.protocol import OPEN
 
 
 class TestProtocol(testcase.RabbitTestCase):

@@ -7,8 +7,8 @@ import struct
 import pytest
 
 from . import testcase
-from .. import exceptions
-from .. import properties
+from trio_amqp import exceptions
+from trio_amqp import properties
 
 
 class TestQos(testcase.RabbitTestCase):

@@ -2,9 +2,9 @@ import trio
 import pytest
 
 from . import testcase
-from .. import exceptions
+from trio_amqp import exceptions
 
-from ..properties import Properties
+from trio_amqp.properties import Properties
 
 
 class TestConsume(testcase.RabbitTestCase):

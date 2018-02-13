@@ -5,7 +5,7 @@
 import pytest
 
 from . import testcase
-from .. import exceptions
+from trio_amqp import exceptions
 
 
 class TestExchangeDeclare(testcase.RabbitTestCase):
