@@ -27,9 +27,8 @@ class BasicListener:
         self.channel = channel
         self.kwargs = kwargs
         self.consumer_tag = consumer_tag
-        self._q = trio.Queue(30)  # TODO: 2 + possible prefetch
 
-    async def __call__(self, msg, env, prop):
+    async def _data(self, channel, msg, env, prop):
         await self._q.put((msg, env, prop))
 
     async def __aiter__(self):
@@ -40,9 +39,9 @@ class BasicListener:
 
     async def __aenter__(self):
         await self.channel.basic_consume(
-            self, consumer_tag=self.consumer_tag, **self.kwargs
+            self._data, consumer_tag=self.consumer_tag, **self.kwargs
         )
-        self._q = trio.Queue()
+        self._q = trio.Queue(30)  # TODO: 2 + possible prefetch
         return self
 
     async def __aexit__(self, *tb):
@@ -51,6 +50,15 @@ class BasicListener:
         del self._q
         # these messages are not acknowledged, thus deleting the queue will
         # not lose them
+
+    def __enter__(self):
+        raise RuntimeError("You need to use 'async with'.")
+
+    def __exit__(self, *tb):
+        raise RuntimeError("You need to use 'async with'.")
+
+    def __iter__(self):
+        raise RuntimeError("You need to use 'async for'.")
 
 
 class Channel:
@@ -840,7 +848,7 @@ class Channel:
 
     async def basic_consume(
         self,
-        callback=None,
+        callback,
         queue_name='',
         consumer_tag='',
         no_local=False,
@@ -897,18 +905,6 @@ class Channel:
 
         if arguments is None:
             arguments = {}
-
-        if callback is None:
-            return BasicListener(
-                self,
-                queue_name=queue_name,
-                consumer_tag=consumer_tag,
-                no_local=no_local,
-                no_ack=no_ack,
-                exclusive=exclusive,
-                no_wait=no_wait,
-                arguments=arguments
-            )
 
         frame = amqp_frame.AmqpRequest(
             amqp_constants.TYPE_METHOD, self.channel_id
