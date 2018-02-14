@@ -1,8 +1,21 @@
-trio-amqp
-=========
+.. image:: https://img.shields.io/badge/chat-join%20now-blue.svg
+   :target: https://gitter.im/python-trio/general
+   :alt: Join chatroom
+
+.. image:: https://img.shields.io/badge/docs-read%20now-blue.svg
+   :target: https://trio-amqp.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
 
 .. image:: https://travis-ci.org/python-trio/trio-amqp.svg?branch=master
-    :target: https://travis-ci.org/python-trio/trio-amqp
+   :target: https://travis-ci.org/python-trio/trio-amqp
+   :alt: Automated test status
+
+.. image:: https://codecov.io/gh/python-trio/trio-amqp/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/python-trio/trio-amqp
+   :alt: Test coverage
+
+trio-amqp
+=========
 
 The ``trio-amqp`` library is a pure-Python implementation of the `AMQP 0.9.1 protocol`_.
 
