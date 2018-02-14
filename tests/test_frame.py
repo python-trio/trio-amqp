@@ -42,23 +42,18 @@ class TestEncoder:
 
     def test_write_float(self):
         self.encoder.write_value(1.1)
-        assert self.encoder.payload.getvalue(
-        ) == b'd?\xf1\x99\x99\x99\x99\x99\x9a'
+        assert self.encoder.payload.getvalue() == b'd?\xf1\x99\x99\x99\x99\x99\x9a'
 
     def test_write_decimal(self):
         self.encoder.write_value(Decimal("-1.1"))
         assert self.encoder.payload.getvalue() == b'D\x01\xff\xff\xff\xf5'
 
         self.encoder.write_value(Decimal("1.1"))
-        assert self.encoder.payload.getvalue(
-        ) == b'D\x01\xff\xff\xff\xf5D\x01\x00\x00\x00\x0b'
+        assert self.encoder.payload.getvalue() == b'D\x01\xff\xff\xff\xf5D\x01\x00\x00\x00\x0b'
 
     def test_write_datetime(self):
-        self.encoder.write_value(
-            datetime.datetime(2017, 12, 10, 4, 6, 49, 548918)
-        )
-        assert self.encoder.payload.getvalue(
-        ) == b'T\x00\x00\x00\x00Z,\xb2\xd9'
+        self.encoder.write_value(datetime.datetime(2017, 12, 10, 4, 6, 49, 548918))
+        assert self.encoder.payload.getvalue() == b'T\x00\x00\x00\x00Z,\xb2\xd9'
 
     def test_write_dict(self):
         self.encoder.write_value({'foo': 'bar', 'bar': 'baz'})

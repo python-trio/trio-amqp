@@ -35,8 +35,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         result = await channel.queue_declare(queue_name)
         assert result['message_count'] == 0, result
         assert result['consumer_count'] == 0, result
-        assert channel.protocol.local_name(result['queue']
-                                           ) == queue_name, result
+        assert channel.protocol.local_name(result['queue']) == queue_name, result
         assert result
 
     @pytest.mark.trio
@@ -46,8 +45,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         result = await channel.queue_declare(queue_name, passive=True)
         assert result['message_count'] == 0, result
         assert result['consumer_count'] == 0, result
-        assert channel.protocol.local_name(result['queue']
-                                           ) == queue_name, result
+        assert channel.protocol.local_name(result['queue']) == queue_name, result
 
     @pytest.mark.trio
     async def test_queue_declare_passive_nonexistant_queue(self, channel):
@@ -60,9 +58,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def test_wrong_parameter_queue(self, channel):
         queue_name = 'q18'
-        await channel.queue_declare(
-            queue_name, exclusive=False, auto_delete=False
-        )
+        await channel.queue_declare(queue_name, exclusive=False, auto_delete=False)
 
         with pytest.raises(exceptions.ChannelClosed) as cm:
             await channel.queue_declare(
@@ -78,27 +74,18 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         async with amqp.new_channel() as channel1:
             async with amqp.new_channel() as channel2:
 
-                result = await channel1.queue_declare(
-                    queue_name, passive=False
-                )
+                result = await channel1.queue_declare(queue_name, passive=False)
                 assert result['message_count'] == 0, result
                 assert result['consumer_count'] == 0, result
                 assert amqp.local_name(result['queue']) == queue_name, result
 
-                result = await channel2.queue_declare(
-                    queue_name, passive=False
-                )
+                result = await channel2.queue_declare(queue_name, passive=False)
                 assert result['message_count'] == 0, result
                 assert result['consumer_count'] == 0, result
                 assert amqp.local_name(result['queue']) == queue_name, result
 
     async def _test_queue_declare(
-        self,
-        amqp,
-        queue_name,
-        exclusive=False,
-        durable=False,
-        auto_delete=False
+        self, amqp, queue_name, exclusive=False, durable=False, auto_delete=False
     ):
         # declare queue
         async with amqp.new_channel() as channel:
@@ -128,9 +115,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_durable_and_auto_deleted(self, amqp):
-        await self._test_queue_declare(
-            amqp, 'q1', exclusive=False, durable=True, auto_delete=True
-        )
+        await self._test_queue_declare(amqp, 'q1', exclusive=False, durable=True, auto_delete=True)
 
     @pytest.mark.trio
     async def test_durable_and_not_auto_deleted(self, amqp):
@@ -156,18 +141,14 @@ class TestQueueDeclare(testcase.RabbitTestCase):
             # create an exclusive queue
             await channel.queue_declare("q5", exclusive=True)
             # consume from it
-            await channel.basic_consume(
-                self.callback, queue_name="q5", no_wait=False
-            )
+            await channel.basic_consume(self.callback, queue_name="q5", no_wait=False)
 
             # create another amqp connection
             async with self.create_amqp() as amqp:
                 async with amqp.new_channel() as channel:
                     # assert that this connection cannot connect to the queue
                     with pytest.raises(exceptions.ChannelClosed):
-                        await channel.basic_consume(
-                            self.callback, queue_name="q5", no_wait=False
-                        )
+                        await channel.basic_consume(self.callback, queue_name="q5", no_wait=False)
                         # channels are auto deleted by test case
 
     @pytest.mark.trio
@@ -176,16 +157,12 @@ class TestQueueDeclare(testcase.RabbitTestCase):
             # create a non-exclusive queue
             await channel.queue_declare('q6', exclusive=False)
             # consume it
-            await channel.basic_consume(
-                self.callback, queue_name='q6', no_wait=False
-            )
+            await channel.basic_consume(self.callback, queue_name='q6', no_wait=False)
             # create an other amqp connection
             async with self.create_amqp(test_seq=amqp.test_seq) as amqp2:
                 async with amqp2.new_channel() as channel:
                     # assert that this connection can connect to the queue
-                    await channel.basic_consume(
-                        self.callback, queue_name='q6', no_wait=False
-                    )
+                    await channel.basic_consume(self.callback, queue_name='q6', no_wait=False)
 
 
 class TestQueueDelete(testcase.RabbitTestCase):
@@ -220,9 +197,7 @@ class TestQueueBind(testcase.RabbitTestCase):
         await channel.queue_declare(queue_name)
         await channel.exchange_declare(exchange_name, type_name='direct')
 
-        result = await channel.queue_bind(
-            queue_name, exchange_name, routing_key=''
-        )
+        result = await channel.queue_bind(queue_name, exchange_name, routing_key='')
         assert result
 
     @pytest.mark.trio
@@ -256,9 +231,7 @@ class TestQueueBind(testcase.RabbitTestCase):
 
         await channel.queue_bind(queue_name, exchange_name, routing_key='')
 
-        result = await channel.queue_unbind(
-            queue_name, exchange_name, routing_key=''
-        )
+        result = await channel.queue_unbind(queue_name, exchange_name, routing_key='')
         assert result
 
 

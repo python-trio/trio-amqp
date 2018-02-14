@@ -14,74 +14,49 @@ class TestExchangeDeclare(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_exchange_direct_declare(self, channel):
-        result = await channel.exchange_declare(
-            'exchange_name', type_name='direct'
-        )
+        result = await channel.exchange_declare('exchange_name', type_name='direct')
         assert result
 
     @pytest.mark.trio
     async def test_exchange_fanout_declare(self, channel):
-        result = await channel.exchange_declare(
-            'exchange_name', type_name='fanout'
-        )
+        result = await channel.exchange_declare('exchange_name', type_name='fanout')
         assert result
 
     @pytest.mark.trio
     async def test_exchange_topic_declare(self, channel):
-        result = await channel.exchange_declare(
-            'exchange_name', type_name='topic'
-        )
+        result = await channel.exchange_declare('exchange_name', type_name='topic')
         assert result
 
     @pytest.mark.trio
     async def test_exchange_headers_declare(self, channel):
-        result = await channel.exchange_declare(
-            'exchange_name', type_name='headers'
-        )
+        result = await channel.exchange_declare('exchange_name', type_name='headers')
         assert result
 
     @pytest.mark.trio
     async def test_exchange_declare_wrong_types(self, channel):
         result = await channel.exchange_declare(
-            'exchange_name',
-            type_name='headers',
-            auto_delete=True,
-            durable=True
+            'exchange_name', type_name='headers', auto_delete=True, durable=True
         )
         assert result
 
         with pytest.raises(exceptions.ChannelClosed):
             result = await channel.exchange_declare(
-                'exchange_name',
-                type_name='fanout',
-                auto_delete=False,
-                durable=False
+                'exchange_name', type_name='fanout', auto_delete=False, durable=False
             )
 
     @pytest.mark.trio
     async def test_exchange_declare_passive(self, channel):
         result = await channel.exchange_declare(
-            'exchange_name',
-            type_name='headers',
-            auto_delete=True,
-            durable=True
+            'exchange_name', type_name='headers', auto_delete=True, durable=True
         )
         assert result
         result = await channel.exchange_declare(
-            'exchange_name',
-            type_name='headers',
-            auto_delete=True,
-            durable=True,
-            passive=True
+            'exchange_name', type_name='headers', auto_delete=True, durable=True, passive=True
         )
         assert result
 
         result = await channel.exchange_declare(
-            'exchange_name',
-            type_name='headers',
-            auto_delete=False,
-            durable=False,
-            passive=True
+            'exchange_name', type_name='headers', auto_delete=False, durable=False, passive=True
         )
         assert result
 
@@ -117,9 +92,7 @@ class TestExchangeDelete(testcase.RabbitTestCase):
         result = await channel.exchange_delete(exchange_name)
         assert result
         with pytest.raises(exceptions.ChannelClosed) as cm:
-            await channel.exchange_declare(
-                exchange_name, type_name='direct', passive=True
-            )
+            await channel.exchange_declare(exchange_name, type_name='direct', passive=True)
 
         assert cm.value.code == 404
 
@@ -144,9 +117,7 @@ class TestExchangeDelete(testcase.RabbitTestCase):
 class TestExchangeBind(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def test_exchange_bind(self, channel):
-        await channel.exchange_declare(
-            'exchange_destination', type_name='direct'
-        )
+        await channel.exchange_declare('exchange_destination', type_name='direct')
         await channel.exchange_declare('exchange_source', type_name='direct')
 
         result = await channel.exchange_bind(
@@ -158,9 +129,7 @@ class TestExchangeBind(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def test_inexistant_exchange_bind(self, channel):
         with pytest.raises(exceptions.ChannelClosed) as cm:
-            await channel.exchange_bind(
-                'exchange_destination', 'exchange_source', routing_key=''
-            )
+            await channel.exchange_bind('exchange_destination', 'exchange_source', routing_key='')
 
         assert cm.value.code == 404
 
@@ -175,9 +144,7 @@ class TestExchangeUnbind(testcase.RabbitTestCase):
 
         await channel.exchange_bind(ex_destination, ex_source, routing_key='')
 
-        await channel.exchange_unbind(
-            ex_destination, ex_source, routing_key=''
-        )
+        await channel.exchange_unbind(ex_destination, ex_source, routing_key='')
 
     @pytest.mark.trio
     async def test_exchange_unbind_reversed(self, channel):
@@ -190,15 +157,11 @@ class TestExchangeUnbind(testcase.RabbitTestCase):
 
         if self.server_version(channel.protocol) < (3, 3, 5):
             with pytest.raises(exceptions.ChannelClosed) as cm:
-                result = await channel.exchange_unbind(
-                    ex_source, ex_destination, routing_key=''
-                )
+                result = await channel.exchange_unbind(ex_source, ex_destination, routing_key='')
 
             assert cm.value.code == 404
 
         else:
             # weird result from rabbitmq 3.3.5
-            result = await channel.exchange_unbind(
-                ex_source, ex_destination, routing_key=''
-            )
+            result = await channel.exchange_unbind(ex_source, ex_destination, routing_key='')
             assert result

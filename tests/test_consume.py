@@ -35,9 +35,7 @@ class TestConsume(testcase.RabbitTestCase):
         with pytest.raises(TypeError):
             async with proto as amqp:
                 async with amqp.new_channel() as chan:
-                    await chan.queue_declare(
-                        "q", exclusive=True, no_wait=False
-                    )
+                    await chan.queue_declare("q", exclusive=True, no_wait=False)
                     await chan.exchange_declare("e", "fanout")
                     await chan.queue_bind("q", "e", routing_key='')
 
@@ -54,9 +52,7 @@ class TestConsume(testcase.RabbitTestCase):
                         await self.check_messages(amqp, "q", 1)
 
                         # start consume
-                        await channel.basic_consume(
-                            badcallback, queue_name="q"
-                        )
+                        await channel.basic_consume(badcallback, queue_name="q")
                         await trio.sleep(1)
 
     @pytest.mark.trio
@@ -138,13 +134,9 @@ class TestConsume(testcase.RabbitTestCase):
                     q2_future.set()
 
                 # start consumers
-                result = await channel.basic_consume(
-                    q1_callback, queue_name="q1"
-                )
+                result = await channel.basic_consume(q1_callback, queue_name="q1")
                 ctag_q1 = result['consumer_tag']
-                result = await channel.basic_consume(
-                    q2_callback, queue_name="q2"
-                )
+                result = await channel.basic_consume(q2_callback, queue_name="q2")
                 ctag_q2 = result['consumer_tag']
 
                 # put message in q1
@@ -172,14 +164,10 @@ class TestConsume(testcase.RabbitTestCase):
     async def test_duplicate_consumer_tag(self, channel):
         await channel.queue_declare("q1", exclusive=True, no_wait=False)
         await channel.queue_declare("q2", exclusive=True, no_wait=False)
-        await channel.basic_consume(
-            self.callback, queue_name="q1", consumer_tag='tag'
-        )
+        await channel.basic_consume(self.callback, queue_name="q1", consumer_tag='tag')
 
         with pytest.raises(exceptions.ChannelClosed) as cm:
-            await channel.basic_consume(
-                self.callback, queue_name="q2", consumer_tag='tag'
-            )
+            await channel.basic_consume(self.callback, queue_name="q2", consumer_tag='tag')
 
         assert cm.value.code == 530
 

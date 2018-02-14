@@ -93,9 +93,8 @@ CONFIRM_SELECT = 10
 CONFIRM_SELECT_OK = 11
 
 MESSAGE_PROPERTIES = (
-    'content_type', 'content_encoding', 'headers', 'delivery_mode', 'priority',
-    'correlation_id', 'reply_to', 'expiration', 'message_id', 'timestamp',
-    'type', 'user_id', 'app_id', 'cluster_id'
+    'content_type', 'content_encoding', 'headers', 'delivery_mode', 'priority', 'correlation_id',
+    'reply_to', 'expiration', 'message_id', 'timestamp', 'type', 'user_id', 'app_id', 'cluster_id'
 )
 
 FLAG_CONTENT_TYPE = (1 << 15)

@@ -55,8 +55,7 @@ class TestChannel(testcase.RabbitTestCase):
         assert result['active']
 
     @pytest.mark.skipif(
-        IMPLEMENT_CHANNEL_FLOW is False,
-        reason="active=false is not implemented in RabbitMQ"
+        IMPLEMENT_CHANNEL_FLOW is False, reason="active=false is not implemented in RabbitMQ"
     )
     @pytest.mark.trio
     async def test_channel_inactive_flow(self, channel):
@@ -71,8 +70,7 @@ class TestChannel(testcase.RabbitTestCase):
         result = await channel.flow(active=True)
 
     @pytest.mark.skipif(
-        IMPLEMENT_CHANNEL_FLOW is False,
-        reason="active=false is not implemented in RabbitMQ"
+        IMPLEMENT_CHANNEL_FLOW is False, reason="active=false is not implemented in RabbitMQ"
     )
     @pytest.mark.trio
     async def test_channel_active_inactive_flow(self, channel):

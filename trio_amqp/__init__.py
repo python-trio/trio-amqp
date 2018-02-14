@@ -27,10 +27,7 @@ async def connect_from_url(url, **kwargs):
     url = urlparse(url)
 
     if url.scheme not in ('amqp', 'amqps'):
-        raise ValueError(
-            'Invalid protocol %s, valid protocols are amqp or amqps' %
-            url.scheme
-        )
+        raise ValueError('Invalid protocol %s, valid protocols are amqp or amqps' % url.scheme)
 
     if url.hostname:
         kwargs['host'] = url.hostname
