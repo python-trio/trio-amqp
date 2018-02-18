@@ -15,7 +15,7 @@ setuptools.setup(
     download_url='https://pypi.python.org/pypi/trio_amqp',
     setup_requires=[
         'pyrabbit',
-        'pytest-trio',
+        'pytest-trio >= 0.3',
     ],
     install_requires=[
         'trio',
