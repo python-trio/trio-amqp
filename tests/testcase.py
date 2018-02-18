@@ -111,6 +111,11 @@ def reset_vhost():
     http_client = pyrabbit.api.Client(
         '%s:%s/' % (host, 10000 + port), 'guest', 'guest', timeout=20
     )
+    try:
+        http_client.create_vhost(vhost)
+    except pyrabbit.http.HTTPError:
+        pass
+
     for kv in http_client.get_queues(vhost=vhost):
         try:
             http_client.delete_queue(vhost=vhost, qname=kv['name'])
