@@ -116,16 +116,23 @@ def reset_vhost():
     except pyrabbit.http.HTTPError:
         pass
 
-    for kv in http_client.get_queues(vhost=vhost):
-        try:
-            http_client.delete_queue(vhost=vhost, qname=kv['name'])
-        except Exception:  # pylint: disable=broad-except
-            pass
-    for kv in http_client.get_exchanges(vhost=vhost):
-        try:
-            http_client.delete_exchange(vhost=vhost, name=kv['name'])
-        except Exception:  # pylint: disable=broad-except
-            pass
+    try:
+        for kv in http_client.get_queues(vhost=vhost):
+            try:
+                http_client.delete_queue(vhost=vhost, qname=kv['name'])
+            except Exception:  # pylint: disable=broad-except
+                pass
+    except pyrabbit.http.HTTPError:  # pylint: disable=broad-except
+        pass
+
+    try:
+        for kv in http_client.get_exchanges(vhost=vhost):
+            try:
+                http_client.delete_exchange(vhost=vhost, name=kv['name'])
+            except Exception:  # pylint: disable=broad-except
+                pass
+    except pyrabbit.http.HTTPError:  # pylint: disable=broad-except
+        pass
 
 
 def connect(*a, **kw):
