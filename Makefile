@@ -32,7 +32,7 @@ livehtml: docs
 	sphinx3-autobuild $(AUTOSPHINXOPTS) $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)
 
 test:
-	$(PYTEST) $(PACKAGE) $(TEST_OPTIONS)
+	$(PYTEST) $(TEST_OPTIONS) tests
 
 
 update:
