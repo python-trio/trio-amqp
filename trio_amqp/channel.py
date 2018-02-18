@@ -2,6 +2,7 @@
     Amqp channel specification
 """
 
+import sys
 import trio
 import logging
 import uuid
@@ -31,8 +32,12 @@ class BasicListener:
     async def _data(self, channel, msg, env, prop):
         await self._q.put((msg, env, prop))
 
-    async def __aiter__(self):
-        return self
+    if sys.version_info >= (3,5,3):
+        def __aiter__(self):
+            return self
+    else:
+        async def __aiter__(self):
+            return self
 
     async def __anext__(self):
         return await self._q.get()
