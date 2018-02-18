@@ -7,7 +7,7 @@ PACKAGE = trio_amqp
 PYTHON ?= python3
 
 PYTEST ?= env PYTHONPATH=. ${PYTHON} $(shell which pytest-3)
-TEST_OPTIONS ?= -xvvv --full-trace
+TEST_OPTIONS ?= -xv # -vv --full-trace
 PYLINT_RC ?= .pylintrc
 
 BUILD_DIR ?= build
