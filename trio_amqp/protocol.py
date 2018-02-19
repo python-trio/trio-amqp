@@ -141,6 +141,10 @@ class AmqpProtocol(trio.abc.AsyncResource):
             'PASSWORD': password,
         }
 
+    @property
+    def nursery(self):
+        return self._nursery
+
     async def ensure_open(self):
         # Raise a suitable exception if the connection isn't open.
         # Handle cases from the most common to the least common.
@@ -612,3 +616,4 @@ async def connect_amqp(*args, protocol=AmqpProtocol, **kwargs):
                 yield amqp
         finally:
             amqp._cancel_all()
+

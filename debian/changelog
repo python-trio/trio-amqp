@@ -1,3 +1,9 @@
+trio-amqp (0.2.1-1) unstable; urgency=medium
+
+  * Export the Trio nursery.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 19 Feb 2018 13:38:23 +0100
+
 trio-amqp (0.2.0-1) unstable; urgency=medium
 
   * Initial release.
