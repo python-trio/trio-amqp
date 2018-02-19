@@ -53,7 +53,7 @@ Starting a connection
     import trio_amqp
 
     async def connect():
-        async with trio_amqp.connect() as conn: # use default parameters
+        async with trio_amqp.connect_amqp() as conn: # use default parameters
             print("connected !")
             await trio.sleep(1)
 
