@@ -1,12 +1,14 @@
 Work Queues : Distributing tasks among workers
 ==============================================
 
-The main purpose of this part of the tutorial is to `ack` a message in RabbitMQ only when it's really processed by a worker.
+The main purpose of this part of the tutorial is to `ack` a message in
+RabbitMQ only when it's really processed by a worker.
 
 new_task
 --------
 
-This publisher creates a queue with the `durable` flag and publish a message with the property `persistent`.
+This publisher creates a queue with the `durable` flag and publish a
+message with the property `persistent`.
 
  .. code-block:: python
 
@@ -25,7 +27,8 @@ This publisher creates a queue with the `durable` flag and publish a message wit
 worker
 ------
 
-The purpose of this worker is to simulate a resource consuming execution which delays the processing of the other messages.
+The purpose of this worker is to simulate a resource consuming execution
+which delays the processing of the other messages.
 
 The worker declares the queue with the exact same argument of the `new_task` producer.
 
@@ -42,8 +45,9 @@ Then, the worker configure the `QOS`: it specifies how the worker unqueues messa
 
 
 Finaly we have to create a callback that will `ack` the message to mark it as `processed`.
-Note: the code in the callback calls `trio.sleep` to simulate a Trio compatible task that takes time.
-You probably want to block the eventloop to simulate a CPU intensive task using `time.sleep`.
+
+Note: the code in the callback calls `trio.sleep` to simulate a Trio
+compatible task that takes time.
 
  .. code-block:: python
 

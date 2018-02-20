@@ -17,16 +17,14 @@ class FibonacciRpcClient(object):
         self.callback_queue = None
         self.waiter = trio.Event()
 
-    async def connect(self):
+    async def connect(self, channel):
         """ an `__init__` method can't be a coroutine"""
-        self.channel = await self.protocol.channel()
-
-        result = await self.channel.queue_declare(
+        result = await channel.queue_declare(
             queue_name='', exclusive=True
         )
         self.callback_queue = result['queue']
 
-        await self.channel.basic_consume(
+        await channel.basic_consume(
             self.on_response,
             no_ack=True,
             queue_name=self.callback_queue,
@@ -39,24 +37,24 @@ class FibonacciRpcClient(object):
         self.waiter.set()
 
     async def call(self, n):
-        async with trio_amqp.connect() as protocol:
-            self.protocol = protocol
-            await self.connect()
+        async with trio_amqp.connect_amqp() as protocol:
+            async with protocol.channel() as channel:
+                await self.connect(channel)
 
-            self.response = None
-            self.corr_id = str(uuid.uuid4())
-            await self.channel.basic_publish(
-                payload=str(n),
-                exchange_name='',
-                routing_key='rpc_queue',
-                properties={
-                    'reply_to': self.callback_queue,
-                    'correlation_id': self.corr_id,
-                },
-            )
-            await self.waiter.wait()
+                self.response = None
+                self.corr_id = str(uuid.uuid4())
+                await self.channel.basic_publish(
+                    payload=str(n),
+                    exchange_name='',
+                    routing_key='rpc_queue',
+                    properties={
+                        'reply_to': self.callback_queue,
+                        'correlation_id': self.corr_id,
+                    },
+                )
+                await self.waiter.wait()
 
-            return int(self.response)
+                return int(self.response)
 
 
 async def rpc_client():

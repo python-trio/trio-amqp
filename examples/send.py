@@ -9,7 +9,7 @@ import trio_amqp
 
 
 async def send():
-    async with trio_amqp.connect() as protocol:
+    async with trio_amqp.connect_amqp() as protocol:
         channel = await protocol.channel()
 
         await channel.queue_declare(queue_name='hello')

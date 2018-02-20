@@ -22,7 +22,7 @@ async def callback(channel, body, envelope, properties):
 
 async def receive_log():
     try:
-        async with trio_amqp.connect() as protocol:
+        async with trio_amqp.connect_amqp() as protocol:
 
             channel = await protocol.channel()
             exchange_name = 'topic_logs'

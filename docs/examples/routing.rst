@@ -2,8 +2,10 @@ Routing : Receiving messages selectively
 ========================================
 
 
-Routing is an interesting concept in RabbitMQ/AMQP: in this tutorial, messages are published to a `direct` exchange with a specific routing_key (the log `severity` 
-The `consumer` create a queue, binds the queue to the exchange and specifies the severity he wants to receive.
+Routing is an interesting concept in RabbitMQ/AMQP: in this tutorial,
+messages are published to a `direct` exchange with a specific routing_key
+(the log `severity`). The `consumer` create a queue, binds the queue to the
+exchange and specifies the severity he wants to receive.
 
 
 Publisher
@@ -26,7 +28,9 @@ Message are published into that exchange and routed using the severity for insta
 Consumer
 --------
 
-The consumer may subscribe to multiple severities. To accomplish this purpose, it create a queue bind this queue multiple time using the `(exchange_name, routing_key)` configuration:
+The consumer may subscribe to multiple severities. To accomplish this
+purpose, it create a queue bind this queue multiple time using the
+`(exchange_name, routing_key)` configuration:
 
  .. code-block:: python
 
@@ -45,3 +49,4 @@ The consumer may subscribe to multiple severities. To accomplish this purpose, i
             queue_name=queue_name,
             routing_key=severity,
         )
+

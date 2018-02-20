@@ -1,13 +1,18 @@
 Topics : Receiving messages based on a pattern
 ==============================================
 
-Topics are another exchange type. It allows message routing depending on a pattern, to route a message for multiple criteria.
-We're going to use a topic exchange in our logging system. We'll start off with a working assumption that the routing keys of logs will have two words: "<facility>.<severity>".
+Topics are another exchange type. It allows message routing depending on a
+pattern, to route a message for multiple criteria.
+
+We're going to use a topic exchange in our logging system. We'll start off
+with a working assumption that the routing keys of logs will have two
+words: "<facility>.<severity>".
 
 Publisher
 ---------
 
-The publisher prepares the exchange and publish messages using a routing_key which will be matched by later filters
+The publisher prepares the exchange and publish messages using a
+routing_key which will be matched by later filters
 
  .. code-block:: python
 
@@ -22,7 +27,7 @@ The publisher prepares the exchange and publish messages using a routing_key whi
 Consumer
 --------
 
-The consumer selects the combination of 'facility'/'severity' he wants to subscribe to:
+The consumer selects the combination of 'facility'/'severity' it wants to subscribe to:
 
  .. code-block:: python
 

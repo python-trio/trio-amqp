@@ -15,7 +15,7 @@ async def callback(channel, body, envelope, properties):
 
 
 async def worker():
-    async with trio_amqp.connect('localhost', 5672) as protocol:
+    async with trio_amqp.connect_amqp() as protocol:
 
         channel = await protocol.channel()
 

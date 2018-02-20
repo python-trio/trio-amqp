@@ -13,7 +13,7 @@ async def callback(channel, body, envelope, properties):
 
 async def receive():
     try:
-        async with trio_amqp.connect() as protocol:
+        async with trio_amqp.connect_amqp() as protocol:
 
             channel = await protocol.channel()
 

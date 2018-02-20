@@ -16,8 +16,10 @@ The API will probably look like:
 Client
 ------
 
-In this case it's no more a producer but a Client: we will send a message in a queue and wait for a response in another.
-For that purpose, we publish a message to the `rpc_queue` and add a `reply_to` properties to let the server know where to respond.
+In this case it's no longer a producer but a client: we will send a message
+to a queue and wait for a response in another. For that purpose, we publish
+a message to the `rpc_queue` and add a `reply_to` property to let the
+server know where to respond.
 
  .. code-block:: python
 
@@ -34,13 +36,16 @@ For that purpose, we publish a message to the `rpc_queue` and add a `reply_to` p
     )
 
 
-Note: the client use a `waiter` (an trio.Event) which will be set when receiving a response from the previously sent message.
+Note: the client use a `waiter` (a ``trio.Event``) which will be set when
+receiving a response from the previously sent message.
 
 
 Server
 ------
 
-When unqueing a message, the server will publish a response directly in the callback. The `correlation_id` is used to let the client know it's a response from this request.
+When unqueuing a message, the server will publish a response directly in
+the callback. The `correlation_id` is used to let the client know it's a
+response from this request.
 
  .. code-block:: python
 

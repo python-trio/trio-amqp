@@ -8,7 +8,7 @@ import sys
 
 async def new_task():
     try:
-        async with trio_amqp.connect() as protocol:
+        async with trio_amqp.connect_amqp() as protocol:
 
             channel = await protocol.channel()
 

@@ -14,7 +14,7 @@ import sys
 
 async def exchange_routing():
     try:
-        async with trio_amqp.connect() as protocol:
+        async with trio_amqp.connect_amqp() as protocol:
 
             channel = await protocol.channel()
             exchange_name = 'logs'

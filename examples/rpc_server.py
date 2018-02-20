@@ -34,7 +34,7 @@ async def on_request(channel, body, envelope, properties):
 
 
 async def rpc_server():
-    async with trio_amqp.connect() as protocol:
+    async with trio_amqp.connect_amqp() as protocol:
 
         channel = await protocol.channel()
 

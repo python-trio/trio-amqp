@@ -3,10 +3,12 @@ Publish Subscribe : Sending messages to many consumers at once
 
 This part of the tutorial introduce `exchange`.
 
-A `emit_log.py` scripts publish messages into a `fanout` exchange.
-Then the `receive_log.py` script creates a temporary queue (which is deleted on the disconnection).
+A `emit_log.py` scripts publishes messages into a `fanout` exchange.
+Then the `receive_log.py` script creates a temporary queue (which is
+deleted on the disconnection).
 
-If the script `receive_log.py` is ran multiple times, all the instance will receive the message emitted by `emit_log`.
+If the script `receive_log.py` is run multiple times, all the instance will
+receive the message emitted by `emit_log`.
 
 
 Publisher
@@ -16,10 +18,10 @@ The publisher create a new `fanout` exchange:
 
  .. code-block:: python
 
-    await channel.exchange_declare(exchange_name='logs', type_name='fanout'
+    await channel.exchange_declare(exchange_name='logs', type_name='fanout')
 
 
-And publish message into that exchange:
+It then publishes message into that exchange:
 
  .. code-block:: python
 
@@ -28,7 +30,7 @@ And publish message into that exchange:
 Consumer
 --------
 
-The consumer create a temporary queue and binds it to the exchange.
+The consumer creates a temporary queue and binds it to the exchange.
 
  .. code-block:: python
 
