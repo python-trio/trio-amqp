@@ -248,6 +248,15 @@ class AmqpProtocol(trio.abc.AsyncResource):
             self._nursery = None
             self.state = CLOSED
 
+    def close(self):
+        """Close connection (and all channels) destructively"""
+        if self.state == CLOSED:
+            return
+        self.state = CLOSED
+        self.connection_closed.set()
+        self._close_channels()
+        self._stream.close()
+
     async def wait_closed(self):
         await self.connection_closed.wait()
 
