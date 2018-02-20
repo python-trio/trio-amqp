@@ -1,4 +1,4 @@
-.PHONY: doc test update
+.PHONY: doc test update pypi upload test update reports jenkins-test livehtml tag
 
 # need to use python3 sphinx-build
 PATH := /usr/share/sphinx/scripts/python3:${PATH}
@@ -55,3 +55,20 @@ jenkins-test: reports
 
 jenkins-quality: reports
 	pylint --rcfile=$(PYLINT_RC) $(PACKAGE) > reports/pylint.report || true
+
+update:
+	pip install -r ci/test-requirements.txt
+
+tag:
+	@git tag v$(shell python3 setup.py -V)
+
+pypi:   tag
+	@if python3 setup.py -V 2>/dev/null | grep -qs + >/dev/null 2>&1 ; \
+		then echo "You need a clean, tagged tree" >&2; exit 1 ; fi
+	python3 setup.py sdist upload
+	## version depends on tag, so re-tagging doesn't make sense
+
+
+upload: pypi
+	git push-all --tags
+
