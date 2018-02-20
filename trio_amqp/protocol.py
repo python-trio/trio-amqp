@@ -442,8 +442,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
             Args:
                 reply_code:     int, the amqp error code
-                reply_text:     str, the text associated to the error_code
-                exc:            the exception responsible of this error
+                reply_text:     str, the text associated with the error_code
+                exception:      the exception responsible of this error
 
         """
         if exception is None:
@@ -473,9 +473,11 @@ class AmqpProtocol(trio.abc.AsyncResource):
                         try:
                             await self.dispatch_frame(frame)
                         except Exception as exc:
-                            # We want to raise this exception to the nursery
-                            # but we need keep going anyway (need to process
-                            # the close-OK message), so …
+                            # We want to raise this exception so that the
+                            # nursery ends the protocol, but we need keep
+                            # going for now (need to process the close-OK
+                            # message). Thus we start a new task that
+                            # raises the actual error, somewhat later.
                             async def owch(exc):
                                 await trio.sleep(0)
                                 raise exc
