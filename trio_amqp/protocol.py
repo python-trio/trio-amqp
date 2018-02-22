@@ -54,6 +54,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
     CHANNEL_FACTORY = amqp_channel.Channel
     CHANNEL_CONTEXT = ChannelContext
 
+    _close_reason = None
+
     def __init__(
         self,
         nursery,
@@ -362,7 +364,10 @@ class AmqpProtocol(trio.abc.AsyncResource):
             # wait for open-ok
             await self.dispatch_frame()
             if self.state != OPEN:
-                raise exceptions.AmqpClosedConnection()
+                if self._close_reason is not None:
+                    raise exceptions.AmqpClosedConnection(self._close_reason['text'])
+                else:
+                    raise exceptions.AmqpClosedConnection()
 
             # read the other server's responses asynchronously
             await self._nursery.start(self._reader_loop)
@@ -486,7 +491,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
                     except trio.TooSlowError:
                         self.connection_closed.set()
-                        raise exceptions.HeartbeatTimeoutError(self)
+                        raise exceptions.HeartbeatTimeoutError(self) from None
                     except exceptions.AmqpClosedConnection as exc:
                         logger.debug("Remote closed connection")
                         raise
@@ -531,6 +536,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         reply_text = response.read_shortstr()
         class_id = response.read_short()
         method_id = response.read_short()
+        self._close_reason = dict(text=reply_text, code=reply_code, class_id=class_id, method_id=method_id)
         logger.warning(
             "Server closed connection: %s, code=%s, class_id=%s, method_id=%s", reply_text,
             reply_code, class_id, method_id
