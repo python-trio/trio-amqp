@@ -43,7 +43,7 @@ class ChannelContext:
     def __enter__(self):
         raise RuntimeError("This is an async-only context manager.")
 
-    def __exit(self, *tb):
+    def __exit__(self, *tb):
         raise RuntimeError("This is an async-only context manager.")
 
 
