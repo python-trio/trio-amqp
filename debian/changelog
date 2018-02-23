@@ -1,3 +1,10 @@
+trio-amqp (0.2.2-1) unstable; urgency=medium
+
+  * Closing the connection cleanly and completely 
+    might be a good idea.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Fri, 23 Feb 2018 09:00:22 +0100
+
 trio-amqp (0.2.1-1) unstable; urgency=medium
 
   * Export the Trio nursery.

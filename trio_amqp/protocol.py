@@ -201,7 +201,9 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 try:
                     await self._stream.send_all(f)
                 except trio.BrokenStreamError:
-                    raise exceptions.AmqpClosedConnection(self) from None
+                    # raise exceptions.AmqpClosedConnection(self) from None
+                    # the reader will raise the error also
+                    return
 
     async def aclose(self, no_wait=False):
         """Close connection (and all channels)"""
@@ -246,9 +248,11 @@ class AmqpProtocol(trio.abc.AsyncResource):
             raise
 
         finally:
-            self._cancel_all()
-            self._nursery = None
-            self.state = CLOSED
+            with trio.open_cancel_scope(shield=True):
+                self._cancel_all()
+                await self._stream.aclose()
+                self._nursery = None
+                self.state = CLOSED
 
     def close(self):
         """Close connection (and all channels) destructively"""
@@ -257,7 +261,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         self.state = CLOSED
         self.connection_closed.set()
         self._close_channels()
-        self._stream.close()
+        self._stream.socket.close()
 
     async def wait_closed(self):
         await self.connection_closed.wait()
@@ -379,7 +383,8 @@ class AmqpProtocol(trio.abc.AsyncResource):
         return self
 
     async def __aexit__(self, typ, exc, tb):
-        await self.aclose()
+        with trio.open_cancel_scope(shield=True):
+            await self.aclose()
 
     async def get_frame(self):
         """Read the frame, and only decode its header
