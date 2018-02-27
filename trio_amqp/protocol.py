@@ -479,7 +479,11 @@ class AmqpProtocol(trio.abc.AsyncResource):
                             timeout = inf
 
                         with trio.fail_after(timeout):
-                            frame = await self.get_frame()
+                            try:
+                                frame = await self.get_frame()
+                            except trio.ClosedStreamError:
+                                # the stream is now *really* closed …
+                                return
                         try:
                             await self.dispatch_frame(frame)
                         except Exception as exc:

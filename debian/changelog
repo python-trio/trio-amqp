@@ -1,3 +1,9 @@
+trio-amqp (0.2.5-1) unstable; urgency=medium
+
+  * Don't throw an error when closing the connection.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 17:19:42 +0100
+
 trio-amqp (0.2.4-3) unstable; urgency=medium
 
   * improved descriptions in debian/control
