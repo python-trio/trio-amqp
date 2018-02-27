@@ -1,3 +1,9 @@
+trio-amqp (0.2.3-1) unstable; urgency=medium
+
+  * Set .connection_closed when the server closes us.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 16:02:12 +0100
+
 trio-amqp (0.2.2-1) unstable; urgency=medium
 
   * Closing the connection cleanly and completely 

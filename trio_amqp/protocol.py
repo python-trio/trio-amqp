@@ -502,6 +502,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
                         raise
             finally:
                 self._reader_scope = None
+                self.connection_closed.set()
 
     async def send_heartbeat(self):
         """Sends an heartbeat message.
