@@ -200,7 +200,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 f = frame.get_frame(encoder)
                 try:
                     await self._stream.send_all(f)
-                except trio.BrokenStreamError:
+                except (trio.BrokenStreamError,trio.ClosedStreamError):
                     # raise exceptions.AmqpClosedConnection(self) from None
                     # the reader will raise the error also
                     return
