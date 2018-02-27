@@ -30,7 +30,10 @@ class BasicListener:
         self.consumer_tag = consumer_tag
 
     async def _data(self, channel, msg, env, prop):
-        await self._q.put((msg, env, prop))
+        if msg is None:
+            await self._q.put(None)
+        else:
+            await self._q.put((msg, env, prop))
 
     if sys.version_info >= (3,5,3):
         def __aiter__(self):
@@ -40,7 +43,10 @@ class BasicListener:
             return self
 
     async def __anext__(self):
-        return await self._q.get()
+        res = await self._q.get()
+        if res is None:
+            raise StopAsyncIteration
+        return res
 
     async def __aenter__(self):
         await self.channel.basic_consume(self._data, consumer_tag=self.consumer_tag, **self.kwargs)
@@ -865,6 +871,14 @@ class Channel:
         _no_wait = frame.payload_decoder.read_bit()  # noqa: F841
         self.cancelled_consumers.add(consumer_tag)
         logger.info("consume cancelled received")
+        callback = self.consumer_callbacks.get(consumer_tag, None)
+        if callback is None:
+            pass
+        elif not inspect.iscoroutinefunction(callback):
+            callback(self, None, None, None)
+        else:
+            await callback(self, None, None, None)
+
 
     async def basic_cancel(self, consumer_tag, no_wait=False):
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
