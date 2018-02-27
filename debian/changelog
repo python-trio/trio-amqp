@@ -1,3 +1,9 @@
+trio-amqp (0.2.4-3) unstable; urgency=medium
+
+  * improved descriptions in debian/control
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 17:07:05 +0100
+
 trio-amqp (0.2.4-2) unstable; urgency=medium
 
   * added debian/copyright file
