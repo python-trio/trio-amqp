@@ -1,0 +1,8 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: trio-amqp
+Source: https://github.com/python-trio/trio-amqp
+
+Files: *
+Copyright: 2014-2018, various authors. See AUTHORS.txt file
+License: MIT
+

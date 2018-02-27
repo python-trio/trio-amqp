@@ -1,3 +1,9 @@
+trio-amqp (0.2.4-2) unstable; urgency=medium
+
+  * added debian/copyright file
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 17:05:53 +0100
+
 trio-amqp (0.2.4-1) unstable; urgency=medium
 
   * Notify consumers when the server closes a channel.
