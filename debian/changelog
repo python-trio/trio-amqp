@@ -1,3 +1,9 @@
+trio-amqp (0.2.4-1) unstable; urgency=medium
+
+  * Notify consumers when the server closes a channel.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 17:00:58 +0100
+
 trio-amqp (0.2.3-1) unstable; urgency=medium
 
   * Set .connection_closed when the server closes us.
