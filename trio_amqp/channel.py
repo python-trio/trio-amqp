@@ -13,7 +13,7 @@ from itertools import count
 from . import constants as amqp_constants
 from . import frame as amqp_frame
 from . import exceptions
-from .envelope import Envelope
+from .envelope import Envelope, ReturnEnvelope
 from .future import Future
 
 logger = logging.getLogger(__name__)
@@ -71,6 +71,8 @@ class BasicListener:
 
 
 class Channel:
+    _q = None # for returned messages
+
     def __init__(self, protocol, channel_id):
         self.protocol = protocol
         self.channel_id = channel_id
@@ -90,6 +92,22 @@ class Channel:
 
         self._futures = {}
         self._ctag_events = {}
+
+    def __aiter__(self):
+        if self._q is None:
+            self._q = trio.Queue(30)  # TODO: 2 + possible prefetch
+        return self
+
+    if sys.version_info < (3,5,3):
+        _aiter = __aiter__
+        async def __aiter__(self):
+            return self._aiter()
+
+    async def __anext__(self):
+        res = await self._q.get()
+        if res is None:
+            raise StopAsyncIteration
+        return res
 
     def _add_future(self, fut):
         self._futures[fut.rpc_name] = fut
@@ -127,6 +145,8 @@ class Channel:
 
         self.protocol.release_channel_id(self.channel_id)
         self.close_event.set()
+        if self._q is not None:
+            self._q.put_nowait(None)
 
     async def dispatch_frame(self, frame):
         methods = {
@@ -176,6 +196,8 @@ class Channel:
                 self.basic_server_nack,
             (amqp_constants.CLASS_BASIC, amqp_constants.BASIC_RECOVER_OK):
                 self.basic_recover_ok,
+            (amqp_constants.CLASS_BASIC, amqp_constants.BASIC_RETURN):
+                self.basic_return,
             (amqp_constants.CLASS_CONFIRM, amqp_constants.CONFIRM_SELECT_OK):
                 self.confirm_select_ok,
         }
@@ -245,6 +267,8 @@ class Channel:
         if not self.is_open:
             raise exceptions.ChannelClosed("channel already closed or closing")
         self.close_event.set()
+        if self._q is not None:
+            self._q.put_nowait(None)
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(amqp_constants.CLASS_CHANNEL, amqp_constants.CHANNEL_CLOSE)
         request = amqp_frame.AmqpEncoder()
@@ -900,6 +924,29 @@ class Channel:
         future = self._get_waiter('basic_cancel')
         future.set_result(results)
         logger.debug("Cancel ok")
+
+    async def basic_return(self, frame):
+        response = amqp_frame.AmqpDecoder(frame.payload)
+        reply_code = response.read_short()
+        reply_text = response.read_shortstr()
+        exchange_name = response.read_shortstr()
+        routing_key = response.read_shortstr()
+        content_header_frame = await self.protocol.get_frame()
+
+        buffer = io.BytesIO()
+        while buffer.tell() < content_header_frame.body_size:
+            content_body_frame = await self.protocol.get_frame()
+            buffer.write(content_body_frame.payload)
+
+        body = buffer.getvalue()
+        envelope = ReturnEnvelope(reply_code, reply_text,
+                                  exchange_name, routing_key)
+        properties = content_header_frame.properties
+        if self._q is None:
+            # they have set mandatory bit, but havent added a callback
+            logger.warning('You have received a returned message, but dont iterate the channel for returns.')
+        else:
+            self._q.put((body, envelope, properties))
 
     async def basic_get(self, queue_name='', no_ack=False):
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)

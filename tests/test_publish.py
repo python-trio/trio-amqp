@@ -44,3 +44,29 @@ class TestPublish(testcase.RabbitTestCase):
         await channel.publish("coucou", "e", routing_key='')
 
         await self.check_messages(channel.protocol, "q", 1)
+
+
+    @pytest.mark.trio
+    async def test_return_from_publish(self, channel):
+        called = False
+
+        @asyncio.coroutine
+        def callback(channel, body, envelope, properties):
+            nonlocal called
+            called = True
+        channel.return_callback = callback)
+
+        # declare
+        await channel.exchange_declare("e", "topic")
+
+        # publish
+        await channel.publish("coucou", "e", routing_key="not.found",
+                                   mandatory=True)
+
+        for i in range(10):
+            if called:
+                break
+            await trio.sleep(0.1)
+
+        self.assertTrue(called)
+

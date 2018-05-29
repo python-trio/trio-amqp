@@ -83,6 +83,21 @@ When you want to produce some content, you declare an exchange, then publish mes
 
 Here we're publishing a message to the "my_exch" exchange.
 
+If you need guaranteed delivery, you can set the ``mandatory=True`` flag on :meth:`channel.Channel.publish`.
+Returned messages will be delivered to your code in an async iterator over the channel::
+
+    async def do_returns(chan, task_status=trio.TASK_STATUS_IGNORED):
+        task_status.started()
+        # DO NOT add any async statements here
+        async for r_body, r_envelope, r_properties in chan:
+            await process_your_return(r_body, r_envelope, r_properties)
+
+    async with conn.new_channel() as chan:
+        await nursery.start_soon(do_returns, chan)
+        do_whatever()
+
+The code above ensures that the iterator is started before calling ``do_whatever()``.
+Returned messages arriving before that will be logged and discarded.
 
 Consuming messages
 ------------------

@@ -14,6 +14,7 @@ Trio-amqp 0.1
 Next release
 ------------
 
+ * Support for ``basic_return`` (closes #158).
  * Support for missings encoding and decoding types (closes #156).
 
 

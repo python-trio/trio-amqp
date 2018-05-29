@@ -1,3 +1,10 @@
+trio-amqp (0.2.7-1) unstable; urgency=medium
+
+  * Merge Upstream
+    * implements returned messages
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 29 May 2018 11:55:18 +0200
+
 trio-amqp (0.2.6-1) unstable; urgency=medium
 
   * Don't throw an error when closing the connection, take two.
