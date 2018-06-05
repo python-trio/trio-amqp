@@ -1,3 +1,9 @@
+trio-amqp (0.2.7-3) unstable; urgency=medium
+
+  * Dependency error
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 05 Jun 2018 15:07:58 +0200
+
 trio-amqp (0.2.7-2) unstable; urgency=medium
 
   * ignore .eggs subdir

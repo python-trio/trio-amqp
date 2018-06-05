@@ -3,7 +3,7 @@ Maintainer: Matthias Urlichs <matthias@urlichs.de>
 Section: python
 Priority: optional
 Build-Depends: python3-setuptools, python3-all, debhelper (>= 9),
-  pytest-trio (>= 0.4),
+  python3-pytest-trio (>= 0.4),
 Standards-Version: 3.9.1
 
 Package: python3-trio-amqp
