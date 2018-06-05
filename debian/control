@@ -3,12 +3,14 @@ Maintainer: Matthias Urlichs <matthias@urlichs.de>
 Section: python
 Priority: optional
 Build-Depends: python3-setuptools, python3-all, debhelper (>= 9),
+  python3 (>> 3.5),
   python3-pytest-trio (>= 0.4),
 Standards-Version: 3.9.1
 
 Package: python3-trio-amqp
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends},
+  python3 (>> 3.5),
   python3-trio (>= 0.4),
 Description: AMQP implementation using trio
  The trio_amqp library is a pure-Python implementation

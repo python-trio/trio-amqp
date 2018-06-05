@@ -8,6 +8,7 @@ from math import inf
 import socket
 import ssl
 from async_generator import asynccontextmanager
+from async_generator import async_generator,yield_
 
 from . import channel as amqp_channel
 from . import constants as amqp_constants
@@ -635,12 +636,13 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
 
 @asynccontextmanager
+@async_generator
 async def connect_amqp(*args, protocol=AmqpProtocol, **kwargs):
     async with trio.open_nursery() as nursery:
         amqp = protocol(nursery, *args, **kwargs)
         try:
             async with amqp:
-                yield amqp
+                await yield_(amqp)
         finally:
             amqp._cancel_all()
 

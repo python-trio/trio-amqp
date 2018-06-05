@@ -1,3 +1,9 @@
+trio-amqp (0.2.8-1) unstable; urgency=medium
+
+  * Allow for Py3.5
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 05 Jun 2018 15:20:43 +0200
+
 trio-amqp (0.2.7-4) unstable; urgency=medium
 
   * Dependency error
