@@ -49,8 +49,6 @@ Then you can run the tests with ``make test`` (requires ``pytest``).
 Future work
 -----------
 
-* Support message reception using async loops instead of callbacks.
-
 * Add coverage reporting. Increase coverage (duh).
 
 * Try restarting a failed AMQP connection instead of cancelling everything.
