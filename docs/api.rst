@@ -106,7 +106,7 @@ When consuming message, you either create a queue (and hook it up to an
 exchange), or read from an existing one; see below. Then you read messages
 from the queue::
 
-    async with chan.new_consumer(callback, queue_name="my_queue") as listener:
+    async with chan.new_consumer(queue_name="my_queue") as listener:
         async for body, envelope, properties in listener:
             process_message(body, envelope, properties)
 
