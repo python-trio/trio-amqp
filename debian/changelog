@@ -1,4 +1,4 @@
-trio-amqp (0.2.7-3) unstable; urgency=medium
+trio-amqp (0.2.7-4) unstable; urgency=medium
 
   * Dependency error
 
