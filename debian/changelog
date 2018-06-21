@@ -1,3 +1,9 @@
+trio-amqp (0.2.9-1) unstable; urgency=medium
+
+  * Merged
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 21 Jun 2018 20:54:53 +0200
+
 trio-amqp (0.2.8-1) unstable; urgency=medium
 
   * Allow for Py3.5
