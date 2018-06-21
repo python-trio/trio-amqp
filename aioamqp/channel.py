@@ -7,6 +7,7 @@ import logging
 import uuid
 import io
 from itertools import count
+import warnings
 
 from . import constants as amqp_constants
 from . import frame as amqp_frame
@@ -476,6 +477,9 @@ class Channel:
     @asyncio.coroutine
     def basic_publish(self, payload, exchange_name, routing_key, properties=None, mandatory=False, immediate=False):
         assert payload, "Payload cannot be empty"
+        if isinstance(payload, str):
+            warnings.warn("Str payload support will be removed in next release", DeprecationWarning)
+            payload = payload.encode()
 
         method_frame = amqp_frame.AmqpRequest(
             self.protocol._stream_writer, amqp_constants.TYPE_METHOD, self.channel_id)
@@ -505,10 +509,7 @@ class Channel:
                 self.protocol._stream_writer, amqp_constants.TYPE_BODY, self.channel_id)
             content_frame.declare_class(amqp_constants.CLASS_BASIC)
             encoder = amqp_frame.AmqpEncoder()
-            if isinstance(chunk, str):
-                encoder.payload.write(chunk.encode())
-            else:
-                encoder.payload.write(chunk)
+            encoder.payload.write(chunk)
             yield from self._write_frame(content_frame, encoder, drain=False)
 
         yield from self.protocol._drain()
@@ -816,6 +817,9 @@ class Channel:
     @asyncio.coroutine
     def publish(self, payload, exchange_name, routing_key, properties=None, mandatory=False, immediate=False):
         assert payload, "Payload cannot be empty"
+        if isinstance(payload, str):
+            warnings.warn("Str payload support will be removed in next release", DeprecationWarning)
+            payload = payload.encode()
 
         if self.publisher_confirms:
             delivery_tag = next(self.delivery_tag_iter)  # pylint: disable=stop-iteration-return
@@ -849,10 +853,7 @@ class Channel:
                 self.protocol._stream_writer, amqp_constants.TYPE_BODY, self.channel_id)
             content_frame.declare_class(amqp_constants.CLASS_BASIC)
             encoder = amqp_frame.AmqpEncoder()
-            if isinstance(chunk, str):
-                encoder.payload.write(chunk.encode())
-            else:
-                encoder.payload.write(chunk)
+            encoder.payload.write(chunk)
             yield from self._write_frame(content_frame, encoder, drain=False)
 
         yield from self.protocol._drain()
