@@ -15,6 +15,7 @@ from . import frame as amqp_frame
 from . import exceptions
 from .envelope import Envelope, ReturnEnvelope
 from .future import Future
+from .exceptions import AmqpClosedConnection
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,10 @@ class BasicListener:
 
     async def __aexit__(self, *tb):
         with trio.open_cancel_scope(shield=True):
-            await self.channel.basic_cancel(self.consumer_tag)
+            try:
+                await self.channel.basic_cancel(self.consumer_tag)
+            except AmqpClosedConnection:
+                pass
         del self._q
         # these messages are not acknowledged, thus deleting the queue will
         # not lose them
