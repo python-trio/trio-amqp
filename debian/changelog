@@ -1,8 +1,8 @@
-trio-amqp (0.2.10-1) unstable; urgency=medium
+trio-amqp (0.2.11-1) unstable; urgency=medium
 
   * Don't raise AmqpClosedConnection when terminating (mostly-)cleanly
 
- -- Matthias Urlichs <matthias@urlichs.de>  Wed, 04 Jul 2018 04:39:50 +0200
+ -- Matthias Urlichs <matthias@urlichs.de>  Wed, 04 Jul 2018 05:43:27 +0200
 
 trio-amqp (0.2.9-1) unstable; urgency=medium
 

@@ -39,7 +39,10 @@ class ChannelContext:
         if not self.channel.is_open:
             return
         with trio.open_cancel_scope(shield=True):
-            await self.channel.close()
+            try:
+                await self.channel.close()
+            except exceptions.AmqpClosedConnection:
+                pass
 
     def __enter__(self):
         raise RuntimeError("This is an async-only context manager.")
