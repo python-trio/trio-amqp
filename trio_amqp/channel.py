@@ -948,9 +948,9 @@ class Channel:
         properties = content_header_frame.properties
         if self._q is None:
             # they have set mandatory bit, but havent added a callback
-            logger.warning('You have received a returned message, but dont iterate the channel for returns.')
+            logger.warning("You don't iterate the channel for returned messages!")
         else:
-            self._q.put((body, envelope, properties))
+            await self._q.put((body, envelope, properties))
 
     async def basic_get(self, queue_name='', no_ack=False):
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)

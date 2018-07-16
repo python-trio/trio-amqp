@@ -1,3 +1,9 @@
+trio-amqp (0.2.12-1) unstable; urgency=medium
+
+  * Fix reading returned messages
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 16 Jul 2018 20:06:59 +0200
+
 trio-amqp (0.2.11-1) unstable; urgency=medium
 
   * Don't raise AmqpClosedConnection when terminating (mostly-)cleanly
