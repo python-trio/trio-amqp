@@ -18,6 +18,7 @@ from . import _version
 logger = logging.getLogger(__name__)
 
 CONNECTING, OPEN, CLOSING, CLOSED = range(4)
+READ_BUF_SIZE = 1024
 
 
 class ChannelContext:
@@ -45,6 +46,22 @@ class ChannelContext:
 
     def __exit__(self, *tb):
         raise RuntimeError("This is an async-only context manager.")
+
+
+class BufferedReceiveStream:
+    def __init__(self, stream, buf_size):
+        self._stream = stream
+        self._buf_size = buf_size
+        self._buf = bytearray()
+        self.aclose = stream.aclose
+
+    async def receive_some(self, max_bytes):
+        while max_bytes > len(self._buf):
+            self._buf += await self._stream.receive_some(self._buf_size)
+
+        # now max_bytes <= len(self._buf)
+        self._buf, read_bytes = self._buf[max_bytes:], self._buf[:max_bytes]
+        return read_bytes
 
 
 class AmqpProtocol(trio.abc.AsyncResource):
@@ -313,6 +330,11 @@ class AmqpProtocol(trio.abc.AsyncResource):
             sock = stream = await trio.open_tcp_stream(self._host, port)
 
         sock.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+        stream = trio.StapledStream(
+            send_stream=stream,
+            receive_stream=BufferedReceiveStream(stream, READ_BUF_SIZE),
+        )
 
         self._stream = stream
 
