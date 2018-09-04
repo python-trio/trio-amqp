@@ -1,3 +1,4 @@
+import trio
 import pytest
 
 from . import testcase
@@ -46,15 +47,15 @@ class TestPublish(testcase.RabbitTestCase):
         await self.check_messages(channel.protocol, "q", 1)
 
 
+    @pytest.mark.skip("This callback doesn't exist in trio-amqp")
     @pytest.mark.trio
     async def test_return_from_publish(self, channel):
         called = False
 
-        @asyncio.coroutine
-        def callback(channel, body, envelope, properties):
+        async def callback(channel, body, envelope, properties):
             nonlocal called
             called = True
-        channel.return_callback = callback)
+        channel.return_callback = callback
 
         # declare
         await channel.exchange_declare("e", "topic")
@@ -68,5 +69,5 @@ class TestPublish(testcase.RabbitTestCase):
                 break
             await trio.sleep(0.1)
 
-        self.assertTrue(called)
+        assert called
 

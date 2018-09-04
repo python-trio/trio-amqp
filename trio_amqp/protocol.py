@@ -60,11 +60,16 @@ class BufferedReceiveStream:
         self.aclose = stream.aclose
 
     async def receive_some(self, max_bytes):
-        while max_bytes > len(self._buf):
-            self._buf += await self._stream.receive_some(self._buf_size)
+        """Buffered read of at most max_bytes characters"""
+        if self._buf == b'':
+            self._buf = await self._stream.receive_some(self._buf_size)
+            if self._buf == b'':
+                return b''
 
-        # now max_bytes <= len(self._buf)
-        self._buf, read_bytes = self._buf[max_bytes:], self._buf[:max_bytes]
+        if len(self._buf) <= max_bytes:
+            read_bytes, self._buf = self._buf, b''
+        else:
+            read_bytes, self._buf = self._buf[:max_bytes], self._buf[max_bytes:]
         return read_bytes
 
 
@@ -221,7 +226,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 f = frame.get_frame(encoder)
                 try:
                     await self._stream.send_all(f)
-                except (trio.BrokenStreamError,trio.ClosedStreamError):
+                except (trio.BrokenStreamError,trio.ClosedResourceError):
                     # raise exceptions.AmqpClosedConnection(self) from None
                     # the reader will raise the error also
                     return
@@ -255,7 +260,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 encoder.write_short(0)
                 try:
                     await self._write_frame(frame, encoder)
-                except trio.ClosedStreamError:
+                except trio.ClosedResourceError:
                     pass
                 except Exception:
                     logger.exception("Error while closing")
@@ -507,7 +512,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
                         with trio.fail_after(timeout):
                             try:
                                 frame = await self.get_frame()
-                            except trio.ClosedStreamError:
+                            except trio.ClosedResourceError:
                                 # the stream is now *really* closed …
                                 return
                         try:

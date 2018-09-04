@@ -1,3 +1,10 @@
+trio-amqp (0.2.13-1) unstable; urgency=medium
+
+  * Buffer incoming data
+  * Fix tests
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 04 Sep 2018 19:36:02 +0200
+
 trio-amqp (0.2.12-1) unstable; urgency=medium
 
   * Fix reading returned messages
