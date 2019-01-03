@@ -32,9 +32,9 @@ class BasicListener:
 
     async def _data(self, channel, msg, env, prop):
         if msg is None:
-            await self._q.put(None)
+            await self._chan_send.send(None)
         else:
-            await self._q.put((msg, env, prop))
+            await self._chan_send.send((msg, env, prop))
 
     if sys.version_info >= (3,5,3):
         def __aiter__(self):
@@ -44,14 +44,15 @@ class BasicListener:
             return self
 
     async def __anext__(self):
-        res = await self._q.get()
+        res = await self._chan_receive.receive()
         if res is None:
             raise StopAsyncIteration
         return res
 
     async def __aenter__(self):
         await self.channel.basic_consume(self._data, consumer_tag=self.consumer_tag, **self.kwargs)
-        self._q = trio.Queue(30)  # TODO: 2 + possible prefetch
+        # TODO: 2 + possible prefetch
+        self._chan_send, self._chan_receive = trio.open_memory_channel(30)
         return self
 
     async def __aexit__(self, *tb):
@@ -60,7 +61,8 @@ class BasicListener:
                 await self.channel.basic_cancel(self.consumer_tag)
             except AmqpClosedConnection:
                 pass
-        del self._q
+        del self._chan_send
+        del self._chan_receive
         # these messages are not acknowledged, thus deleting the queue will
         # not lose them
 
@@ -75,7 +77,6 @@ class BasicListener:
 
 
 class Channel:
-    _q = None # for returned messages
 
     def __init__(self, protocol, channel_id):
         self.protocol = protocol
@@ -97,9 +98,13 @@ class Channel:
         self._futures = {}
         self._ctag_events = {}
 
+        self._chan_send = None
+        self._chan_receive = None
+
     def __aiter__(self):
-        if self._q is None:
-            self._q = trio.Queue(30)  # TODO: 2 + possible prefetch
+        if self._chan_send is None:
+            # TODO: 2 + possible prefetch
+            self._chan_send, self._chan_receive = trio.open_memory_channel(30)
         return self
 
     if sys.version_info < (3,5,3):
@@ -108,7 +113,7 @@ class Channel:
             return self._aiter()
 
     async def __anext__(self):
-        res = await self._q.get()
+        res = await self._chan_receive.receive()
         if res is None:
             raise StopAsyncIteration
         return res
@@ -149,8 +154,8 @@ class Channel:
 
         self.protocol.release_channel_id(self.channel_id)
         self.close_event.set()
-        if self._q is not None:
-            self._q.put_nowait(None)
+        if self._chan_send is not None:
+            self._chan_send.send_nowait(None)
 
     async def dispatch_frame(self, frame):
         methods = {
@@ -271,8 +276,8 @@ class Channel:
         if not self.is_open:
             raise exceptions.ChannelClosed("channel already closed or closing")
         self.close_event.set()
-        if self._q is not None:
-            self._q.put_nowait(None)
+        if self._chan_send is not None:
+            self._chan_send.send_nowait(None)
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
         frame.declare_method(amqp_constants.CLASS_CHANNEL, amqp_constants.CHANNEL_CLOSE)
         request = amqp_frame.AmqpEncoder()
@@ -946,11 +951,11 @@ class Channel:
         envelope = ReturnEnvelope(reply_code, reply_text,
                                   exchange_name, routing_key)
         properties = content_header_frame.properties
-        if self._q is None:
+        if self._chan_send is None:
             # they have set mandatory bit, but havent added a callback
             logger.warning("You don't iterate the channel for returned messages!")
         else:
-            await self._q.put((body, envelope, properties))
+            await self._chan_send.send((body, envelope, properties))
 
     async def basic_get(self, queue_name='', no_ack=False):
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)

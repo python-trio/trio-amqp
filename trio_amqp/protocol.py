@@ -202,7 +202,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
     async def _write_frame(self, frame, encoder, drain=True):
         # Doesn't actually write frame, pushes it for _writer_loop task to
         # pick it up.
-        await self._send_queue.put((frame, encoder))
+        await self._send_send_channel.send((frame, encoder))
 
     @trio.hazmat.enable_ki_protection
     async def _writer_loop(self, task_status=trio.TASK_STATUS_IGNORED):
@@ -216,7 +216,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
                     timeout = inf
 
                 with trio.move_on_after(timeout) as timeout_scope:
-                    frame, encoder = await self._send_queue.get()
+                    frame, encoder = await self._send_receive_channel.receive()
                 if timeout_scope.cancelled_caught:
                     await self.send_heartbeat()
                     continue
@@ -315,7 +315,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         self.server_channel_max = None
         self.channels_ids_ceil = 0
         self.channels_ids_free = set()
-        self._send_queue = trio.Queue(1)
+        self._send_send_channel, self._send_receive_channel = trio.open_memory_channel(1)
 
         if self._ssl:
             if self._ssl is True:
