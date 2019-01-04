@@ -41,7 +41,6 @@ class TestProtocol(testcase.RabbitTestCase):
             async with amqp:
                 pass
 
-    @pytest.mark.skip  # TODO: fix (maybe broken because of buffered stream)
     @pytest.mark.trio
     async def test_connection_wrong_login_password(self):
         self.reset_vhost()
