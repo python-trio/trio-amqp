@@ -341,6 +341,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         )
 
         self._stream = stream
+        self._sock = sock
 
         # the writer loop needs to run since the beginning
         await self._nursery.start(self._writer_loop)
