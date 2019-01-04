@@ -109,7 +109,7 @@ def reset_vhost():
     port = int(os.environ.get('AMQP_PORT', 5672))
     vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
     http_client = pyrabbit.api.Client(
-        '%s:%s/' % (host, 10000 + port), 'guest', 'guest', timeout=20
+        '%s:%s/api/' % (host, 10000 + port), 'guest', 'guest', timeout=20
     )
     try:
         http_client.create_vhost(vhost)
@@ -176,7 +176,7 @@ class RabbitTestCase:
         self.port = int(os.environ.get('AMQP_PORT', 5672))
         self.vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
         self.http_client = pyrabbit.api.Client(
-            '%s:%s/' % (self.host, 10000 + self.port), 'guest', 'guest', timeout=20
+            '%s:%s/api/' % (self.host, 10000 + self.port), 'guest', 'guest', timeout=20
         )
 
         self.amqps = []
