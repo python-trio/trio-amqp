@@ -54,7 +54,7 @@ class TestPublish(testcase.RabbitTestCase):
         def callback(channel, body, envelope, properties):
             nonlocal called
             called = True
-        channel.return_callback = callback)
+        channel.return_callback = callback
 
         # declare
         await channel.exchange_declare("e", "topic")
