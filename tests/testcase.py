@@ -112,27 +112,14 @@ def reset_vhost():
         '%s:%s/api/' % (host, 10000 + port), 'guest', 'guest', timeout=20
     )
     try:
-        http_client.create_vhost(vhost)
-    except pyrabbit.http.HTTPError:
+        http_client.delete_vhost(vhost)
+    except Exception:  # pylint: disable=broad-except
         pass
 
-    try:
-        for kv in http_client.get_queues(vhost=vhost):
-            try:
-                http_client.delete_queue(vhost=vhost, qname=kv['name'])
-            except Exception:  # pylint: disable=broad-except
-                pass
-    except pyrabbit.http.HTTPError:  # pylint: disable=broad-except
-        pass
-
-    try:
-        for kv in http_client.get_exchanges(vhost=vhost):
-            try:
-                http_client.delete_exchange(vhost=vhost, name=kv['name'])
-            except Exception:  # pylint: disable=broad-except
-                pass
-    except pyrabbit.http.HTTPError:  # pylint: disable=broad-except
-        pass
+    http_client.create_vhost(vhost)
+    http_client.set_vhost_permissions(
+        vname=vhost, username='guest', config='.*', rd='.*', wr='.*',
+    )
 
 
 def connect(*a, **kw):
