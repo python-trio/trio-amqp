@@ -4,5 +4,6 @@ trio
 coverage
 pylint
 pytest>=3.6
+pytest-cov>=2.6.0
 pytest-trio
 -e git+https://github.com/bkjones/pyrabbit.git#egg=pyrabbit
