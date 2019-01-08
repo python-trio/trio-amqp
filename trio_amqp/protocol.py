@@ -61,7 +61,10 @@ class BufferedReceiveStream:
 
     async def receive_some(self, max_bytes):
         while max_bytes > len(self._buf):
-            self._buf += await self._stream.receive_some(self._buf_size)
+            data = await self._stream.receive_some(self._buf_size)
+            if len(data) == 0:
+                break
+            self._buf += data
 
         # now max_bytes <= len(self._buf)
         self._buf, read_bytes = self._buf[max_bytes:], self._buf[:max_bytes]
@@ -341,6 +344,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         )
 
         self._stream = stream
+        self._sock = sock
 
         # the writer loop needs to run since the beginning
         await self._nursery.start(self._writer_loop)

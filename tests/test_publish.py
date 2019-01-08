@@ -1,4 +1,5 @@
 import pytest
+import trio
 
 from . import testcase
 
@@ -48,25 +49,30 @@ class TestPublish(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_return_from_publish(self, channel):
-        called = False
+        called = trio.Event()
 
-        @asyncio.coroutine
-        def callback(channel, body, envelope, properties):
-            nonlocal called
-            called = True
-        channel.return_callback = callback)
+        async def logger(task_status=trio.TASK_STATUS_IGNORED):
+            task_status.started()
+            async for a,b,c in channel:
+                called.set()
 
-        # declare
-        await channel.exchange_declare("e", "topic")
+        async def sender(task_status=trio.TASK_STATUS_IGNORED):
+            task_status.started()
 
-        # publish
-        await channel.publish("coucou", "e", routing_key="not.found",
-                                   mandatory=True)
+            # declare
+            await channel.exchange_declare("e", "topic")
 
-        for i in range(10):
-            if called:
-                break
-            await trio.sleep(0.1)
+            # publish
+            await channel.publish("coucou", "e", routing_key="not.found",
+                                  mandatory=True)
 
-        self.assertTrue(called)
+        async def run_test():
+            async with trio.open_nursery() as n:
+                await n.start(logger)
+                await n.start(sender)
+                await called.wait()
+                n.cancel_scope.cancel()
+
+        with trio.fail_after(1):
+            await run_test()
 

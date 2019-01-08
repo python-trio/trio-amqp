@@ -47,6 +47,6 @@ class TestAmqpConnection(testcase.RabbitTestCase):
         self.reset_vhost()
         proto = testcase.connect(virtualhost=self.vhost)
         async with proto as amqp:
-            sock = amqp._stream.socket
+            sock = amqp._sock
             opt_val = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
             assert opt_val == 1, opt_val

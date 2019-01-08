@@ -109,30 +109,17 @@ def reset_vhost():
     port = int(os.environ.get('AMQP_PORT', 5672))
     vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
     http_client = pyrabbit.api.Client(
-        '%s:%s/' % (host, 10000 + port), 'guest', 'guest', timeout=20
+        '%s:%s/api/' % (host, 10000 + port), 'guest', 'guest', timeout=20
     )
     try:
-        http_client.create_vhost(vhost)
-    except pyrabbit.http.HTTPError:
+        http_client.delete_vhost(vhost)
+    except Exception:  # pylint: disable=broad-except
         pass
 
-    try:
-        for kv in http_client.get_queues(vhost=vhost):
-            try:
-                http_client.delete_queue(vhost=vhost, qname=kv['name'])
-            except Exception:  # pylint: disable=broad-except
-                pass
-    except pyrabbit.http.HTTPError:  # pylint: disable=broad-except
-        pass
-
-    try:
-        for kv in http_client.get_exchanges(vhost=vhost):
-            try:
-                http_client.delete_exchange(vhost=vhost, name=kv['name'])
-            except Exception:  # pylint: disable=broad-except
-                pass
-    except pyrabbit.http.HTTPError:  # pylint: disable=broad-except
-        pass
+    http_client.create_vhost(vhost)
+    http_client.set_vhost_permissions(
+        vname=vhost, username='guest', config='.*', rd='.*', wr='.*',
+    )
 
 
 def connect(*a, **kw):
@@ -176,7 +163,7 @@ class RabbitTestCase:
         self.port = int(os.environ.get('AMQP_PORT', 5672))
         self.vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
         self.http_client = pyrabbit.api.Client(
-            '%s:%s/' % (self.host, 10000 + self.port), 'guest', 'guest', timeout=20
+            '%s:%s/api/' % (self.host, 10000 + self.port), 'guest', 'guest', timeout=20
         )
 
         self.amqps = []
