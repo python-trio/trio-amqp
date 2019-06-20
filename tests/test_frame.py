@@ -9,10 +9,10 @@ import datetime
 
 from decimal import Decimal
 
-from trio_amqp import constants as amqp_constants
-from trio_amqp import frame as frame_module
-from trio_amqp.frame import AmqpEncoder
-from trio_amqp.frame import AmqpResponse
+from asyncamqp import constants as amqp_constants
+from asyncamqp import frame as frame_module
+from asyncamqp.frame import AmqpEncoder
+from asyncamqp.frame import AmqpResponse
 
 
 class TestEncoder:

@@ -16,9 +16,9 @@ from async_generator import asynccontextmanager
 import pyrabbit.api
 
 from . import testcase
-from trio_amqp import exceptions, connect_amqp
-from trio_amqp.channel import Channel
-from trio_amqp.protocol import AmqpProtocol, OPEN
+from asyncamqp import exceptions, connect_amqp
+from asyncamqp.channel import Channel
+from asyncamqp.protocol import AmqpProtocol, OPEN
 
 logger = logging.getLogger(__name__)
 

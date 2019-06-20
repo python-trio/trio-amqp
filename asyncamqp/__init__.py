@@ -18,7 +18,7 @@ async def connect_from_url(url, **kwargs):
     """Connect to the AMQP using a single url parameter.
 
         @url:    amqp:// or amqps:// URL with connection parameters
-        @kwargs: Further arguments for trio_amqp.connect_amqp()
+        @kwargs: Further arguments for asyncamqp.connect_amqp()
 
         Usage:
             async with connect_from_url(

@@ -6,9 +6,9 @@ import pytest
 import mock
 
 from . import testcase
-from trio_amqp import exceptions
-from trio_amqp import connect_from_url as amqp_from_url
-from trio_amqp.protocol import OPEN
+from asyncamqp import exceptions
+from asyncamqp import connect_from_url as amqp_from_url
+from asyncamqp.protocol import OPEN
 
 
 class TestProtocol(testcase.RabbitTestCase):
@@ -23,7 +23,7 @@ class TestProtocol(testcase.RabbitTestCase):
     async def test_connect_products_info(self):
         self.reset_vhost()
         client_properties = {
-            'program': 'trio-amqp-tests',
+            'program': 'asyncamqp-tests',
             'program_version': '0.1.1',
         }
         amqp = testcase.connect(
@@ -52,7 +52,7 @@ class TestProtocol(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def test_connection_from_url(self):
         self.reset_vhost()
-        with mock.patch('trio_amqp.connect_amqp') as connect:
+        with mock.patch('asyncamqp.connect_amqp') as connect:
 
             class func:
                 def __init__(self):

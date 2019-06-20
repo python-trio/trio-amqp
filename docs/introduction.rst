@@ -13,8 +13,8 @@ Trio-amqp works only with python >= 3.5 using the Trio library.
 Installation
 ------------
 
-You can install the most recent trio-amqp release from pypi using pip or easy_install:
+You can install the most recent asyncamqp release from pypi using pip or easy_install:
 
  .. code-block:: shell
 
-    pip install trio_amqp
+    pip install asyncamqp

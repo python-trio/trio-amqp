@@ -5,7 +5,7 @@
 import trio
 import pytest
 
-from trio_amqp import exceptions
+from asyncamqp import exceptions
 
 from . import testcase
 

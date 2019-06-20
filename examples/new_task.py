@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
 import trio
-import trio_amqp
+import asyncamqp
 
 import sys
 
 
 async def new_task():
     try:
-        async with trio_amqp.connect_amqp() as protocol:
+        async with asyncamqp.connect_amqp() as protocol:
 
             channel = await protocol.channel()
 
@@ -26,7 +26,7 @@ async def new_task():
             )
             print(" [x] Sent %r" % message,)
 
-    except trio_amqp.AmqpClosedConnection:
+    except asyncamqp.AmqpClosedConnection:
         print("closed connections")
         return
 

@@ -1,5 +1,5 @@
 """
-    trio_amqp exceptions
+    asyncamqp exceptions
 """
 
 

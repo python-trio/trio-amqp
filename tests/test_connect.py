@@ -3,7 +3,7 @@
 import socket
 import pytest
 
-from trio_amqp.protocol import OPEN, CLOSED
+from asyncamqp.protocol import OPEN, CLOSED
 
 from . import testcase
 

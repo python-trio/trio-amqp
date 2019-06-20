@@ -1,4 +1,4 @@
-trio-amqp changelog
+asyncamqp changelog
 ===================
 
 Here you can see the full list of changes between each aioamqp release.

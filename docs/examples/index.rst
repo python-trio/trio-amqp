@@ -3,7 +3,7 @@ Examples
 
 Those examples are ported from the `RabbitMQ tutorial
 <http://www.rabbitmq.com/getstarted.html>`_. They are specific to
-trio-amqp and use tasks exclusively. Please read both
+asyncamqp and use tasks exclusively. Please read both
 documentation together, as the official documentation explain how to use
 the AMQP protocol correctly.
 

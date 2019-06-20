@@ -1,16 +1,16 @@
 API
 ===
 
-.. module:: trio_amqp
-    :synopsis: public trio_amqp API
+.. module:: asyncamqp
+    :synopsis: public asyncamqp API
 
 
 Basics
 ------
 
-There are two principal objects when using trio_amqp:
+There are two principal objects when using asyncamqp:
 
- * The protocol object, used to begin a connection to trio_amqp,
+ * The protocol object, used to begin a connection to asyncamqp,
  * The channel object, used when creating a new channel to effectively use an AMQP channel.
 
 
@@ -50,10 +50,10 @@ Starting a connection
 .. code::
 
     import trio
-    import trio_amqp
+    import asyncamqp
 
     async def connect():
-        async with trio_amqp.connect_amqp() as conn: # use default parameters
+        async with asyncamqp.connect_amqp() as conn: # use default parameters
             print("connected !")
             await trio.sleep(1)
 
@@ -79,7 +79,7 @@ Publishing messages
 When you want to produce some content, you declare an exchange, then publish message into it::
 
     await chan.exchange_declare("my_exch","topic")
-    await chan.publish("trio_amqp hello", "my_exch", "hello.there")
+    await chan.publish("asyncamqp hello", "my_exch", "hello.there")
 
 Here we're publishing a message to the "my_exch" exchange.
 

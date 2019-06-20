@@ -1,6 +1,6 @@
 [run]
 branch=True
-source=trio_amqp
+source=asyncamqp
 
 [report]
 precision = 1

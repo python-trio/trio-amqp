@@ -1,15 +1,15 @@
 """
-    Hello world `send.py` example implementation using trio_amqp.
+    Hello world `send.py` example implementation using asyncamqp.
     See the documentation for more informations.
 
 """
 
 import trio
-import trio_amqp
+import asyncamqp
 
 
 async def send():
-    async with trio_amqp.connect_amqp() as protocol:
+    async with asyncamqp.connect_amqp() as protocol:
         channel = await protocol.channel()
 
         await channel.queue_declare(queue_name='hello')

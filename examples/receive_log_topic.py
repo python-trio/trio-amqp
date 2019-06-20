@@ -7,7 +7,7 @@
 """
 
 import trio
-import trio_amqp
+import asyncamqp
 
 import sys
 
@@ -22,7 +22,7 @@ async def callback(channel, body, envelope, properties):
 
 async def receive_log():
     try:
-        async with trio_amqp.connect_amqp() as protocol:
+        async with asyncamqp.connect_amqp() as protocol:
 
             channel = await protocol.channel()
             exchange_name = 'topic_logs'
@@ -51,7 +51,7 @@ async def receive_log():
             await channel.basic_consume(callback, queue_name=queue_name)
 
             await trio.sleep_forever()
-    except trio_amqp.AmqpClosedConnection:
+    except asyncamqp.AmqpClosedConnection:
         print("closed connections")
         return
 

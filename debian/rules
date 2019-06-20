@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-export PYBUILD_NAME=trio-amqp
+export PYBUILD_NAME=asyncamqp
 %:
 	dh $@ --with python3 --buildsystem=pybuild
 

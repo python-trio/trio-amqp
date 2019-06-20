@@ -637,7 +637,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         logger.debug("Recv open ok")
 
     #
-    # trio_amqp public methods
+    # asyncamqp public methods
     #
 
     def new_channel(self, **kwargs):

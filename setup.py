@@ -1,6 +1,6 @@
 import setuptools
 
-exec(open("trio_amqp/_version.py", encoding="utf-8").read())
+exec(open("asyncamqp/_version.py", encoding="utf-8").read())
 
 description = 'AMQP implementation using trio'
 
@@ -9,10 +9,10 @@ setuptools.setup(
     version=__version__,  # noqa: F821
     author="Matthias Urlichs",
     author_email='matthias@urlichs.de',
-    url='https://github.com/python-trio/trio-amqp',
+    url='https://github.com/python-trio/asyncamqp',
     description=description,
     long_description=open('README.rst').read(),
-    download_url='https://pypi.python.org/pypi/trio_amqp',
+    download_url='https://pypi.python.org/pypi/asyncamqp',
     setup_requires=[
         'pyrabbit',
         'pytest-trio >= 0.3',
@@ -21,7 +21,7 @@ setuptools.setup(
         'trio >= 0.6',
     ],
     packages=[
-        'trio_amqp',
+        'asyncamqp',
     ],
     classifiers=[
         "Development Status :: 4 - Beta",

@@ -4,7 +4,7 @@
 """
 
 import trio
-import trio_amqp
+import asyncamqp
 
 
 async def callback(channel, body, envelope, properties):
@@ -15,7 +15,7 @@ async def callback(channel, body, envelope, properties):
 
 
 async def worker():
-    async with trio_amqp.connect_amqp() as protocol:
+    async with asyncamqp.connect_amqp() as protocol:
 
         channel = await protocol.channel()
 

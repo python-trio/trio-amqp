@@ -11,10 +11,10 @@ Creating a new connection:
  .. code-block:: python
 
     import trio
-    import trio_amqp
+    import asyncamqp
 
     async def connect():
-        async with trio_amqp.connect() as protocol:
+        async with asyncamqp.connect() as protocol:
             channel = await protocol.channel()
             # do something interesting here
             pass

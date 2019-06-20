@@ -1,4 +1,4 @@
-trio_amqp was originally created in early 2014 at Polyconseil.
+asyncamqp was originally created in early 2014 at Polyconseil.
 
 AUTHORS are (and/or have been)::
 

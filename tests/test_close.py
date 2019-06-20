@@ -2,7 +2,7 @@ import trio
 import pytest
 
 from . import testcase
-from trio_amqp import exceptions
+from asyncamqp import exceptions
 
 
 class TestClose(testcase.RabbitTestCase):

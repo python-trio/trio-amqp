@@ -1,5 +1,5 @@
 """
-    Hello world `send.py` example implementation using trio_amqp.
+    Hello world `send.py` example implementation using asyncamqp.
     See the documentation for more informations.
 
     If there is no queue listening for the routing key, the message will
@@ -9,7 +9,7 @@
 
 import sys
 import trio
-import trio_amqp
+import asyncamqp
 
 async def handle_return(channel, body, envelope, properties):
     print('Got a returned message with routing key: {}.\n'
@@ -27,7 +27,7 @@ async def get_returns(chan, task_status=trio.TASK_STATUS_IGNORED):
 
 
 async def send():
-    async with trio_amqp.connect_amqp() as protocol:
+    async with asyncamqp.connect_amqp() as protocol:
         channel = await protocol.channel()
         await protocol.nursery.start(get_returns, channel)
 

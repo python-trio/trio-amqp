@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """
-    RPC client, trio_amqp implementation of RPC examples from RabbitMQ tutorial
+    RPC client, asyncamqp implementation of RPC examples from RabbitMQ tutorial
 
 """
 
 import trio
 import uuid
 
-import trio_amqp
+import asyncamqp
 
 
 class FibonacciRpcClient(object):
@@ -37,7 +37,7 @@ class FibonacciRpcClient(object):
         self.waiter.set()
 
     async def call(self, n):
-        async with trio_amqp.connect_amqp() as protocol:
+        async with asyncamqp.connect_amqp() as protocol:
             async with protocol.channel() as channel:
                 await self.connect(channel)
 

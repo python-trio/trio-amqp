@@ -1,6 +1,6 @@
 import pytest
 import trio
-from trio_amqp.protocol import OPEN, CLOSED
+from asyncamqp.protocol import OPEN, CLOSED
 
 from . import testcase
 

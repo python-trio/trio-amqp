@@ -1,10 +1,10 @@
 """
-    Hello world `receive.py` example implementation using trio_amqp.
+    Hello world `receive.py` example implementation using asyncamqp.
     See the documentation for more informations.
 """
 
 import trio
-import trio_amqp
+import asyncamqp
 
 
 async def callback(channel, body, envelope, properties):
@@ -13,7 +13,7 @@ async def callback(channel, body, envelope, properties):
 
 async def receive():
     try:
-        async with trio_amqp.connect_amqp() as protocol:
+        async with asyncamqp.connect_amqp() as protocol:
 
             channel = await protocol.channel()
 
@@ -22,7 +22,7 @@ async def receive():
             await channel.basic_consume(callback, queue_name='hello')
 
             await trio.sleep_forever()
-    except trio_amqp.AmqpClosedConnection:
+    except asyncamqp.AmqpClosedConnection:
         print("closed connections")
         return
 

@@ -7,8 +7,8 @@ import struct
 import pytest
 
 from . import testcase
-from trio_amqp import exceptions
-from trio_amqp import properties
+from asyncamqp import exceptions
+from asyncamqp import properties
 
 
 class TestQos(testcase.RabbitTestCase):

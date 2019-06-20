@@ -6,14 +6,14 @@
 """
 
 import trio
-import trio_amqp
+import asyncamqp
 
 import sys
 
 
 async def exchange_routing():
     try:
-        async with trio_amqp.connect_amqp() as protocol:
+        async with asyncamqp.connect_amqp() as protocol:
 
             channel = await protocol.channel()
             exchange_name = 'direct_logs'
@@ -27,7 +27,7 @@ async def exchange_routing():
             )
             print(" [x] Sent %r" % (message,))
 
-    except trio_amqp.AmqpClosedConnection:
+    except asyncamqp.AmqpClosedConnection:
         print("closed connections")
         return
 
