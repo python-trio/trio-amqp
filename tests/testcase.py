@@ -1,9 +1,9 @@
-"""TrioAmqp tests utilities
+"""AsyncAmqp tests utilities
 
 Provides the test case to simplify testing
 """
 
-import trio
+import anyio
 import inspect
 import logging
 import os
@@ -139,11 +139,27 @@ def connect(*a, **kw):
     return connect_amqp(*a, protocol=ProxyAmqpProtocol, **kw)
 
 
+class FakeScope:
+    def __init__(self, scope):
+        self.scope = scope
+
+    async def cancel(self):
+        self.scope.cancel()
+
+class TaskGroup:
+    def __init__(self, nursery) -> None:
+        self._nursery = nursery
+        self.cancel_scope = FakeScope(nursery.cancel_scope)
+             
+    async def spawn(self, func, *args, name=None) -> None:
+        self._nursery.start_soon(func, *args, name=name)
+
+
 @pytest.fixture
 async def amqp(request, nursery):
     reset_vhost()
     async with ProxyAmqpProtocol(
-        nursery=nursery,
+        nursery=TaskGroup(nursery),
         host=os.environ.get('AMQP_HOST', 'localhost'),
         port=int(os.environ.get('AMQP_PORT', 5672)),
         virtualhost=os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4())),
@@ -156,7 +172,7 @@ async def channel(request, nursery):
     reset_vhost()
     # XXX using another async fixture does not work yet
     async with ProxyAmqpProtocol(
-        nursery=nursery,
+        nursery=TaskGroup(nursery),
         host=os.environ.get('AMQP_HOST', 'localhost'),
         port=int(os.environ.get('AMQP_PORT', 5672)),
         virtualhost=os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4())),
@@ -198,8 +214,8 @@ class RabbitTestCase:
             if amqp.state != OPEN:
                 continue
             logger.debug('Kill off amqp %s', amqp)
-            amqp._nursery.cancel_scope.cancel()
-            await amqp.aclose()
+            await amqp._nursery.cancel_scope.cancel()
+            await amqp.close()
 
     def teardown(self):
         pass
@@ -274,7 +290,7 @@ class RabbitTestCase:
                 ex = exc
             else:
                 break
-            await trio.sleep(0.5)
+            await anyio.sleep(0.5)
         else:
             raise ex
 
@@ -286,7 +302,7 @@ class RabbitTestCase:
         full_queue_name = channel.protocol.full_name(queue_name)
         try:
             await channel.queue_delete(full_queue_name, no_wait=False)
-        except trio.TooSlowError:
+        except TimeoutError:
             logger.warning('Timeout on queue %s deletion', full_queue_name, exc_info=True)
         except Exception:  # pylint: disable=broad-except
             logger.error('Unexpected error on queue %s deletion', full_queue_name, exc_info=True)
@@ -300,7 +316,7 @@ class RabbitTestCase:
         full_exchange_name = self.full_name(exchange_name)
         try:
             await channel.exchange_delete(full_exchange_name, no_wait=False)
-        except trio.TooSlowError:
+        except TimeoutError:
             logger.warning('Timeout on exchange %s deletion', full_exchange_name, exc_info=True)
         except Exception:  # pylint: disable=broad-except
             logger.error(

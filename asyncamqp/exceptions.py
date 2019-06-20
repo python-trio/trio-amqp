@@ -3,55 +3,55 @@
 """
 
 
-class TrioAmqpException(Exception):
+class AsyncAmqpException(Exception):
     pass
 
 
-class HeartbeatTimeoutError(TrioAmqpException):
+class HeartbeatTimeoutError(AsyncAmqpException):
     """No heartbeat has been received"""
     pass
 
 
-class ConfigurationError(TrioAmqpException):
+class ConfigurationError(AsyncAmqpException):
     """unused, kept for compatibility"""
     pass
 
 
-class AmqpClosedConnection(TrioAmqpException):
+class AmqpClosedConnection(AsyncAmqpException):
     pass
 
 
-class SynchronizationError(TrioAmqpException):
+class SynchronizationError(AsyncAmqpException):
     pass
 
 
-class EmptyQueue(TrioAmqpException):
+class EmptyQueue(AsyncAmqpException):
     pass
 
 
-class NoChannelAvailable(TrioAmqpException):
+class NoChannelAvailable(AsyncAmqpException):
     """There is no room left for more channels"""
     pass
 
 
-class ChannelClosed(TrioAmqpException):
+class ChannelClosed(AsyncAmqpException):
     def __init__(self, code=0, message='Channel is closed'):
         super().__init__(code, message)
         self.code = code
         self.message = message
 
 
-class DuplicateConsumerTag(TrioAmqpException):
+class DuplicateConsumerTag(AsyncAmqpException):
     def __repr__(self):
         return ('The consumer tag specified already exists for this ' 'channel: %s' % self.args[0])
 
 
-class ConsumerCancelled(TrioAmqpException):
+class ConsumerCancelled(AsyncAmqpException):
     def __repr__(self):
         return ('The consumer %s has been cancelled' % self.args[0])
 
 
-class PublishFailed(TrioAmqpException):
+class PublishFailed(AsyncAmqpException):
     def __init__(self, delivery_tag):
         super().__init__(delivery_tag)
         self.delivery_tag = delivery_tag

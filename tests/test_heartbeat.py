@@ -2,7 +2,7 @@
     Tests the heartbeat methods
 """
 
-import trio
+import anyio
 import pytest
 
 from asyncamqp import exceptions
@@ -29,6 +29,6 @@ class TestHeartbeat(testcase.RabbitTestCase):
                 async with amqp.new_channel():
                     # this ensures that the send and recv loops use the new
                     # heartbeat value
-                    await trio.sleep(0.1)
+                    await anyio.sleep(0.1)
                     assert False, "not reached"
         assert self.send_called > 2

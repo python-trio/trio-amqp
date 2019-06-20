@@ -8,7 +8,7 @@
 """
 
 import sys
-import trio
+import anyio
 import asyncamqp
 
 async def handle_return(channel, body, envelope, properties):
@@ -19,7 +19,7 @@ async def handle_return(channel, body, envelope, properties):
                                 envelope.reply_text, envelope.exchange_name))
 
 
-async def get_returns(chan, task_status=trio.TASK_STATUS_IGNORED):
+          async def get_returns(chan):
     task_status.started()
     # DO NOT await() between these statements
     async for body, envelope, properties in chan:
@@ -29,7 +29,7 @@ async def get_returns(chan, task_status=trio.TASK_STATUS_IGNORED):
 async def send():
     async with asyncamqp.connect_amqp() as protocol:
         channel = await protocol.channel()
-        await protocol.nursery.start(get_returns, channel)
+        await protocol.taskgroup.spawn(get_returns, channel)
 
         await channel.queue_declare(queue_name='hello')
 
@@ -43,4 +43,4 @@ async def send():
         print(" [x] Sent 'Hello World!'")
 
 
-trio.run(send)
+anyio.run(send)

@@ -2,7 +2,8 @@
     Amqp Protocol
 """
 
-import trio
+import anyio
+import errno
 import logging
 from math import inf
 import socket
@@ -39,7 +40,7 @@ class ChannelContext:
     async def __aexit__(self, *tb):
         if not self.channel.is_open:
             return
-        with trio.open_cancel_scope(shield=True):
+        async with anyio.open_cancel_scope(shield=True):
             try:
                 await self.channel.close()
             except exceptions.AmqpClosedConnection:
@@ -57,7 +58,7 @@ class BufferedReceiveStream:
         self._stream = stream
         self._buf_size = buf_size
         self._buf = bytearray()
-        self.aclose = stream.aclose
+        self.close = stream.close
 
     async def receive_some(self, max_bytes):
         """Buffered read of at most max_bytes characters"""
@@ -73,8 +74,8 @@ class BufferedReceiveStream:
         return read_bytes
 
 
-class AmqpProtocol(trio.abc.AsyncResource):
-    """The AMQP protocol for trio.
+class AmqpProtocol:
+    """The AMQP protocol for anyio.
     """
 
     CHANNEL_FACTORY = amqp_channel.Channel
@@ -190,7 +191,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
         # Control may only reach this point in buggy third-party subclasses.
         assert self.state == CONNECTING
-        raise exceptions.TrioAmqpException("connection isn't established yet.")
+        raise exceptions.AsyncAmqpException("connection isn't established yet.")
 
     async def _drain(self):
         return
@@ -206,32 +207,31 @@ class AmqpProtocol(trio.abc.AsyncResource):
         # pick it up.
         await self._send_queue.put((frame, encoder))
 
-    @trio.hazmat.enable_ki_protection
-    async def _writer_loop(self, task_status=trio.TASK_STATUS_IGNORED):
-        with trio.open_cancel_scope(shield=True) as scope:
+    async def _writer_loop(self, done):
+        async with anyio.open_cancel_scope(shield=True) as scope:
             self._writer_scope = scope
-            task_status.started()
+            await done.set()
             while self.state != CLOSED:
                 if self.server_heartbeat:
                     timeout = self.server_heartbeat / 2
                 else:
                     timeout = inf
 
-                with trio.move_on_after(timeout) as timeout_scope:
+                async with anyio.move_on_after(timeout) as timeout_scope:
                     frame, encoder = await self._send_queue.get()
-                if timeout_scope.cancelled_caught:
+                if timeout_scope.cancel_called:
                     await self.send_heartbeat()
                     continue
 
                 f = frame.get_frame(encoder)
                 try:
                     await self._stream.send_all(f)
-                except (trio.BrokenStreamError,trio.ClosedResourceError):
+                except (anyio.exceptions.ClosedResourceError, BrokenPipeError):
                     # raise exceptions.AmqpClosedConnection(self) from None
                     # the reader will raise the error also
                     return
 
-    async def aclose(self, no_wait=False):
+    async def close(self, no_wait=False):
         """Close connection (and all channels)"""
         if self.state == CLOSED:
             return
@@ -243,9 +243,9 @@ class AmqpProtocol(trio.abc.AsyncResource):
         try:
             self.state = CLOSING
             got_close = self.connection_closed.is_set()
-            self.connection_closed.set()
+            await self.connection_closed.set()
             if not got_close:
-                self._close_channels()
+                await self._close_channels()
 
                 # If the closing handshake is in progress, let it complete.
                 frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
@@ -260,41 +260,32 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 encoder.write_short(0)
                 try:
                     await self._write_frame(frame, encoder)
-                except trio.ClosedResourceError:
+                except anyio.exceptions.ClosedResourceError:
                     pass
                 except Exception:
                     logger.exception("Error while closing")
                 else:
                     if not no_wait and self.server_heartbeat:
-                        with trio.move_on_after(self.server_heartbeat / 2):
+                        async with anyio.move_on_after(self.server_heartbeat / 2):
                             await self.wait_closed()
 
         except BaseException as exc:
-            self._close_channels(exception=exc)
+            await self._close_channels(exception=exc)
             raise
 
         finally:
-            with trio.open_cancel_scope(shield=True):
-                self._cancel_all()
-                await self._stream.aclose()
+            async with anyio.open_cancel_scope(shield=True):
+                await self._cancel_all()
+                await self._stream.close()
                 self._nursery = None
                 self.state = CLOSED
-
-    def close(self):
-        """Close connection (and all channels) destructively"""
-        if self.state == CLOSED:
-            return
-        self.state = CLOSED
-        self.connection_closed.set()
-        self._close_channels()
-        self._stream.socket.close()
 
     async def wait_closed(self):
         await self.connection_closed.wait()
 
     async def close_ok(self, frame):
         logger.debug("Recv close ok")
-        await self._stream.aclose()
+        await self._stream.close()
 
     def __enter__(self):
         raise TypeError("You need to use an async context")
@@ -303,8 +294,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         raise TypeError("You need to use an async context")
 
     async def __aenter__(self):
-        self.connecting = trio.Event()
-        self.connection_closed = trio.Event()
+        self.connection_closed = anyio.create_event()
         self.state = CONNECTING
         self.version_major = None
         self.version_minor = None
@@ -317,7 +307,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         self.server_channel_max = None
         self.channels_ids_ceil = 0
         self.channels_ids_free = set()
-        self._send_queue = trio.Queue(1)
+        self._send_queue = anyio.create_queue(1)
 
         if self._ssl:
             if self._ssl is True:
@@ -333,22 +323,20 @@ class AmqpProtocol(trio.abc.AsyncResource):
                 port = 5672
 
         if self._ssl:
-            stream = await trio.open_ssl_over_tcp_stream(self._host, port, ssl_context=ssl_context)
-            sock = stream.transport_stream
+            stream = await anyio.connect_tcp(self._host, port, ssl_context=ssl_context, autostart_tls=True)
         else:
-            sock = stream = await trio.open_tcp_stream(self._host, port)
+            stream = await anyio.connect_tcp(self._host, port)
 
-        sock.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        stream.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
-        stream = trio.StapledStream(
-            send_stream=stream,
-            receive_stream=BufferedReceiveStream(stream, READ_BUF_SIZE),
-        )
+        ### TODO buffering
 
         self._stream = stream
 
         # the writer loop needs to run since the beginning
-        await self._nursery.start(self._writer_loop)
+        done_here = anyio.create_event()
+        await self._nursery.spawn(self._writer_loop, done_here)
+        await done_here.wait()
 
         try:
             await self._stream.send_all(amqp_constants.PROTOCOL_HEADER)
@@ -405,17 +393,19 @@ class AmqpProtocol(trio.abc.AsyncResource):
                     raise exceptions.AmqpClosedConnection()
 
             # read the other server's responses asynchronously
-            await self._nursery.start(self._reader_loop)
+            done_here = anyio.create_event()
+            await self._nursery.spawn(self._reader_loop, done_here)
+            await done_here.wait()
 
         except BaseException as exc:
-            await self.aclose(no_wait=True)
+            await self.close(no_wait=True)
             raise
 
         return self
 
     async def __aexit__(self, typ, exc, tb):
-        with trio.open_cancel_scope(shield=True):
-            await self.aclose()
+        async with anyio.open_cancel_scope(shield=True):
+            await self.close()
 
     async def get_frame(self):
         """Read the frame, and only decode its header
@@ -424,7 +414,13 @@ class AmqpProtocol(trio.abc.AsyncResource):
         frame = amqp_frame.AmqpResponse(self._stream)
         try:
             await frame.read_frame()
-        except trio.BrokenStreamError:
+        except ConnectionResetError:
+            raise exceptions.AmqpClosedConnection(self) from None
+        except EnvironmentError as err:
+            if err.errno == errno.EBADF:
+                raise exceptions.AmqpClosedConnection(self) from None
+            raise
+        except anyio.exceptions.ClosedResourceError:
             raise exceptions.AmqpClosedConnection(self) from None
 
         return frame
@@ -478,7 +474,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
     def channels_ids_count(self):
         return self.channels_ids_ceil - len(self.channels_ids_free)
 
-    def _close_channels(self, reply_code=None, reply_text=None, exception=None):
+    async def _close_channels(self, reply_code=None, reply_text=None, exception=None):
         """Cleanly close channels
 
             Args:
@@ -491,14 +487,13 @@ class AmqpProtocol(trio.abc.AsyncResource):
             exception = exceptions.ChannelClosed(reply_code, reply_text)
 
         for channel in self.channels.values():
-            channel.connection_closed(reply_code, reply_text, exception)
+            await channel.connection_closed(reply_code, reply_text, exception)
 
-    @trio.hazmat.enable_ki_protection
-    async def _reader_loop(self, task_status=trio.TASK_STATUS_IGNORED):
-        with trio.open_cancel_scope(shield=True) as scope:
+    async def _reader_loop(self, done):
+        async with anyio.open_cancel_scope(shield=True) as scope:
             self._reader_scope = scope
             try:
-                task_status.started()
+                await done.set()
                 while True:
                     try:
                         if self._stream is None:
@@ -509,10 +504,10 @@ class AmqpProtocol(trio.abc.AsyncResource):
                         else:
                             timeout = inf
 
-                        with trio.fail_after(timeout):
+                        async with anyio.fail_after(timeout):
                             try:
                                 frame = await self.get_frame()
-                            except trio.ClosedResourceError:
+                            except anyio.exceptions.ClosedResourceError:
                                 # the stream is now *really* closed …
                                 return
                         try:
@@ -524,20 +519,22 @@ class AmqpProtocol(trio.abc.AsyncResource):
                             # message). Thus we start a new task that
                             # raises the actual error, somewhat later.
                             async def owch(exc):
-                                await trio.sleep(0)
+                                await anyio.sleep(0)
                                 raise exc
 
-                            self._nursery.start_soon(owch, exc)
+                            await self._nursery.spawn(owch, exc)
 
-                    except trio.TooSlowError:
-                        self.connection_closed.set()
+                    except TimeoutError:
+                        await self.connection_closed.set()
                         raise exceptions.HeartbeatTimeoutError(self) from None
                     except exceptions.AmqpClosedConnection as exc:
                         logger.debug("Remote closed connection")
+                        if self.state in (CLOSING, CLOSED):
+                            return
                         raise
             finally:
                 self._reader_scope = None
-                self.connection_closed.set()
+                await self.connection_closed.set()
 
     async def send_heartbeat(self):
         """Sends an heartbeat message.
@@ -582,7 +579,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
             "Server closed connection: %s, code=%s, class_id=%s, method_id=%s", reply_text,
             reply_code, class_id, method_id
         )
-        self._close_channels(reply_code, reply_text)
+        await self._close_channels(reply_code, reply_text)
         await self._close_ok()
 
     async def _close_ok(self):
@@ -590,17 +587,17 @@ class AmqpProtocol(trio.abc.AsyncResource):
         frame.declare_method(amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK)
         request = amqp_frame.AmqpEncoder()
         await self._write_frame(frame, request)
-        await trio.sleep(0)  # give the write task one shot to send the frame
+        await anyio.sleep(0)  # give the write task one shot to send the frame
         if self._nursery is not None:
-            self._cancel_all()
+            await self._cancel_all()
 
-    def _cancel_all(self):
+    async def _cancel_all(self):
         if self._reader_scope is not None:
-            self._reader_scope.cancel()
+            await self._reader_scope.cancel()
         if self._writer_scope is not None:
-            self._writer_scope.cancel()
+            await self._writer_scope.cancel()
         if self._nursery is not None:
-            self._nursery.cancel_scope.cancel()
+            await self._nursery.cancel_scope.cancel()
 
     async def tune(self, frame):
         decoder = amqp_frame.AmqpDecoder(frame.payload)
@@ -668,11 +665,11 @@ class AmqpProtocol(trio.abc.AsyncResource):
 @asynccontextmanager
 @async_generator
 async def connect_amqp(*args, protocol=AmqpProtocol, **kwargs):
-    async with trio.open_nursery() as nursery:
+    async with anyio.create_task_group() as nursery:
         amqp = protocol(nursery, *args, **kwargs)
         try:
             async with amqp:
                 await yield_(amqp)
         finally:
-            amqp._cancel_all()
+            await amqp._cancel_all()
 

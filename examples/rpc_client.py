@@ -4,7 +4,7 @@
 
 """
 
-import trio
+import anyio
 import uuid
 
 import asyncamqp
@@ -15,7 +15,7 @@ class FibonacciRpcClient(object):
         self.protocol = None
         self.channel = None
         self.callback_queue = None
-        self.waiter = trio.Event()
+        self.waiter = anyio.create_event()
 
     async def connect(self, channel):
         """ an `__init__` method can't be a coroutine"""
@@ -34,7 +34,7 @@ class FibonacciRpcClient(object):
         if self.corr_id == properties.correlation_id:
             self.response = body
 
-        self.waiter.set()
+        await self.waiter.set()
 
     async def call(self, n):
         async with asyncamqp.connect_amqp() as protocol:
@@ -64,4 +64,4 @@ async def rpc_client():
     print(" [.] Got %r" % response)
 
 
-trio.run(rpc_client)
+anyio.run(rpc_client)

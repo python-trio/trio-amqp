@@ -2,7 +2,7 @@
     Amqp basic class tests
 """
 
-import trio
+import anyio
 import struct
 import pytest
 
@@ -66,7 +66,7 @@ class TestBasicCancel(testcase.RabbitTestCase):
 
         result = await channel.publish("payload", exchange_name, routing_key='')
 
-        await trio.sleep(1)
+        await anyio.sleep(1)
         result = await channel.queue_declare(queue_name, passive=True)
         assert result['message_count'] == 1
         assert result['consumer_count'] == 0
@@ -127,10 +127,10 @@ class TestBasicDelivery(testcase.RabbitTestCase):
 
         await self.publish(amqp, queue_name, exchange_name, routing_key, "payload")
 
-        qfuture = trio.Event()
+        qfuture = anyio.create_event()
 
         async def qcallback(channel, body, envelope, _properties):
-            qfuture.set()
+            await qfuture.set()
             self.test_result = envelope
 
         async with amqp.new_channel() as channel:
@@ -148,7 +148,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
 
         await self.publish(amqp, queue_name, exchange_name, routing_key, "payload")
 
-        qfuture = trio.Event()
+        qfuture = anyio.create_event()
 
         async with amqp.new_channel() as channel:
 
@@ -156,7 +156,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
                 await channel.basic_client_nack(
                     envelope.delivery_tag, multiple=True, requeue=False
                 )
-                qfuture.set()
+                await qfuture.set()
 
             await channel.basic_consume(qcallback, queue_name=queue_name)
             await qfuture.wait()
@@ -169,13 +169,13 @@ class TestBasicDelivery(testcase.RabbitTestCase):
 
         await self.publish(amqp, queue_name, exchange_name, routing_key, "payload")
 
-        qfuture = trio.Event()
+        qfuture = anyio.create_event()
 
         async with amqp.new_channel() as channel:
 
             async def qcallback(channel, body, envelope, _properties):
                 await channel.basic_client_nack(envelope.delivery_tag, requeue=False)
-                qfuture.set()
+                await qfuture.set()
 
             await channel.basic_consume(qcallback, queue_name=queue_name)
             await qfuture.wait()
@@ -188,7 +188,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
 
         await self.publish(amqp, queue_name, exchange_name, routing_key, "payload")
 
-        qfuture = trio.Event()
+        qfuture = anyio.create_event()
         called = False
 
         async with amqp.new_channel() as channel:
@@ -200,7 +200,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
                     await channel.basic_client_nack(envelope.delivery_tag, requeue=True)
                 else:
                     await channel.basic_client_ack(envelope.delivery_tag)
-                    qfuture.set()
+                    await qfuture.set()
 
             await channel.basic_consume(qcallback, queue_name=queue_name)
             await qfuture.wait()
@@ -212,10 +212,10 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         routing_key = ''
         await self.publish(amqp, queue_name, exchange_name, routing_key, "payload")
 
-        qfuture = trio.Event()
+        qfuture = anyio.create_event()
 
         async def qcallback(channel, body, envelope, _properties):
-            qfuture.set()
+            await qfuture.set()
             self.test_result = envelope
 
         async with amqp.new_channel() as channel:

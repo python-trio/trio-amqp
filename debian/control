@@ -3,18 +3,20 @@ Maintainer: Matthias Urlichs <matthias@urlichs.de>
 Section: python
 Priority: optional
 Build-Depends: python3-setuptools, python3-all, debhelper (>= 9),
-  python3 (>> 3.5),
-  python3-pytest-trio (>= 0.4),
+  python3 (>> 3.6),
+  python3-anyio,
+  python3-pytest-trio,
+  python3-requests (>> 2.21),
 Standards-Version: 3.9.1
 
 Package: python3-asyncamqp
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends},
-  python3 (>> 3.5),
-  python3-trio (>= 0.4),
-Description: AMQP implementation using trio
+  python3 (>> 3.6),
+  python3-anyio,
+Description: AMQP implementation using anyio
  The asyncamqp library is a pure-Python implementation
  of the AMQP 0.9.1 protocol.
  .
- Built on top of Trio, it provides an API based on coroutines,
+ Built on top of anyio, it provides an API based on coroutines,
  making it easy to write highly concurrent applications.

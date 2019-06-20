@@ -1,4 +1,4 @@
-import trio
+import anyio
 import pytest
 
 from . import testcase
@@ -11,22 +11,23 @@ class TestConsume(testcase.RabbitTestCase):
 
     _multiprocess_can_split_ = True
 
-    def setup(self):
-        super().setup()
-        self.consume_future = trio.Event()
+#   def setup(self):
+#       super().setup()
+#       self.consume_future = anyio.create_event()
 
     async def callback(self, channel, body, envelope, properties):
         self.consume_result = (body, envelope, properties)
-        self.consume_future.set()
+        await self.consume_future.set()
 
     async def get_callback_result(self):
         await self.consume_future.wait()
         result = self.consume_result
-        self.consume_future = trio.Event()
+        self.consume_future = anyio.create_event()
         return result
 
     @pytest.mark.trio
     async def test_wrong_callback_argument(self):
+        self.consume_future = anyio.create_event()
         def badcallback():
             pass
 
@@ -53,10 +54,11 @@ class TestConsume(testcase.RabbitTestCase):
 
                         # start consume
                         await channel.basic_consume(badcallback, queue_name="q")
-                        await trio.sleep(1)
+                        await anyio.sleep(1)
 
     @pytest.mark.trio
     async def test_consume(self, amqp):
+        self.consume_future = anyio.create_event()
         # declare
         async with amqp.new_channel() as channel:
             await channel.queue_declare("q", exclusive=True, no_wait=False)
@@ -84,6 +86,7 @@ class TestConsume(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_big_consume(self, amqp):
+        self.consume_future = anyio.create_event()
         # declare
         async with amqp.new_channel() as channel:
             await channel.queue_declare("q", exclusive=True, no_wait=False)
@@ -111,6 +114,7 @@ class TestConsume(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_consume_multiple_queues(self, amqp):
+        self.consume_future = anyio.create_event()
         async with amqp.new_channel() as channel:
             await channel.queue_declare("q1", exclusive=True, no_wait=False)
             await channel.queue_declare("q2", exclusive=True, no_wait=False)
@@ -121,17 +125,17 @@ class TestConsume(testcase.RabbitTestCase):
             # get a different channel
             async with amqp.new_channel() as channel:
 
-                q1_future = trio.Event()
+                q1_future = anyio.create_event()
 
                 async def q1_callback(channel, body, envelope, properties):
                     self.q1_result = (body, envelope, properties)
-                    q1_future.set()
+                    await q1_future.set()
 
-                q2_future = trio.Event()
+                q2_future = anyio.create_event()
 
                 async def q2_callback(channel, body, envelope, properties):
                     self.q2_result = (body, envelope, properties)
-                    q2_future.set()
+                    await q2_future.set()
 
                 # start consumers
                 result = await channel.basic_consume(q1_callback, queue_name="q1")
@@ -162,6 +166,7 @@ class TestConsume(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_duplicate_consumer_tag(self, channel):
+        self.consume_future = anyio.create_event()
         await channel.queue_declare("q1", exclusive=True, no_wait=False)
         await channel.queue_declare("q2", exclusive=True, no_wait=False)
         await channel.basic_consume(self.callback, queue_name="q1", consumer_tag='tag')
@@ -173,6 +178,7 @@ class TestConsume(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_consume_callaback_synced(self, amqp):
+        self.consume_future = anyio.create_event()
         # declare
         async with amqp.new_channel() as channel:
             await channel.queue_declare("q", exclusive=True, no_wait=False)
@@ -189,10 +195,10 @@ class TestConsume(testcase.RabbitTestCase):
                     routing_key='',
                 )
 
-                sync_future = trio.Event()
+                sync_future = anyio.create_event()
 
                 async def callback(channel, body, envelope, properties):
                     assert sync_future.is_set()
 
                 await channel.basic_consume(callback, queue_name="q")
-                sync_future.set()
+                await sync_future.set()

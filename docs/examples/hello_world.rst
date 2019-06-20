@@ -10,7 +10,7 @@ Creating a new connection:
 
  .. code-block:: python
 
-    import trio
+    import anyio
     import asyncamqp
 
     async def connect():
@@ -19,7 +19,7 @@ Creating a new connection:
             # do something interesting here
             pass
 
-    trio.run(connect)
+    anyio.run(connect)
 
 
 This first scripts shows how to create a new connection to the `AMQP` broker.

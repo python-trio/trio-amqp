@@ -2,7 +2,7 @@
     Amqp queue class tests
 """
 
-import trio
+import anyio
 import pytest
 
 from . import testcase
@@ -12,16 +12,16 @@ from asyncamqp import exceptions
 class TestQueueDeclare(testcase.RabbitTestCase):
     def setUp(self):
         super().setUp()
-        self.consume_future = trio.Event()
+        self.consume_future = anyio.create_event()
 
     async def callback(self, body, envelope, properties):
-        self.consume_future.set()
+        await self.consume_future.set()
         self.consume_result = (body, envelope, properties)
 
     async def get_callback_result(self):
         await self.consume_future.wait()
         result = self.consume_result
-        self.consume_future = trio.Event()
+        self.consume_future = anyio.create_event()
         return result
 
     @pytest.mark.trio

@@ -3,7 +3,7 @@
 """
 
 import sys
-import trio
+import anyio
 import logging
 import uuid
 import io
@@ -51,11 +51,11 @@ class BasicListener:
 
     async def __aenter__(self):
         await self.channel.basic_consume(self._data, consumer_tag=self.consumer_tag, **self.kwargs)
-        self._q = trio.Queue(30)  # TODO: 2 + possible prefetch
+        self._q = anyio.create_queue(30)  # TODO: 2 + possible prefetch
         return self
 
     async def __aexit__(self, *tb):
-        with trio.open_cancel_scope(shield=True):
+        async with anyio.open_cancel_scope(shield=True):
             try:
                 await self.channel.basic_cancel(self.consumer_tag)
             except AmqpClosedConnection:
@@ -83,7 +83,7 @@ class Channel:
         self.consumer_queues = {}
         self.consumer_callbacks = {}
         self.response_future = None
-        self.close_event = trio.Event()
+        self.close_event = anyio.create_event()
         self.cancelled_consumers = set()
         self.last_consumer_tag = None
         self.publisher_confirms = False
@@ -92,14 +92,14 @@ class Channel:
         # counting iterator, used for mapping delivered messages
         # to publisher confirms
 
-        self._write_lock = trio.Lock()
+        self._write_lock = anyio.create_lock()
 
         self._futures = {}
         self._ctag_events = {}
 
     def __aiter__(self):
         if self._q is None:
-            self._q = trio.Queue(30)  # TODO: 2 + possible prefetch
+            self._q = anyio.create_queue(30)  # TODO: 2 + possible prefetch
         return self
 
     if sys.version_info < (3,5,3):
@@ -134,7 +134,7 @@ class Channel:
             return False
         return not self.close_event.is_set()
 
-    def connection_closed(self, server_code=None, server_reason=None, exception=None):
+    async def connection_closed(self, server_code=None, server_reason=None, exception=None):
         for future in self._futures.values():
             if future.done():
                 continue
@@ -145,12 +145,12 @@ class Channel:
                 if server_reason is not None:
                     kwargs['message'] = server_reason
                 exception = exceptions.ChannelClosed(**kwargs)
-            future.set_exception(exception)
+            await future.set_exception(exception)
 
         self.protocol.release_channel_id(self.channel_id)
-        self.close_event.set()
+        await self.close_event.set()
         if self._q is not None:
-            self._q.put_nowait(None)
+            await self._q.put(None)
 
     async def dispatch_frame(self, frame):
         methods = {
@@ -239,7 +239,7 @@ class Channel:
             await self._write_frame(frame, request, check_open=check_open, drain=drain)
         except BaseException as exc:
             self._get_waiter(waiter_id)
-            f.cancel()
+            await f.cancel()
             raise
         res = await f()
         return res
@@ -261,16 +261,16 @@ class Channel:
         )
 
     async def open_ok(self, frame):
-        self.close_event.clear()
+        self.close_event = anyio.create_event()
         fut = self._get_waiter('open')
-        fut.set_result(True)
+        await fut.set_result(True)
         logger.debug("Channel is open")
 
     async def close(self, reply_code=0, reply_text="Normal Shutdown"):
         """Close the channel."""
         if not self.is_open:
             raise exceptions.ChannelClosed("channel already closed or closing")
-        self.close_event.set()
+        await self.close_event.set()
         if self._q is not None:
             self._q.put_nowait(None)
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
@@ -288,7 +288,7 @@ class Channel:
             )
 
     async def close_ok(self, frame):
-        self._get_waiter('close').set_result(True)
+        await self._get_waiter('close').set_result(True)
         logger.info("Channel closed")
         self.protocol.release_channel_id(self.channel_id)
 
@@ -307,7 +307,7 @@ class Channel:
             'class_id': frame.payload_decoder.read_short(),
             'method_id': frame.payload_decoder.read_short(),
         }
-        self.connection_closed(results['reply_code'], results['reply_text'])
+        await self.connection_closed(results['reply_code'], results['reply_text'])
 
     async def flow(self, active):
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
@@ -324,9 +324,9 @@ class Channel:
     async def flow_ok(self, frame):
         decoder = amqp_frame.AmqpDecoder(frame.payload)
         active = bool(decoder.read_octet())
-        self.close_event.clear()
+        self.close_event = anyio.create_event()
         fut = self._get_waiter('flow')
-        fut.set_result({'active': active})
+        await fut.set_result({'active': active})
 
         logger.debug("Flow ok")
 
@@ -364,7 +364,7 @@ class Channel:
 
     async def exchange_declare_ok(self, frame):
         future = self._get_waiter('exchange_declare')
-        future.set_result(True)
+        await future.set_result(True)
         logger.debug("Exchange declared")
         return future
 
@@ -385,7 +385,7 @@ class Channel:
 
     async def exchange_delete_ok(self, frame):
         future = self._get_waiter('exchange_delete')
-        future.set_result(True)
+        await future.set_result(True)
         logger.debug("Exchange deleted")
 
     async def exchange_bind(
@@ -412,7 +412,7 @@ class Channel:
 
     async def exchange_bind_ok(self, frame):
         future = self._get_waiter('exchange_bind')
-        future.set_result(True)
+        await future.set_result(True)
         logger.debug("Exchange bound")
 
     async def exchange_unbind(
@@ -439,7 +439,7 @@ class Channel:
 
     async def exchange_unbind_ok(self, frame):
         future = self._get_waiter('exchange_unbind')
-        future.set_result(True)
+        await future.set_result(True)
         logger.debug("Exchange bound")
 
 #
@@ -503,7 +503,7 @@ class Channel:
             'consumer_count': frame.payload_decoder.read_long(),
         }
         future = self._get_waiter('queue_declare')
-        future.set_result(results)
+        await future.set_result(results)
         logger.debug("Queue declared")
 
     async def queue_delete(self, queue_name, if_unused=False, if_empty=False, no_wait=False):
@@ -534,7 +534,7 @@ class Channel:
 
     async def queue_delete_ok(self, frame):
         future = self._get_waiter('queue_delete')
-        future.set_result(True)
+        await future.set_result(True)
         logger.debug("Queue deleted")
 
     async def queue_bind(
@@ -561,7 +561,7 @@ class Channel:
 
     async def queue_bind_ok(self, frame):
         future = self._get_waiter('queue_bind')
-        future.set_result(True)
+        await future.set_result(True)
         logger.debug("Queue bound")
 
     async def queue_unbind(self, queue_name, exchange_name, routing_key, arguments=None):
@@ -585,7 +585,7 @@ class Channel:
 
     async def queue_unbind_ok(self, frame):
         future = self._get_waiter('queue_unbind')
-        future.set_result(True)
+        await future.set_result(True)
         logger.debug("Queue unbound")
 
     async def queue_purge(self, queue_name, no_wait=False):
@@ -608,7 +608,7 @@ class Channel:
         decoder = amqp_frame.AmqpDecoder(frame.payload)
         message_count = decoder.read_long()
         future = self._get_waiter('queue_purge')
-        future.set_result({'message_count': message_count})
+        await future.set_result({'message_count': message_count})
 
 #
 # Basic class implementation
@@ -692,7 +692,7 @@ class Channel:
 
     async def basic_qos_ok(self, frame):
         future = self._get_waiter('basic_qos')
-        future.set_result(True)
+        await future.set_result(True)
         logger.debug("Qos ok")
 
     async def basic_server_nack(self, frame, delivery_tag=None):
@@ -701,7 +701,7 @@ class Channel:
             delivery_tag = decoder.read_long_long()
         fut = self._get_waiter('basic_server_ack_{}'.format(delivery_tag))
         logger.debug('Received nack for delivery tag %r', delivery_tag)
-        fut.set_exception(exceptions.PublishFailed(delivery_tag))
+        await fut.set_exception(exceptions.PublishFailed(delivery_tag))
 
     def new_consumer(
         self,
@@ -747,7 +747,7 @@ class Channel:
 
         Otherwise, the callback function will be called with these three
         arguments, once for each message. Callbacks may be simple functions,
-        async coroutines, or Trio tasks.
+        async coroutines, or AnyIO tasks.
 
         In either case, unless you have set :param:`no_ack` to ``True``,
         your code is responsible for calling :meth:`basic_client_ack` or
@@ -807,7 +807,7 @@ class Channel:
 
         The callback function will be called with three arguments,
         once for each message. Callbacks may be simple functions, async
-        coroutines, or Trio tasks.
+        coroutines, or AnyIO tasks.
 
             Callback Args:
                 Message:
@@ -847,7 +847,7 @@ class Channel:
         if no_wait:
             return_value = {'consumer_tag': consumer_tag}
         else:
-            self._ctag_events[consumer_tag].set()
+            await self._ctag_events[consumer_tag].set()
         return return_value
 
     async def basic_consume_ok(self, frame):
@@ -856,8 +856,8 @@ class Channel:
             'consumer_tag': ctag,
         }
         future = self._get_waiter('basic_consume')
-        future.set_result(results)
-        self._ctag_events[ctag] = trio.Event()
+        await future.set_result(results)
+        self._ctag_events[ctag] = anyio.create_event()
 
     async def basic_deliver(self, frame):
         response = amqp_frame.AmqpDecoder(frame.payload)
@@ -884,14 +884,9 @@ class Channel:
             await event.wait()
             del self._ctag_events[consumer_tag]
 
-        if not inspect.iscoroutinefunction(callback):
-            callback(self, body, envelope, properties)
-        else:
-            cbi = inspect.getfullargspec(callback)
-            if 'task_status' in cbi.args or 'task_status' in cbi.kwonlyargs:
-                await self.protocol._nursery.start(callback, self, body, envelope, properties)
-            else:
-                await callback(self, body, envelope, properties)
+        res = callback(self, body, envelope, properties)
+        if inspect.iscoroutine(res):
+            res = await res
 
     async def server_basic_cancel(self, frame):
         # https://www.rabbitmq.com/consumer-cancel.html
@@ -926,7 +921,7 @@ class Channel:
             'consumer_tag': frame.payload_decoder.read_shortstr(),
         }
         future = self._get_waiter('basic_cancel')
-        future.set_result(results)
+        await future.set_result(results)
         logger.debug("Cancel ok")
 
     async def basic_return(self, frame):
@@ -983,11 +978,11 @@ class Channel:
         data['message'] = buffer.getvalue()
         data['properties'] = content_header_frame.properties
         future = self._get_waiter('basic_get')
-        future.set_result(data)
+        await future.set_result(data)
 
     async def basic_get_empty(self, frame):
         future = self._get_waiter('basic_get')
-        future.set_exception(exceptions.EmptyQueue)
+        await future.set_exception(exceptions.EmptyQueue)
 
     async def basic_client_ack(self, delivery_tag, multiple=False):
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
@@ -1012,7 +1007,7 @@ class Channel:
         delivery_tag = decoder.read_long_long()
         fut = self._get_waiter('basic_server_ack_{}'.format(delivery_tag))
         logger.debug('Received ack for delivery tag %s', delivery_tag)
-        fut.set_result(True)
+        await fut.set_result(True)
 
     async def basic_reject(self, delivery_tag, requeue=False):
         frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
@@ -1045,7 +1040,7 @@ class Channel:
 
     async def basic_recover_ok(self, frame):
         future = self._get_waiter('basic_recover')
-        future.set_result(True)
+        await future.set_result(True)
         logger.debug("Cancel ok")
 
 
@@ -1125,5 +1120,5 @@ class Channel:
         self.publisher_confirms = True
         self.delivery_tag_iter = count(1)
         fut = self._get_waiter('confirm_select')
-        fut.set_result(True)
+        await fut.set_result(True)
         logger.debug("Confirm selected")

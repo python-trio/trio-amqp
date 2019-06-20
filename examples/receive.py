@@ -3,7 +3,7 @@
     See the documentation for more informations.
 """
 
-import trio
+import anyio
 import asyncamqp
 
 
@@ -21,10 +21,11 @@ async def receive():
 
             await channel.basic_consume(callback, queue_name='hello')
 
-            await trio.sleep_forever()
+            while True:
+                await anyio.sleep(99999)
     except asyncamqp.AmqpClosedConnection:
         print("closed connections")
         return
 
 
-trio.run(receive)
+anyio.run(receive)

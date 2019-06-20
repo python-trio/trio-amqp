@@ -19,7 +19,7 @@ asyncamqp
 
 The ``asyncamqp`` library is a pure-Python implementation of the `AMQP 0.9.1 protocol`_.
 
-Built on top of Trio_, it provides an API based on coroutines, making it easy to write highly concurrent applications.
+Built on top of anyio_, it provides an API based on coroutines, making it easy to write highly concurrent applications.
 
 Bug reports, patches and suggestions welcome! Just open an issue_ or send a `pull request`_.
 
@@ -55,5 +55,6 @@ Future work
 
 .. _AMQP 0.9.1 protocol: https://www.rabbitmq.com/amqp-0-9-1-quickref.html
 .. _Trio: https://github.com/python-trio/trio
+.. _anyio: https://github.com/agronholm/anyio
 .. _issue: https://github.com/python-trio/asyncamqp/issues/new
 .. _pull request: https://github.com/python-trio/asyncamqp/compare/

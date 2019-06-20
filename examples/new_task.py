@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import trio
+import anyio
 import asyncamqp
 
 import sys
@@ -31,4 +31,4 @@ async def new_task():
         return
 
 
-trio.run(new_task)
+anyio.run(new_task)

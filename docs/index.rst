@@ -4,7 +4,8 @@
 Welcome to asyncamqp's documentation
 ====================================
 
-Trio-amqp is a library to connect to an amqp broker. It uses trio under the hood.
+AsyncAmqp is a library to connect to an amqp broker. It uses anyio under
+the hood,  thus works with asyncio, trio or curio transparently.
 
 
 Limitations

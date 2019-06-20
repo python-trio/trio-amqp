@@ -4,7 +4,7 @@
 
 """
 
-import trio
+import anyio
 import asyncamqp
 
 
@@ -21,4 +21,4 @@ async def send():
         print(" [x] Sent 'Hello World!'")
 
 
-trio.run(send)
+anyio.run(send)

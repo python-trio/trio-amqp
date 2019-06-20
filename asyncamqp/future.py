@@ -2,7 +2,7 @@
     Amqp Future implementation
 """
 
-import trio
+import anyio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ class Future:
     def __init__(self, channel, rpc_name):
         self.channel = channel
         self.rpc_name = rpc_name
-        self.event = trio.Event()
+        self.event = anyio.create_event()
         self.result = None
         self.exc = None
         channel._add_future(self)
@@ -28,23 +28,23 @@ class Future:
         else:
             raise self.exc
 
-    def set_result(self, value):
+    async def set_result(self, value):
         if self.event.is_set():
             raise RuntimeError("future already set")
         self.result = value
-        self.event.set()
+        await self.event.set()
 
-    def set_exception(self, exc):
+    async def set_exception(self, exc):
         if self.event.is_set():
             raise RuntimeError("future already set")
         self.exc = exc
-        self.event.set()
+        await self.event.set()
 
-    def cancel(self):
+    async def cancel(self):
         try:
             raise FutureCancelled()
         except FutureCancelled as exc:
-            self.set_exception(exc)
+            await self.set_exception(exc)
 
     def done(self):
         return self.event.is_set()

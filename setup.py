@@ -2,7 +2,7 @@ import setuptools
 
 exec(open("asyncamqp/_version.py", encoding="utf-8").read())
 
-description = 'AMQP implementation using trio'
+description = 'AMQP implementation using anyio'
 
 setuptools.setup(
     name=__packagename__,  # noqa: F821
@@ -15,10 +15,9 @@ setuptools.setup(
     download_url='https://pypi.python.org/pypi/asyncamqp',
     setup_requires=[
         'pyrabbit',
-        'pytest-trio >= 0.3',
     ],
     install_requires=[
-        'trio >= 0.6',
+        'anyio',
     ],
     packages=[
         'asyncamqp',

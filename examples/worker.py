@@ -3,13 +3,13 @@
     Worker example from the 2nd tutorial
 """
 
-import trio
+import anyio
 import asyncamqp
 
 
 async def callback(channel, body, envelope, properties):
     print(" [x] Received %r" % body)
-    await trio.sleep(body.count(b'.'))
+    await anyio.sleep(body.count(b'.'))
     print(" [x] Done")
     await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
 
@@ -24,7 +24,8 @@ async def worker():
             prefetch_count=1, prefetch_size=0, connection_global=False
         )
         await channel.basic_consume(callback, queue_name='task_queue')
-        await trio.sleep_forever()
+        while True:
+            await anyio.sleep(99999)
 
 
-trio.run(worker)
+anyio.run(worker)

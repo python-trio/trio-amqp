@@ -46,14 +46,14 @@ Then, the worker configure the `QOS`: it specifies how the worker unqueues messa
 
 Finaly we have to create a callback that will `ack` the message to mark it as `processed`.
 
-Note: the code in the callback calls `trio.sleep` to simulate a Trio
-compatible task that takes time.
+Note: the code in the callback calls `anyio.sleep` to simulate a task that
+takes time.
 
  .. code-block:: python
 
     async def callback(channel, body, envelope, properties):
         print(" [x] Received %r" % body)
-        await trio.sleep(body.count(b'.'))
+        await anyio.sleep(body.count(b'.'))
         print(" [x] Done")
         await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
 

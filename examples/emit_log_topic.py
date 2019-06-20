@@ -5,7 +5,7 @@
     https://www.rabbitmq.com/tutorials/tutorial-five-python.html
 """
 
-import trio
+import anyio
 import asyncamqp
 
 import sys
@@ -34,4 +34,4 @@ async def exchange_routing_topic():
         return
 
 
-trio.run(exchange_routing_topic)
+anyio.run(exchange_routing_topic)

@@ -1,14 +1,14 @@
 Introduction
 ============
 
-Trio-amqp library is a pure-Python implementation of the AMQP 0.9.1 protocol using Trio_.
+AsyncAmqp library is a pure-Python implementation of the AMQP 0.9.1 protocol using anyio_.
 
-.. _trio: https://github.com/python-trio/trio/
+.. _anyio: https://github.com/agronholm/anyio/
 
 Prerequisites
 -------------
 
-Trio-amqp works only with python >= 3.5 using the Trio library.
+AsyncAmqp works only with python >= 3.6 using asyncio, trio or curio.
 
 Installation
 ------------

@@ -1,4 +1,4 @@
-import trio
+import anyio
 import pytest
 
 from . import testcase
@@ -67,7 +67,7 @@ class TestPublish(testcase.RabbitTestCase):
         for i in range(10):
             if called:
                 break
-            await trio.sleep(0.1)
+            await anyio.sleep(0.1)
 
         assert called
 

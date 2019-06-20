@@ -36,7 +36,7 @@ server know where to respond.
     )
 
 
-Note: the client use a `waiter` (a ``trio.Event``) which will be set when
+Note: the client uses a `waiter` (a ``anyio.abc.Event``) which will be set when
 receiving a response from the previously sent message.
 
 

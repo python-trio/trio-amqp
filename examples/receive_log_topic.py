@@ -6,7 +6,7 @@
 
 """
 
-import trio
+import anyio
 import asyncamqp
 
 import sys
@@ -50,10 +50,11 @@ async def receive_log():
 
             await channel.basic_consume(callback, queue_name=queue_name)
 
-            await trio.sleep_forever()
+            while True:
+                await anyio.sleep(99999)
     except asyncamqp.AmqpClosedConnection:
         print("closed connections")
         return
 
 
-trio.run(receive_log)
+anyio.run(receive_log)

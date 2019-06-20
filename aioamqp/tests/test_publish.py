@@ -70,15 +70,13 @@ class PublishTestCase(testcase.RabbitTestCase, unittest.TestCase):
 
     @testing.coroutine
     def test_return_from_publish(self):
-        called = trio.Event()
+        called = anyio.create_event()
 
-        async def logger(task_status=trio.TASK_STATUS_IGNORED):
-            task_status.started()
+        async def logger():
             for a,b,c in self.channel:
-                called.set()
+                await called.set()
 
-        async def sender(task_status=trio.TASK_STATUS_IGNORED):
-            task_status.started()
+        async def sender():
 
             # declare
             yield from channel.exchange_declare("e", "topic")
@@ -88,12 +86,12 @@ class PublishTestCase(testcase.RabbitTestCase, unittest.TestCase):
                                        mandatory=True)
 
         async def run_test():
-            async with trio.open_nursery() as n:
-                await n.start(logger)
-                await n.start(sender)
+            async with anyio.create_task_group() as n:
+                await n.spawn(logger)
+                await n.spawn(sender)
                 await called.wait()
-                n.cancel_scope.cancel()
+                await n.cancel_scope.cancel()
 
-        async with trio.fail_after(1):
+        async with anyio.fail_after(1):
             await run_test()
 

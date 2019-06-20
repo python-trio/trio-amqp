@@ -6,7 +6,7 @@
 
 """
 
-import trio
+import anyio
 import asyncamqp
 
 import sys
@@ -49,7 +49,7 @@ async def receive_log():
 
             print(' [*] Waiting for logs. To exit press CTRL+C')
 
-            with trio.fail_after(10):
+            async with anyio.fail_after(10):
                 await channel.basic_consume(callback, queue_name=queue_name)
 
     except asyncamqp.AmqpClosedConnection:
@@ -57,4 +57,4 @@ async def receive_log():
         return
 
 
-trio.run(receive_log)
+anyio.run(receive_log)

@@ -1,5 +1,6 @@
 -e .
 
+anyio
 trio
 coverage
 pylint

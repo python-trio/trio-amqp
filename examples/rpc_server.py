@@ -2,7 +2,7 @@
     RPC server, asyncamqp implementation of RPC examples from RabbitMQ tutorial
 """
 
-import trio
+import anyio
 import asyncamqp
 
 
@@ -44,7 +44,8 @@ async def rpc_server():
         )
         await channel.basic_consume(on_request, queue_name='rpc_queue')
         print(" [x] Awaiting RPC requests")
-        await trio.sleep_forever()
+        while True:
+            await anyio.sleep(99999)
 
 
-trio.run(rpc_server)
+anyio.run(rpc_server)

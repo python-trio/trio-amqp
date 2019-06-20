@@ -1,5 +1,5 @@
 import pytest
-import trio
+import anyio
 from asyncamqp.protocol import OPEN, CLOSED
 
 from . import testcase
@@ -17,9 +17,9 @@ class TestConnectionLost(testcase.RabbitTestCase):
             assert channel.is_open
             # os.close(amqp._stream.socket.fileno()) # does not work w/ epoll
             # this should have the same effect as the tcp connection being lost
-            await amqp._stream.aclose()
+            await amqp._stream.close()
 
-            with trio.fail_after(1):
+            async with anyio.fail_after(1):
                 await amqp.connection_closed.wait()
             assert amqp.state == CLOSED
             assert not channel.is_open

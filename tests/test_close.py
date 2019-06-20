@@ -1,4 +1,4 @@
-import trio
+import anyio
 import pytest
 
 from . import testcase
@@ -8,7 +8,7 @@ from asyncamqp import exceptions
 class TestClose(testcase.RabbitTestCase):
     def setUp(self):
         super().setUp()
-        self.consume_future = trio.Event()
+        self.consume_future = anyio.create_event()
 
     @pytest.mark.trio
     async def callback(self, body, envelope, properties):
@@ -17,7 +17,7 @@ class TestClose(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def get_callback_result(self):
         await self.consume_future.wait()
-        self.consume_future = trio.Event()
+        self.consume_future = anyio.create_event()
         return self.consume_result
 
     @pytest.mark.trio
