@@ -49,6 +49,9 @@ class BasicListener:
             raise StopAsyncIteration
         return res
 
+    async def get(self):
+        return await self._q.get()
+
     async def __aenter__(self):
         await self.channel.basic_consume(self._data, consumer_tag=self.consumer_tag, **self.kwargs)
         self._q = anyio.create_queue(30)  # TODO: 2 + possible prefetch
@@ -742,8 +745,7 @@ class Channel:
                     dict, AMQP arguments to be passed to the server
 
         If no callback is given, return an iterable which returns (message,
-        envelope, properties) triples. You must call its :meth:`aclose`
-        coroutine to stop receiving messages.
+        envelope, properties) triples.
 
         Otherwise, the callback function will be called with these three
         arguments, once for each message. Callbacks may be simple functions,
