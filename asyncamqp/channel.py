@@ -303,7 +303,10 @@ class Channel:
         await self._write_frame(frame, request)
 
     async def server_channel_close(self, frame):
-        await self._send_channel_close_ok()
+        try:
+            await self._send_channel_close_ok()
+        except exceptions.ChannelClosed:
+            pass
         results = {
             'reply_code': frame.payload_decoder.read_short(),
             'reply_text': frame.payload_decoder.read_shortstr(),
