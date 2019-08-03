@@ -128,7 +128,7 @@ class Channel:
     def _get_waiter(self, rpc_name):
         fut = self._futures.pop(rpc_name, None)
         if not fut:
-            raise exceptions.SynchronizationError("Call %s didn't set a waiter" % rpc_name)
+            raise exceptions.SynchronizationError("Call %r didn't set a waiter" % rpc_name)
         return fut
 
     @property
@@ -291,7 +291,12 @@ class Channel:
             )
 
     async def close_ok(self, frame):
-        await self._get_waiter('close').set_result(True)
+        try:
+            w = self._get_waiter('close')
+        except asyncamqp.exceptions.SynchronizationError:
+            pass
+        else:
+            await w.set_result(True)
         logger.info("Channel closed")
         self.protocol.release_channel_id(self.channel_id)
 

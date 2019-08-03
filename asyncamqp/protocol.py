@@ -518,10 +518,14 @@ class AmqpProtocol:
                             # going for now (need to process the close-OK
                             # message). Thus we start a new task that
                             # raises the actual error, somewhat later.
+                            if self._nursery is None:
+                                raise
+
                             async def owch(exc):
-                                await anyio.sleep(0)
+                                await anyio.sleep(0.01)
                                 raise exc
 
+                            logger.error("Queue",repr(exc))
                             await self._nursery.spawn(owch, exc)
 
                     except TimeoutError:
