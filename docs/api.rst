@@ -95,8 +95,8 @@ Returned messages will be delivered to your code in an async iterator over the c
         await taskgroup.spawn(do_returns, chan)
         do_whatever()
 
-The code above ensures that the iterator is started before calling ``do_whatever()``.
-Returned messages arriving before that will be logged and discarded.
+The code above ensures that the iterator is started before calling ``do_whatever()``,
+ensuring that returned messages will be processed properly.
 
 Consuming messages
 ------------------
@@ -130,7 +130,7 @@ from the queue::
     expiration
     message_id
     timestamp
-    type
+    message_type
     user_id
     app_id
     cluster_id
@@ -139,6 +139,19 @@ Remember that you need to call either ``basic_ack(delivery_tag)`` or
 ``basic_nack(delivery_tag)`` for each message you receive. Otherwise the
 server will not know that you processed it, and thus will not send more
 messages.
+
+Server Cancellation
+~~~~~~~~~~~~~~~~~~~
+
+RabbitMQ offers an AMQP extension to notify a consumer when a queue is deleted.
+See `Consumer Cancel Notification <https://www.rabbitmq.com/consumer-cancel.html>`_
+for additional details.  ``asyncamqp`` enables the extension for all channels
+and terminates the channel's receiver loop when the consumer is cancelled::
+
+    async with chan.new_consumer(queue_name="my_queue") as listener:
+        async for body, envelope, properties in listener:
+            process_message(body, envelope, properties)
+        print("I get here when the queue is deleted")
 
 Queues
 ------
@@ -277,4 +290,3 @@ Note: the `internal` flag is deprecated and not used in this library.
    :param str routing_key: the key used to filter messages
    :param bool no_wait: if set, the server will not respond to the method
    :param dict arguments: AMQP arguments to be passed when removing the exchange.
-

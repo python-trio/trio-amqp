@@ -65,4 +65,3 @@ response from this request.
         )
 
         await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
-

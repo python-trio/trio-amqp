@@ -19,8 +19,7 @@ async def handle_return(channel, body, envelope, properties):
                                 envelope.reply_text, envelope.exchange_name))
 
 
-          async def get_returns(chan):
-    task_status.started()
+async def get_returns(chan):
     # DO NOT await() between these statements
     async for body, envelope, properties in chan:
         await handle_return(channel, body, envelope, properties)

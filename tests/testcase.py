@@ -13,7 +13,7 @@ import pytest
 from functools import wraps
 from async_generator import asynccontextmanager
 
-import pyrabbit.api
+import pyrabbit2 as pyrabbit
 
 from . import testcase
 from asyncamqp import exceptions, connect_amqp
@@ -109,7 +109,7 @@ def reset_vhost():
     port = int(os.environ.get('AMQP_PORT', 5672))
     vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
     http_client = pyrabbit.api.Client(
-        '%s:%s/api/' % (host, 10000 + port), 'guest', 'guest', timeout=20
+        '%s:%s' % (host, 10000 + port), 'guest', 'guest', timeout=20
     )
     try:
         http_client.create_vhost(vhost)
@@ -305,7 +305,7 @@ class RabbitTestCase:
         except TimeoutError:
             logger.warning('Timeout on queue %s deletion', full_queue_name, exc_info=True)
         except Exception:  # pylint: disable=broad-except
-            logger.error('Unexpected error on queue %s deletion', full_queue_name, exc_info=True)
+            logger.exception('Unexpected error on queue %s deletion', full_queue_name)
 
     async def safe_exchange_delete(self, exchange_name, channel=None):
         """Delete the exchange but does not raise any exception if it fails
@@ -319,9 +319,7 @@ class RabbitTestCase:
         except TimeoutError:
             logger.warning('Timeout on exchange %s deletion', full_exchange_name, exc_info=True)
         except Exception:  # pylint: disable=broad-except
-            logger.error(
-                'Unexpected error on exchange %s deletion', full_exchange_name, exc_info=True
-            )
+            logger.exception('Unexpected error on exchange %s deletion', full_exchange_name)
 
     async def queue_declare(self, queue_name, *args, channel=None, safe_delete_before=True, **kw):
         channel = channel or self.channel

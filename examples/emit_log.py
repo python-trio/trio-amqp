@@ -23,7 +23,6 @@ async def exchange_routing():
             await channel.exchange_declare(
                 exchange_name=exchange_name, type_name='fanout'
             )
-
             await channel.basic_publish(
                 message, exchange_name=exchange_name, routing_key=''
             )

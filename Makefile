@@ -38,6 +38,9 @@ test:
 update:
 	pip install -r ci/requirements_dev.txt
 
+pylint:
+	pylint aioamqp
+
 
 ### semi-private targets used by polyconseil's CI (copy-pasted from blease) ###
 
@@ -47,9 +50,9 @@ reports:
 	mkdir -p reports
 
 jenkins-test: reports
-	$(MAKE) test TEST_OPTIONS="--with-coverage --cover-package=$(PACKAGE) \
-		--cover-xml --cover-xml-file=reports/xmlcov.xml \
-		--with-xunit --xunit-file=reports/TEST-$(PACKAGE).xml \
+	$(MAKE) test TEST_OPTIONS="--cov=$(PACKAGE) \
+		--cov-report xml:reports/xmlcov.xml \
+		--junitxml=reports/TEST-$(PACKAGE).xml \
 		-v \
 		$(TEST_OPTIONS)"
 

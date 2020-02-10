@@ -10,15 +10,19 @@ setuptools.setup(
     url='https://github.com/python-trio/asyncamqp',
     description=description,
     long_description=open('README.rst').read(),
-    download_url='https://pypi.python.org/pypi/asyncamqp',
+    # download_url='https://pypi.python.org/pypi/asyncamqp',
     setup_requires=[
         'pyrabbit',
     ],
     install_requires=[
         'anyio',
     ],
+    keywords=['asyncio', 'amqp', 'rabbitmq', 'aio'],
     packages=[
         'asyncamqp',
+    ],
+    install_requires=[
+        'pamqp>=2.2.0,<3',
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -30,7 +34,10 @@ setuptools.setup(
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Framework :: Trio",
+        "Framework :: Anyio",
     ],
     platforms='all',
     license='BSD'

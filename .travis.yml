@@ -1,8 +1,10 @@
 language: python
+dist: bionic
 python:
 - 3.5
 - 3.6
 - 3.7
+- 3.8
 services:
 - rabbitmq
 install:
@@ -21,4 +23,3 @@ before_script:
 - ./rabbitmqadmin declare permission vhost=test user=guest read=".*" write=".*" configure=".*"
 script:
 - make test
-- coverage

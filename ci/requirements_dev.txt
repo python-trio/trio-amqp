@@ -6,4 +6,7 @@ coverage
 pylint
 pytest
 pytest-trio
--e git+https://github.com/bkjones/pyrabbit.git#egg=pyrabbit
+Sphinx
+sphinx-rtd-theme
+
+pyrabbit2

@@ -13,12 +13,7 @@ import sys
 
 
 async def callback(channel, body, envelope, properties):
-    print(
-        "consumer {} recved {} ({})".format(
-            envelope.consumer_tag, body, envelope.delivery_tag
-        )
-    )
-
+    print("consumer {} recved {} ({})".format(envelope.consumer_tag, body, envelope.delivery_tag))
 
 async def receive_log():
     try:

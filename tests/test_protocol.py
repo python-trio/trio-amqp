@@ -15,7 +15,7 @@ class TestProtocol(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def test_connect(self):
         self.reset_vhost()
-        amqp = testcase.connect(virtualhost=self.vhost)
+        amqp = testcase.connect(host=self.host, port=self.port, virtualhost=self.vhost)
         async with amqp as protocol:
             assert protocol.state == OPEN
 
@@ -27,7 +27,7 @@ class TestProtocol(testcase.RabbitTestCase):
             'program_version': '0.1.1',
         }
         amqp = testcase.connect(
-            virtualhost=self.vhost,
+            host=self.host, port=self.port, virtualhost=self.vhost,
             client_properties=client_properties,
         )
         async with amqp as protocol:
@@ -37,7 +37,7 @@ class TestProtocol(testcase.RabbitTestCase):
     async def test_connection_unexistant_vhost(self):
         self.reset_vhost()
         with pytest.raises(exceptions.AmqpClosedConnection):
-            amqp = testcase.connect(virtualhost='/unexistant')
+            amqp = testcase.connect(host=self.host, port=self.port, virtualhost='/unexistant')
             async with amqp:
                 pass
 

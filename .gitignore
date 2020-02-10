@@ -58,3 +58,6 @@ docs/_build/
 # editor stuffs
 *.swp
 /.pybuild
+
+# Pycharm/IntelliJ
+.idea/*

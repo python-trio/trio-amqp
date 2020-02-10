@@ -10,12 +10,12 @@ import socket
 import ssl
 from async_generator import asynccontextmanager
 from async_generator import async_generator,yield_
+import pamqp
 
 from . import channel as amqp_channel
 from . import constants as amqp_constants
 from . import frame as amqp_frame
 from . import exceptions
-from . import _version
 
 logger = logging.getLogger(__name__)
 
@@ -202,10 +202,10 @@ class AmqpProtocol:
         #    # version of Python where this bugs exists is supported anymore.
         #    await self._stream_writer.drain()
 
-    async def _write_frame(self, frame, encoder, drain=True):
+    async def _write_frame(self, channel_id, request, drain=True):
         # Doesn't actually write frame, pushes it for _writer_loop task to
         # pick it up.
-        await self._send_queue.put((frame, encoder))
+        await self._send_queue.put((channel_id, request))
 
     async def _writer_loop(self, done):
         async with anyio.open_cancel_scope(shield=True) as scope:
@@ -218,14 +218,13 @@ class AmqpProtocol:
                     timeout = inf
 
                 async with anyio.move_on_after(timeout) as timeout_scope:
-                    frame, encoder = await self._send_queue.get()
+                    channel_id, request = await self._send_queue.get()
                 if timeout_scope.cancel_called:
                     await self.send_heartbeat()
                     continue
 
-                f = frame.get_frame(encoder)
                 try:
-                    await self._stream.send_all(f)
+                    await amqp_frame.write(self._stream, channel_id, request)
                 except (anyio.exceptions.ClosedResourceError, BrokenPipeError):
                     # raise exceptions.AmqpClosedConnection(self) from None
                     # the reader will raise the error also
@@ -248,18 +247,14 @@ class AmqpProtocol:
                 await self._close_channels()
 
                 # If the closing handshake is in progress, let it complete.
-                frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
-                frame.declare_method(
-                    amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE
+                request = pamqp.specification.Connection.Close(
+                    reply_code=0,
+                    reply_text='',
+                    class_id=0,
+                    method_id=0
                 )
-                encoder = amqp_frame.AmqpEncoder()
-                # we request a clean connection close
-                encoder.write_short(0)
-                encoder.write_shortstr('')
-                encoder.write_short(0)
-                encoder.write_short(0)
                 try:
-                    await self._write_frame(frame, encoder)
+                    await self._write_frame(0, request)
                 except anyio.exceptions.ClosedResourceError:
                     pass
                 except Exception:
@@ -351,14 +346,11 @@ class AmqpProtocol:
                     'consumer_cancel_notify': True,
                     'connection.blocked': False,
                 },
-                'copyright': 'BSD',
-                'product': _version.__package__,
-                'product_version': _version.__version__,
             }
             client_properties.update(self.client_properties)
 
             # waiting reply start with credentions and co
-            await self.start_ok(client_properties, 'AMQPLAIN', self._auth, self.server_locales[0])
+            await self.start_ok(client_properties, 'AMQPLAIN', self._auth, self.server_locales)
 
             # wait for a "tune" reponse
             await self.dispatch_frame()
@@ -411,9 +403,8 @@ class AmqpProtocol:
         """Read the frame, and only decode its header
 
         """
-        frame = amqp_frame.AmqpResponse(self._stream)
         try:
-            await frame.read_frame()
+            channel, frame = await amqp_frame.read(self._stream)
         except ConnectionResetError:
             raise exceptions.AmqpClosedConnection(self) from None
         except EnvironmentError as err:
@@ -423,46 +414,36 @@ class AmqpProtocol:
         except anyio.exceptions.ClosedResourceError:
             raise exceptions.AmqpClosedConnection(self) from None
 
-        return frame
+        return channel, frame
 
-    async def dispatch_frame(self, frame=None):
+    async def dispatch_frame(self, frame_channel=None, frame=None):
         """Dispatch the received frame to the corresponding handler"""
 
         method_dispatch = {
-            (amqp_constants.CLASS_CONNECTION,
-             amqp_constants.CONNECTION_CLOSE):  # noqa: E131
-                self.server_close,
-            (amqp_constants.CLASS_CONNECTION,
-             amqp_constants.CONNECTION_CLOSE_OK):  # noqa: E131
-                self.close_ok,
-            (amqp_constants.CLASS_CONNECTION,
-             amqp_constants.CONNECTION_TUNE):  # noqa: E131
-                self.tune,
-            (amqp_constants.CLASS_CONNECTION,
-             amqp_constants.CONNECTION_START):  # noqa: E131
-                self.start,
-            (amqp_constants.CLASS_CONNECTION,
-             amqp_constants.CONNECTION_OPEN_OK):  # noqa: E131
-                self.open_ok,
+            pamqp.specification.Connection.Close.name: self.server_close,
+            pamqp.specification.Connection.CloseOk.name: self.close_ok,
+            pamqp.specification.Connection.Tune.name: self.tune,
+            pamqp.specification.Connection.Start.name: self.start,
+            pamqp.specification.Connection.OpenOk.name: self.open_ok,
         }
         if not frame:
-            frame = await self.get_frame()
+            frame_channel, frame = await self.get_frame()
 
-        if frame.frame_type == amqp_constants.TYPE_HEARTBEAT:
+        if isinstance(frame, pamqp.heartbeat.Heartbeat):
             return
 
-        if frame.channel is not 0:
-            channel = self.channels.get(frame.channel)
+        if frame_channel:
+            channel = self.channels.get(frame_channel)
             if channel is not None:
                 await channel.dispatch_frame(frame)
             else:
-                logger.info("Unknown channel %s", frame.channel)
+                logger.info("Unknown channel %s", frame_channel)
             return
 
-        if (frame.class_id, frame.method_id) not in method_dispatch:
-            logger.info("frame %s %s is not handled", frame.class_id, frame.method_id)
+        if frame.name not in method_dispatch:
+            logger.info("frame %s is not handled", frame.name)
             return
-        await method_dispatch[(frame.class_id, frame.method_id)](frame)
+        await method_dispatch[frame.name](frame)
 
     def release_channel_id(self, channel_id):
         """Called from the channel instance, it relase a previously used
@@ -545,39 +526,37 @@ class AmqpProtocol:
         It can be an ack for the server or the client willing to check for the
         connexion timeout
         """
-        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_HEARTBEAT, 0)
-        request = amqp_frame.AmqpEncoder()
-        await self._write_frame(frame, request)
+        request = pamqp.heartbeat.Heartbeat()
+        await self._write_frame(0, request)
 
     # Amqp specific methods
     async def start(self, frame):
         """Method sent from the server to begin a new connection"""
-        response = amqp_frame.AmqpDecoder(frame.payload)
-
-        self.version_major = response.read_octet()
-        self.version_minor = response.read_octet()
-        self.server_properties = response.read_table()
-        self.server_mechanisms = response.read_longstr().split(' ')
-        self.server_locales = response.read_longstr().split(' ')
+        self.version_major = frame.version_major
+        self.version_minor = frame.version_minor
+        self.server_properties = frame.server_properties
+        self.server_mechanisms = frame.mechanisms
+        self.server_locales = frame.locales
 
     async def start_ok(self, client_properties, mechanism, auth, locale):
-        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
-        frame.declare_method(amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_START_OK)
-        request = amqp_frame.AmqpEncoder()
-        request.write_table(client_properties)
-        request.write_shortstr(mechanism)
-        request.write_table(auth)
-        request.write_shortstr(locale.encode())
-        await self._write_frame(frame, request)
+        def credentials():
+            return '\0{LOGIN}\0{PASSWORD}'.format(**auth)
+
+        request = pamqp.specification.Connection.StartOk(
+            client_properties=client_properties,
+            mechanism=mechanism,
+            locale=locale,
+            response=credentials()
+        )
+        await self._write_frame(0, request)
 
     async def server_close(self, frame):
         """The server is closing the connection"""
         self.state = CLOSING
-        response = amqp_frame.AmqpDecoder(frame.payload)
-        reply_code = response.read_short()
-        reply_text = response.read_shortstr()
-        class_id = response.read_short()
-        method_id = response.read_short()
+        reply_code = frame.reply_code
+        reply_text = frame.reply_text
+        class_id = frame.class_id
+        method_id = frame.method_id
         self._close_reason = dict(text=reply_text, code=reply_code, class_id=class_id, method_id=method_id)
         logger.warning(
             "Server closed connection: %s, code=%s, class_id=%s, method_id=%s", reply_text,
@@ -587,10 +566,8 @@ class AmqpProtocol:
         await self._close_ok()
 
     async def _close_ok(self):
-        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
-        frame.declare_method(amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_CLOSE_OK)
-        request = amqp_frame.AmqpEncoder()
-        await self._write_frame(frame, request)
+        request = pamqp.specification.Connection.CloseOk()
+        await self._write_frame(0, request)
         await anyio.sleep(0)  # give the write task one shot to send the frame
         if self._nursery is not None:
             await self._cancel_all()
@@ -604,34 +581,25 @@ class AmqpProtocol:
             await self._nursery.cancel_scope.cancel()
 
     async def tune(self, frame):
-        decoder = amqp_frame.AmqpDecoder(frame.payload)
-        self.server_channel_max = decoder.read_short()
-        self.server_frame_max = decoder.read_long()
-        self.server_heartbeat = decoder.read_short()
+        self.server_channel_max = frame.channel_max
+        self.server_frame_max = frame.frame_max
+        self.server_heartbeat = frame.heartbeat
 
     async def tune_ok(self, channel_max, frame_max, heartbeat):
-        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
-        frame.declare_method(amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_TUNE_OK)
-        encoder = amqp_frame.AmqpEncoder()
-        encoder.write_short(channel_max)
-        encoder.write_long(frame_max)
-        encoder.write_short(heartbeat)
-
-        await self._write_frame(frame, encoder)
+        request = pamqp.specification.Connection.TuneOk(
+            channel_max, frame_max, heartbeat
+        )
+        await self._write_frame(0, request)
 
     async def secure_ok(self, login_response):
         pass
 
     async def open(self, virtual_host, capabilities='', insist=False):
         """Open connection to virtual host."""
-        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, 0)
-        frame.declare_method(amqp_constants.CLASS_CONNECTION, amqp_constants.CONNECTION_OPEN)
-        encoder = amqp_frame.AmqpEncoder()
-        encoder.write_shortstr(virtual_host)
-        encoder.write_shortstr(capabilities)
-        encoder.write_bool(insist)
-
-        await self._write_frame(frame, encoder)
+        request = pamqp.specification.Connection.Open(
+            virtual_host, capabilities, insist
+        )
+        await self._write_frame(0, request)
 
     async def open_ok(self, frame):
         self.state = OPEN

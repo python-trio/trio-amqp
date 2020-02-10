@@ -1,4 +1,4 @@
-asyncamqp was originally created in early 2014 at Polyconseil.
+asyncamqp was originally created as anyamqp in early 2014 at Polyconseil.
 
 AUTHORS are (and/or have been)::
 
@@ -19,4 +19,10 @@ AUTHORS are (and/or have been)::
     * Alexander Gromyko
     * Nick Humrich
     * Pavel Kamaev
-
+    * Mads Sejersen
+    * Dave Shawley
+    * Jacob Hagstedt P Suorra
+    * Matthias Urlichs
+    * Corey `notmeta`
+    * Paul Wistrand
+    * fullylegit

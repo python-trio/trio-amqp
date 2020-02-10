@@ -56,4 +56,3 @@ takes time.
         await anyio.sleep(body.count(b'.'))
         print(" [x] Done")
         await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
-

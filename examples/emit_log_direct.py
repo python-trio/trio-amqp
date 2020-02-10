@@ -26,10 +26,11 @@ async def exchange_routing():
                 message, exchange_name=exchange_name, routing_key=severity
             )
             print(" [x] Sent %r" % (message,))
+    await protocol.close()
+    transport.close()
 
     except asyncamqp.AmqpClosedConnection:
         print("closed connections")
         return
-
 
 anyio.run(exchange_routing)

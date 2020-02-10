@@ -1,3 +1,4 @@
+# pylint: disable=redefined-builtin
 from .constants import MESSAGE_PROPERTIES
 
 
@@ -17,11 +18,11 @@ class Properties:
         expiration=None,
         message_id=None,
         timestamp=None,
-        type=None,
+        message_type=None,
         user_id=None,
         app_id=None,
         cluster_id=None
-    ):  # pylint: disable=redefined-builtin
+    ):
         self.content_type = content_type
         self.content_encoding = content_encoding
         self.headers = headers
@@ -32,7 +33,26 @@ class Properties:
         self.expiration = expiration
         self.message_id = message_id
         self.timestamp = timestamp
-        self.type = type
+        self.message_type = message_type
         self.user_id = user_id
         self.app_id = app_id
         self.cluster_id = cluster_id
+
+
+def from_pamqp(instance):
+    props = Properties()
+    props.content_type = instance.content_type
+    props.content_encoding = instance.content_encoding
+    props.headers = instance.headers
+    props.delivery_mode = instance.delivery_mode
+    props.priority = instance.priority
+    props.correlation_id = instance.correlation_id
+    props.reply_to = instance.reply_to
+    props.expiration = instance.expiration
+    props.message_id = instance.message_id
+    props.timestamp = instance.timestamp
+    props.message_type = instance.message_type
+    props.user_id = instance.user_id
+    props.app_id = instance.app_id
+    props.cluster_id = instance.cluster_id
+    return props

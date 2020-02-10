@@ -22,6 +22,8 @@ class TestAmqpConnection(testcase.RabbitTestCase):
         channel_max = 10
         heartbeat = 100
         proto = testcase.connect(
+            host=self.host,
+            port=self.port,
             virtualhost=self.vhost,
             channel_max=channel_max,
             frame_max=frame_max,
@@ -45,8 +47,8 @@ class TestAmqpConnection(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def test_socket_nodelay(self):
         self.reset_vhost()
-        proto = testcase.connect(virtualhost=self.vhost)
+        proto = testcase.connect(host=self.host, port=self.port, virtualhost=self.vhost)
         async with proto as amqp:
             sock = amqp._stream
             opt_val = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
-            assert opt_val == 1, opt_val
+            assert opt_val > 0

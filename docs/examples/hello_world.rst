@@ -70,4 +70,3 @@ To consume a message, the library calls a callback (which **MUST** be a coroutin
         print(body)
 
     await channel.basic_consume(callback, queue_name='hello', no_ack=True)
-

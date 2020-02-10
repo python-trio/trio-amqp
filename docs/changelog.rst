@@ -1,8 +1,18 @@
 Changelog
 =========
 
-Trio-amqp
+Asyncamqp
 +++++++++
+
+Asyncamqp 0.3
+-------------
+
+ * Merge to Aioamqp 0.14.
+
+Asyncamqp 0.2
+-------------
+
+ * Rewrote the whole package to use AnyIO instead.
 
 Trio-amqp 0.1
 -------------
@@ -11,8 +21,31 @@ Trio-amqp 0.1
  * Changed AmqpProtocol to be an async context manager while the connection
    is active.
 
+
 Next release
 ------------
+
+Aioamqp 0.14.0
+--------------
+
+ * Fix ``waiter already exist`` issue when creating multiple queues (closes #105).
+ * Rename ``type`` to ``message_type`` in constant.Properties object to be full compatible with pamqp.
+ * Add python 3.8 support.
+
+Aioamqp 0.13.0
+--------------
+
+ * SSL Connections must be configured with an SSLContext object in ``connect`` and ``from_url`` (closes #142).
+ * Uses pamqp to encode or decode protocol frames.
+ * Drops support of python 3.3 and python 3.4.
+ * Uses async and await keywords.
+ * Fix pamqp `_frame_parts` call, now uses exposed `frame_parts`
+
+Aioamqp 0.12.0
+--------------
+
+ * Fix an issue to use correct int encoder depending on int size (closes #180).
+ * Call user-specified callback when a consumer is cancelled.
 
 Aioamqp 0.11.0
 --------------

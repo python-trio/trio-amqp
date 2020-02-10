@@ -21,6 +21,21 @@ class TestPublish(testcase.RabbitTestCase):
         await self.check_messages(channel.protocol, "q", 1)
 
     @pytest.mark.trio
+    async def test_empty_publish(self):
+        # declare
+        await self.channel.queue_declare("q", exclusive=True, no_wait=False)
+        await self.channel.exchange_declare("e", "fanout")
+        await self.channel.queue_bind("q", "e", routing_key='')
+
+        # publish
+        await self.channel.publish("", "e", routing_key='')
+
+        queues = self.list_queues()
+        assert "q" in queues
+        assert queues["q"]["messages"] == 1
+        assert queues["q"]["message_bytes"] == 0
+
+    @pytest.mark.trio
     async def test_big_publish(self, channel):
         # declare
         await channel.queue_declare("q", exclusive=True, no_wait=False)
