@@ -1,12 +1,10 @@
 import setuptools
 
-exec(open("asyncamqp/_version.py", encoding="utf-8").read())
-
 description = 'AMQP implementation using anyio'
 
 setuptools.setup(
-    name=__packagename__,  # noqa: F821
-    version=__version__,  # noqa: F821
+    name="asyncamqp",
+    use_scm_version={"version_scheme": "guess-next-dev", "local_scheme": "dirty-tag"},
     author="Matthias Urlichs",
     author_email='matthias@urlichs.de',
     url='https://github.com/python-trio/asyncamqp',
