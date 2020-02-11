@@ -539,14 +539,14 @@ class AmqpProtocol:
         self.server_locales = frame.locales
 
     async def start_ok(self, client_properties, mechanism, auth, locale):
-        def credentials():
-            return '\0{LOGIN}\0{PASSWORD}'.format(**auth)
+        class StartOk(pamqp.specification.Connection.StartOk):
+            _response = 'table'
 
-        request = pamqp.specification.Connection.StartOk(
+        request = StartOk(
             client_properties=client_properties,
             mechanism=mechanism,
             locale=locale,
-            response=credentials()
+            response=auth,
         )
         await self._write_frame(0, request)
 

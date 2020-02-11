@@ -10,6 +10,8 @@ import io
 import inspect
 from itertools import count
 
+import pamqp
+
 from . import constants as amqp_constants
 from . import frame as amqp_frame
 from . import exceptions
