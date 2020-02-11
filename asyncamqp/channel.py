@@ -18,7 +18,7 @@ from . import exceptions
 from . import properties as amqp_properties
 from .envelope import Envelope, ReturnEnvelope
 from .future import Future
-from .exceptions import AmqpClosedConnection
+from .exceptions import AmqpClosedConnection, SynchronizationError
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +253,7 @@ class Channel:
     async def close_ok(self, frame):
         try:
             w = self._get_waiter('close')
-        except asyncamqp.exceptions.SynchronizationError:
+        except SynchronizationError:
             pass
         else:
             await w.set_result(True)
