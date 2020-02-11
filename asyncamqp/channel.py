@@ -194,34 +194,30 @@ class Channel:
         if frame.name not in methods:
             raise NotImplementedError("Frame %s is not implemented" % frame.name)
 
-        await methods[(frame.class_id, frame.method_id)](frame)
+        await methods[frame.name](frame)
 
     async def _write_frame(self, frame, request, check_open=True, drain=True):
         await self.protocol.ensure_open()
         if not self.is_open and check_open:
             raise exceptions.ChannelClosed()
-        try:
-            await self.protocol._write_frame(frame, request)
-            if drain:
-                await self.protocol._drain()
-        except Exception as exc:
-            self.protocol.connection_lost(exc)
-            raise
+        await self.protocol._write_frame(frame, request)
+        if drain:
+            await self.protocol._drain()
 
     async def _write_frame_awaiting_response(
-        self, waiter_id, frame, request, no_wait, check_open=True, drain=True
+        self, waiter_id, channel_id, request, no_wait, check_open=True, drain=True
     ):
         '''Write a frame and set a waiter for the response
         (unless no_wait is set)
         '''
         if no_wait:
-            await self._write_frame(frame, request, check_open=check_open, drain=drain)
+            await self._write_frame(channel_id, request, check_open=check_open, drain=drain)
             return None
 
         async with self._write_lock:
             f = self._set_waiter(waiter_id)
             try:
-                await self._write_frame(frame, request, check_open=check_open, drain=drain)
+                await self._write_frame(channel_id, request, check_open=check_open, drain=drain)
             except BaseException as exc:
                 self._get_waiter(waiter_id)
                 await f.cancel()
@@ -236,11 +232,7 @@ class Channel:
     async def open(self):
         """Open the channel on the server."""
         request = pamqp.specification.Channel.Open()
-        return (
-            await self._write_frame_awaiting_response(
-                'open', self.channel_id, request, no_wait=False, check_open=False
-            )
-        )
+        return await self._write_frame_awaiting_response('open', self.channel_id, request, no_wait=False, check_open=False)
 
     async def open_ok(self, frame):
         self.close_event = anyio.create_event()
@@ -271,7 +263,7 @@ class Channel:
     async def _send_channel_close_ok(self):
         request = pamqp.specification.Channel.CloseOk()
         # intentionally not locked
-        await self._write_frame(channel_id, request)
+        await self._write_frame(self.channel_id, request)
 
     async def server_channel_close(self, frame):
         try:
@@ -332,7 +324,7 @@ class Channel:
     async def exchange_delete(self, exchange_name, if_unused=False, no_wait=False):
         request = pamqp.specification.Exchange.Delete(exchange=exchange_name, if_unused=if_unused, nowait=no_wait)
 
-        return await self._write_frame_awaiting_response('exchange_delete', frame, request, no_wait)
+        return await self._write_frame_awaiting_response('exchange_delete', self.channel_id, request, no_wait)
 
     async def exchange_delete_ok(self, frame):
         future = self._get_waiter('exchange_delete')
@@ -739,7 +731,7 @@ class Channel:
         }
         future = self._get_waiter('basic_consume')
         await future.set_result(results)
-        self._ctag_events[ctag] = anyio.create_event()
+        self._ctag_events[frame.consumer_tag] = anyio.create_event()
 
     async def basic_deliver(self, frame):
         consumer_tag = frame.consumer_tag
@@ -835,7 +827,7 @@ class Channel:
         buffer = io.BytesIO()
         while (buffer.tell() < content_header_frame.body_size):
             _channel, content_body_frame = await self.protocol.get_frame()
-            buffer.write(content_body_frame.payload)
+            buffer.write(content_body_frame.value)
 
         data['message'] = buffer.getvalue()
         data['properties'] = amqp_properties.from_pamqp(content_header_frame.properties)
@@ -848,7 +840,6 @@ class Channel:
 
     async def basic_client_ack(self, delivery_tag, multiple=False):
         request = pamqp.specification.Basic.Ack(delivery_tag, multiple)
-        request.write_bits(multiple)
         async with self._write_lock:
             await self._write_frame(self.channel_id, request)
 
@@ -899,6 +890,11 @@ class Channel:
         mandatory=False,
         immediate=False
     ):
+        if properties is None:
+            properties = {}
+        if not isinstance(payload,(bytes,bytearray)):
+            raise TypeError("Payload must be bytes")
+
         async with self._write_lock:
             if self.publisher_confirms:
                 delivery_tag = next(self.delivery_tag_iter)
@@ -917,14 +913,14 @@ class Channel:
                 body_size=len(payload), properties=properties
             )
 
-            await self._write_frame(self.channel_id, encoder, drain=False)
+            await self._write_frame(self.channel_id, header_request, drain=False)
 
             # split the payload
 
             frame_max = self.protocol.server_frame_max or len(payload)
             for chunk in (payload[0 + i:frame_max + i] for i in range(0, len(payload), frame_max)):
                 content_request = pamqp.body.ContentBody(chunk)
-                await self._write_frame(self.channel_id, encoder, drain=False)
+                await self._write_frame(self.channel_id, content_request, drain=False)
 
             await self.protocol._drain()
 
@@ -934,12 +930,9 @@ class Channel:
     async def confirm_select(self, *, no_wait=False):
         if self.publisher_confirms:
             raise ValueError('publisher confirms already enabled')
-        frame = amqp_frame.AmqpRequest(amqp_constants.TYPE_METHOD, self.channel_id)
-        frame.declare_method(amqp_constants.CLASS_CONFIRM, amqp_constants.CONFIRM_SELECT)
-        request = amqp_frame.AmqpEncoder()
-        request.write_shortstr('')
+        request = pamqp.specification.Confirm.Select(nowait=no_wait)
 
-        return await self._write_frame_awaiting_response('confirm_select', frame, request, no_wait)
+        return await self._write_frame_awaiting_response('confirm_select', self.channel_id, request, no_wait)
 
     async def confirm_select_ok(self, frame):
         self.publisher_confirms = True

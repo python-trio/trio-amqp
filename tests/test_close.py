@@ -37,7 +37,7 @@ class TestClose(testcase.RabbitTestCase):
     async def test_cannot_publish_after_close(self, channel):
         await channel.close()
         with pytest.raises(exceptions.ChannelClosed):
-            await channel.publish("coucou", "my_e", "")
+            await channel.publish(b"coucou", "my_e", "")
 
     @pytest.mark.trio
     async def test_cannot_declare_queue_after_close(self, channel):

@@ -16,24 +16,21 @@ class TestPublish(testcase.RabbitTestCase):
         await channel.queue_bind("q", "e", routing_key='')
 
         # publish
-        await channel.publish("coucou", "e", routing_key='')
+        await channel.publish(b"coucou", "e", routing_key='')
 
         await self.check_messages(channel.protocol, "q", 1)
 
     @pytest.mark.trio
-    async def test_empty_publish(self):
+    async def test_empty_publish(self, channel):
         # declare
-        await self.channel.queue_declare("q", exclusive=True, no_wait=False)
-        await self.channel.exchange_declare("e", "fanout")
-        await self.channel.queue_bind("q", "e", routing_key='')
+        await channel.queue_declare("q", exclusive=True, no_wait=False)
+        await channel.exchange_declare("e", "fanout")
+        await channel.queue_bind("q", "e", routing_key='')
 
         # publish
-        await self.channel.publish("", "e", routing_key='')
+        await channel.publish(b"", "e", routing_key='')
 
-        queues = self.list_queues()
-        assert "q" in queues
-        assert queues["q"]["messages"] == 1
-        assert queues["q"]["message_bytes"] == 0
+        await self.check_messages(channel.protocol, "q", 1)
 
     @pytest.mark.trio
     async def test_big_publish(self, channel):
@@ -43,7 +40,7 @@ class TestPublish(testcase.RabbitTestCase):
         await channel.queue_bind("q", "e", routing_key='')
 
         # publish
-        await channel.publish("a" * 1000000, "e", routing_key='')
+        await channel.publish(b"a" * 1000000, "e", routing_key='')
 
         await self.check_messages(channel.protocol, "q", 1)
 
@@ -57,7 +54,7 @@ class TestPublish(testcase.RabbitTestCase):
         await channel.queue_bind("q", "e", routing_key='')
 
         # publish
-        await channel.publish("coucou", "e", routing_key='')
+        await channel.publish(b"coucou", "e", routing_key='')
 
         await self.check_messages(channel.protocol, "q", 1)
 
@@ -76,7 +73,7 @@ class TestPublish(testcase.RabbitTestCase):
         await channel.exchange_declare("e", "topic")
 
         # publish
-        await channel.publish("coucou", "e", routing_key="not.found",
+        await channel.publish(b"coucou", "e", routing_key="not.found",
                                    mandatory=True)
 
         for i in range(10):

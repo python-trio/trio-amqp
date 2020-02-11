@@ -11,7 +11,10 @@ import time
 import uuid
 import pytest
 from functools import wraps
-from async_generator import asynccontextmanager
+try:
+    from contextlib import asynccontextmanager
+except ImportError:
+    from async_generator import asynccontextmanager
 
 import pyrabbit2 as pyrabbit
 
@@ -192,7 +195,7 @@ class RabbitTestCase:
         self.port = int(os.environ.get('AMQP_PORT', 5672))
         self.vhost = os.environ.get('AMQP_VHOST', 'test' + str(uuid.uuid4()))
         self.http_client = pyrabbit.api.Client(
-            '%s:%s/api/' % (self.host, 10000 + self.port), 'guest', 'guest', timeout=20
+            '%s:%s' % (self.host, 10000 + self.port), 'guest', 'guest', timeout=20
         )
 
         self.amqps = []
@@ -228,7 +231,7 @@ class RabbitTestCase:
         reset_vhost()  # global
 
     def server_version(self, amqp):
-        server_version = tuple(int(x) for x in amqp.server_properties['version'].split('.'))
+        server_version = tuple(int(x) for x in amqp.server_properties['version'].split(b'.'))
         return server_version
 
     async def check_exchange_exists(self, exchange_name):
@@ -257,11 +260,11 @@ class RabbitTestCase:
         if not self.check_queue_exists(queue_name):
             self.fail("Queue {} does not exists".format(queue_name))
 
-    def list_queues(self, amqp, vhost=None, fully_qualified_name=False, delay=None):
+    async def list_queues(self, amqp, vhost=None, fully_qualified_name=False, delay=None):
         # wait for the http client to get the correct state of the queue
         if delay is None:
             delay = int(os.environ.get('AMQP_REFRESH_TIME', 1.1))
-        time.sleep(delay)
+        await anyio.sleep(delay)
         queues_list = self.http_client.get_queues(vhost=vhost or self.vhost)
         queues = {}
         for queue_info in queues_list:
@@ -276,7 +279,7 @@ class RabbitTestCase:
     async def check_messages(self, amqp, queue_name, num_msg):
         for x in range(20):
             try:
-                queues = self.list_queues(amqp)
+                queues = await self.list_queues(amqp)
                 assert queue_name in queues
                 q = queues[queue_name]
                 try:

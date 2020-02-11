@@ -1,6 +1,8 @@
 from urllib.parse import urlparse
-from async_generator import asynccontextmanager
-from async_generator import async_generator,yield_
+try:
+    from contextlib import asynccontextmanager
+except ImportError:
+    from async_generator import asynccontextmanager
 
 from .exceptions import *  # pylint: disable=wildcard-import  # noqa: F401,F403
 from .protocol import AmqpProtocol  # noqa: F401
@@ -10,7 +12,6 @@ connect_amqp = protocol.connect_amqp
 
 
 @asynccontextmanager
-@async_generator
 async def connect_from_url(url, **kwargs):
     """Connect to the AMQP using a single url parameter.
 
@@ -41,4 +42,4 @@ async def connect_from_url(url, **kwargs):
         ssl=(url.scheme == 'amqps'),
         **kwargs
     ) as amqp:
-        await yield_(amqp)
+        yield amqp

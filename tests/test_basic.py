@@ -44,7 +44,7 @@ class TestQos(testcase.RabbitTestCase):
         conn = testcase.connect(virtualhost=self.vhost,)
         async with conn as amqp:
             async with amqp.new_channel() as channel:
-                with pytest.raises(struct.error):
+                with pytest.raises(TypeError):
                     await channel.basic_qos(
                         prefetch_size=100000, prefetch_count=1000000000, connection_global=False
                     )
@@ -64,7 +64,7 @@ class TestBasicCancel(testcase.RabbitTestCase):
         result = await channel.basic_consume(callback, queue_name=queue_name)
         result = await channel.basic_cancel(result['consumer_tag'])
 
-        result = await channel.publish("payload", exchange_name, routing_key='')
+        result = await channel.publish(b"payload", exchange_name, routing_key='')
 
         await anyio.sleep(1)
         result = await channel.queue_declare(queue_name, passive=True)
@@ -88,7 +88,7 @@ class TestBasicGet(testcase.RabbitTestCase):
         await channel.exchange_declare(exchange_name, type_name='direct')
         await channel.queue_bind(queue_name, exchange_name, routing_key=routing_key)
 
-        await channel.publish("payload", exchange_name, routing_key=routing_key)
+        await channel.publish(b"payload", exchange_name, routing_key=routing_key)
 
         result = await channel.basic_get(queue_name)
         assert result['routing_key'] == routing_key
@@ -125,7 +125,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         exchange_name = 'exchange_name'
         routing_key = ''
 
-        await self.publish(amqp, queue_name, exchange_name, routing_key, "payload")
+        await self.publish(amqp, queue_name, exchange_name, routing_key, b"payload")
 
         qfuture = anyio.create_event()
 
@@ -146,7 +146,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         exchange_name = 'exchange_name'
         routing_key = ''
 
-        await self.publish(amqp, queue_name, exchange_name, routing_key, "payload")
+        await self.publish(amqp, queue_name, exchange_name, routing_key, b"payload")
 
         qfuture = anyio.create_event()
 
@@ -167,7 +167,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         exchange_name = 'exchange_name'
         routing_key = ''
 
-        await self.publish(amqp, queue_name, exchange_name, routing_key, "payload")
+        await self.publish(amqp, queue_name, exchange_name, routing_key, b"payload")
 
         qfuture = anyio.create_event()
 
@@ -186,7 +186,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         exchange_name = 'exchange_name'
         routing_key = ''
 
-        await self.publish(amqp, queue_name, exchange_name, routing_key, "payload")
+        await self.publish(amqp, queue_name, exchange_name, routing_key, b"payload")
 
         qfuture = anyio.create_event()
         called = False
@@ -210,7 +210,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         queue_name = 'queue_name'
         exchange_name = 'exchange_name'
         routing_key = ''
-        await self.publish(amqp, queue_name, exchange_name, routing_key, "payload")
+        await self.publish(amqp, queue_name, exchange_name, routing_key, b"payload")
 
         qfuture = anyio.create_event()
 

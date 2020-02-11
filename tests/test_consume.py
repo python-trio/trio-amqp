@@ -69,7 +69,7 @@ class TestConsume(testcase.RabbitTestCase):
             async with amqp.new_channel() as channel:
                 # publish
                 await channel.publish(
-                    "coucou",
+                    b"coucou",
                     "e",
                     routing_key='',
                 )
@@ -97,7 +97,7 @@ class TestConsume(testcase.RabbitTestCase):
             async with amqp.new_channel() as channel:
                 # publish
                 await channel.publish(
-                    "a" * 1000000,
+                    b"a" * 1000000,
                     "e",
                     routing_key='',
                 )
@@ -144,7 +144,7 @@ class TestConsume(testcase.RabbitTestCase):
                 ctag_q2 = result['consumer_tag']
 
                 # put message in q1
-                await channel.publish("coucou1", "e", "q1")
+                await channel.publish(b"coucou1", "e", "q1")
 
                 # get it
                 await q1_future.wait()
@@ -155,7 +155,7 @@ class TestConsume(testcase.RabbitTestCase):
                 assert isinstance(properties1, Properties)
 
                 # put message in q2
-                await channel.publish("coucou2", "e", "q2")
+                await channel.publish(b"coucou2", "e", "q2")
 
                 # get it
                 await q2_future.wait()
@@ -190,7 +190,7 @@ class TestConsume(testcase.RabbitTestCase):
 
                 # publish
                 await channel.publish(
-                    "coucou",
+                    b"coucou",
                     "e",
                     routing_key='',
                 )

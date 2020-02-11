@@ -48,17 +48,17 @@ class TestQueueDeclare(testcase.RabbitTestCase):
         assert channel.protocol.local_name(result['queue']) == queue_name, result
 
     @pytest.mark.trio
-    async def test_queue_declare_custom_x_message_ttl_32_bits(self):
+    async def test_queue_declare_custom_x_message_ttl_32_bits(self, channel):
         queue_name = 'queue_name'
         # 2147483648 == 10000000000000000000000000000000
         # in binary, meaning it is 32 bit long
         x_message_ttl = 2147483648
-        result = await self.channel.queue_declare('queue_name', arguments={
+        result = await channel.queue_declare(queue_name, arguments={
             'x-message-ttl': x_message_ttl
         })
         assert result['message_count'] == 0
         assert result['consumer_count'] == 0
-        assert result['queue'].split('.')[-1] == queue_name
+        assert result['queue'].endswith(queue_name)
         assert result
 
     @pytest.mark.trio
@@ -114,7 +114,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
             # assert that the returned results matches
             assert amqp.full_name(queue_name) == result['queue']
 
-            queues = self.list_queues(channel.protocol)
+            queues = await self.list_queues(channel.protocol)
             queue = queues[queue_name]
 
             # assert queue has been declared with correct arguments

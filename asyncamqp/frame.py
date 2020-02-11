@@ -57,16 +57,6 @@ from .properties import Properties
 
 DUMP_FRAMES = False
 
-async def write(writer, channel, encoder):
-    """Writes the built frame from the encoder
-
-        writer:     anyio Stream
-        channel:    amqp Channel identifier
-        encoder:    frame encoder from pamqp which can be marshalled
-
-    """
-    await writer.send_all(pamqp.frame.marshal(encoder, channel))
-
 
 async def read(reader):
     """Read a new frame from the wire
