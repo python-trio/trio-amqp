@@ -9,6 +9,7 @@ Build-Depends: python3-setuptools, python3-all, debhelper (>= 9),
   python3-setuptools-scm,
   python3-requests (>> 2.21),
   python3-pyrabbit2,
+  python3-pamqp,
 Standards-Version: 3.9.1
 
 Package: python3-asyncamqp
@@ -17,6 +18,7 @@ Depends: ${misc:Depends}, ${python3:Depends},
   python3 (>> 3.6),
   python3-anyio,
   python3-pyrabbit2,
+  python3-pamqp,
 Description: AMQP implementation using anyio
  The asyncamqp library is a pure-Python implementation
  of the AMQP 0.9.1 protocol.
