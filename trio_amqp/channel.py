@@ -266,7 +266,7 @@ class Channel:
         )
 
     async def open_ok(self, frame):
-        self.close_event.clear()
+        self.close_event = trio.Event()
         fut = self._get_waiter('open')
         fut.set_result(True)
         logger.debug("Channel is open")
@@ -329,7 +329,7 @@ class Channel:
     async def flow_ok(self, frame):
         decoder = amqp_frame.AmqpDecoder(frame.payload)
         active = bool(decoder.read_octet())
-        self.close_event.clear()
+        self.close_event = trio.Event()
         fut = self._get_waiter('flow')
         fut.set_result({'active': active})
 
