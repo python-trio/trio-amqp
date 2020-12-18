@@ -149,7 +149,7 @@ class TestReplyNew(testcase.RabbitTestCase):
                 self._server_scope.cancel()
 
     async def _server_consumer(self, channel, server_future, task_status=trio.TASK_STATUS_IGNORED):
-        with trio.open_cancel_scope() as scope:
+        with trio.CancelScope() as scope:
             self._server_scope = scope
             async with channel.new_consumer(queue_name=server_queue_name) \
                     as data:
@@ -202,7 +202,7 @@ class TestReplyNew(testcase.RabbitTestCase):
                 self._client_scope.cancel()
 
     async def _client_consumer(self, channel, client_future, task_status=trio.TASK_STATUS_IGNORED):
-        with trio.open_cancel_scope() as scope:
+        with trio.CancelScope() as scope:
             self._client_scope = scope
             async with channel.new_consumer(queue_name=client_queue_name) \
                     as data:

@@ -56,7 +56,7 @@ class BasicListener:
         return self
 
     async def __aexit__(self, *tb):
-        with trio.open_cancel_scope(shield=True):
+        with trio.CancelScope(shield=True):
             try:
                 await self.channel.basic_cancel(self.consumer_tag)
             except AmqpClosedConnection:

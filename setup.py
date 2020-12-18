@@ -18,7 +18,7 @@ setuptools.setup(
         'pytest-trio >= 0.3',
     ],
     install_requires=[
-        'trio >= 0.9.0',
+        'trio >= 0.11.0',
     ],
     packages=[
         'trio_amqp',

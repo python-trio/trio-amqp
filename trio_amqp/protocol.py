@@ -39,7 +39,7 @@ class ChannelContext:
     async def __aexit__(self, *tb):
         if not self.channel.is_open:
             return
-        with trio.open_cancel_scope(shield=True):
+        with trio.CancelScope(shield=True):
             try:
                 await self.channel.close()
             except exceptions.AmqpClosedConnection:
@@ -206,7 +206,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
     @trio.hazmat.enable_ki_protection
     async def _writer_loop(self, task_status=trio.TASK_STATUS_IGNORED):
-        with trio.open_cancel_scope(shield=True) as scope:
+        with trio.CancelScope(shield=True) as scope:
             self._writer_scope = scope
             task_status.started()
             while self.state != CLOSED:
@@ -272,7 +272,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
             raise
 
         finally:
-            with trio.open_cancel_scope(shield=True):
+            with trio.CancelScope(shield=True):
                 self._cancel_all()
                 await self._stream.aclose()
                 self._nursery = None
@@ -413,7 +413,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         return self
 
     async def __aexit__(self, typ, exc, tb):
-        with trio.open_cancel_scope(shield=True):
+        with trio.CancelScope(shield=True):
             await self.aclose()
 
     async def get_frame(self):
@@ -494,7 +494,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
 
     @trio.hazmat.enable_ki_protection
     async def _reader_loop(self, task_status=trio.TASK_STATUS_IGNORED):
-        with trio.open_cancel_scope(shield=True) as scope:
+        with trio.CancelScope(shield=True) as scope:
             self._reader_scope = scope
             try:
                 task_status.started()
