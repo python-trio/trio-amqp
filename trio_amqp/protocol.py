@@ -204,7 +204,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         # pick it up.
         await self._send_send_channel.send((frame, encoder))
 
-    @trio.hazmat.enable_ki_protection
+    @trio.lowlevel.enable_ki_protection
     async def _writer_loop(self, task_status=trio.TASK_STATUS_IGNORED):
         with trio.CancelScope(shield=True) as scope:
             self._writer_scope = scope
@@ -492,7 +492,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         for channel in self.channels.values():
             channel.connection_closed(reply_code, reply_text, exception)
 
-    @trio.hazmat.enable_ki_protection
+    @trio.lowlevel.enable_ki_protection
     async def _reader_loop(self, task_status=trio.TASK_STATUS_IGNORED):
         with trio.CancelScope(shield=True) as scope:
             self._reader_scope = scope
