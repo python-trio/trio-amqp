@@ -3,7 +3,7 @@
 """
 
 import pytest
-import mock
+from unittest import mock
 
 from . import testcase
 from trio_amqp import exceptions

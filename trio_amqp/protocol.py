@@ -454,7 +454,7 @@ class AmqpProtocol(trio.abc.AsyncResource):
         if frame.frame_type == amqp_constants.TYPE_HEARTBEAT:
             return
 
-        if frame.channel is not 0:
+        if frame.channel != 0:
             channel = self.channels.get(frame.channel)
             if channel is not None:
                 await channel.dispatch_frame(frame)
