@@ -15,7 +15,7 @@
    :alt: Test coverage
 
 async_amqp
-=========
+==========
 
 The ``async_amqp`` library is a pure-Python implementation of the `AMQP 0.9.1 protocol`_.
 
@@ -31,6 +31,10 @@ python-amqp) should be reasonably straightforward.
 
 All tests from aioamqp have been ported and succeed.
 
+`async_amqp` was renamed from `asyncamqp`, but that was taken on pypi. `asyncamqp`
+was renamed from `trio_amqp` but anyio support was deemed to be a good
+idea. `trio_amqp` in turn was forked from `aioamqp`.
+
 
 tests
 -----
@@ -43,7 +47,9 @@ Tests require an instance of RabbitMQ. You can start a new instance using docker
 
      docker run -d --log-driver=syslog -e RABBITMQ_NODENAME=my-rabbit --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
 
-Then you can run the tests with ``make test`` (requires ``pytest``).
+RabbitMQ requires a "guest" user (password "guest") with admin privileges.
+
+You can run the tests with ``make test`` (requires ``pytest``).
 
 
 tests using docker-compose
