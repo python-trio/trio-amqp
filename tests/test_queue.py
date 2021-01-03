@@ -79,7 +79,7 @@ class TestQueueDeclare(testcase.RabbitTestCase):
                 queue_name, passive=False, exclusive=True, auto_delete=True
             )
 
-        assert cm.value.code == 406
+        assert cm.value.code in (405,406)
 
     @pytest.mark.trio
     async def test_multiple_channel_same_queue(self, amqp):

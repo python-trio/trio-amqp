@@ -17,7 +17,7 @@ class TestConnectionLost(testcase.RabbitTestCase):
             assert channel.is_open
             # os.close(amqp._stream.socket.fileno()) # does not work w/ epoll
             # this should have the same effect as the tcp connection being lost
-            await amqp._stream.close()
+            await amqp._stream.aclose()
 
             async with anyio.fail_after(1):
                 await amqp.connection_closed.wait()

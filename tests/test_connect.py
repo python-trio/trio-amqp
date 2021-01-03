@@ -6,6 +6,7 @@ import pytest
 from asyncamqp.protocol import OPEN, CLOSED
 
 from . import testcase
+from anyio.abc import SocketAttribute
 
 
 class TestAmqpConnection(testcase.RabbitTestCase):
@@ -50,5 +51,5 @@ class TestAmqpConnection(testcase.RabbitTestCase):
         proto = testcase.connect(host=self.host, port=self.port, virtualhost=self.vhost)
         async with proto as amqp:
             sock = amqp._stream
-            opt_val = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
+            opt_val = sock.extra(SocketAttribute.raw_socket).getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
             assert opt_val > 0

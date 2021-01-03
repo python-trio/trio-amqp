@@ -43,7 +43,7 @@ import struct
 import socket
 import os
 import datetime
-from anyio.exceptions import ClosedResourceError, IncompleteRead
+from anyio import ClosedResourceError, IncompleteRead
 from itertools import count
 from decimal import Decimal
 
