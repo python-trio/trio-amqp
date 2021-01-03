@@ -6,7 +6,7 @@ import os
 import pytest
 
 from . import testcase
-from asyncamqp import exceptions
+from async_amqp import exceptions
 
 IMPLEMENT_CHANNEL_FLOW = os.environ.get('IMPLEMENT_CHANNEL_FLOW', False)
 

@@ -1,15 +1,15 @@
 """
-    Hello world `send.py` example implementation using asyncamqp.
+    Hello world `send.py` example implementation using async_amqp.
     See the documentation for more informations.
 
 """
 
 import anyio
-import asyncamqp
+import async_amqp
 
 
 async def send():
-    async with asyncamqp.connect_amqp() as protocol:
+    async with async_amqp.connect_amqp() as protocol:
         channel = await protocol.channel()
 
         await channel.queue_declare(queue_name='hello')

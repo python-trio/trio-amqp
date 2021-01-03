@@ -2,9 +2,9 @@ import anyio
 import pytest
 
 from . import testcase
-from asyncamqp import exceptions
+from async_amqp import exceptions
 
-from asyncamqp.properties import Properties
+from async_amqp.properties import Properties
 
 
 class TestConsume(testcase.RabbitTestCase):

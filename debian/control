@@ -1,4 +1,4 @@
-Source: asyncamqp
+Source: async_amqp
 Maintainer: Matthias Urlichs <matthias@urlichs.de>
 Section: python
 Priority: optional
@@ -12,7 +12,7 @@ Build-Depends: python3-setuptools, python3-all, debhelper (>= 9),
   python3-pamqp,
 Standards-Version: 3.9.1
 
-Package: python3-asyncamqp
+Package: python3-async_amqp
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends},
   python3 (>> 3.6),
@@ -20,7 +20,7 @@ Depends: ${misc:Depends}, ${python3:Depends},
   python3-pyrabbit2,
   python3-pamqp,
 Description: AMQP implementation using anyio
- The asyncamqp library is a pure-Python implementation
+ The async_amqp library is a pure-Python implementation
  of the AMQP 0.9.1 protocol.
  .
  Built on top of anyio, it provides an API based on coroutines,

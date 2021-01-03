@@ -594,7 +594,7 @@ class AmqpProtocol:
         logger.debug("Recv open ok")
 
     #
-    # asyncamqp public methods
+    # async_amqp public methods
     #
 
     def new_channel(self, **kwargs):

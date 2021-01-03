@@ -4,7 +4,7 @@
 """
 
 import anyio
-import asyncamqp
+import async_amqp
 
 
 async def callback(channel, body, envelope, properties):
@@ -15,7 +15,7 @@ async def callback(channel, body, envelope, properties):
 
 
 async def worker():
-    async with asyncamqp.connect_amqp() as protocol:
+    async with async_amqp.connect_amqp() as protocol:
 
         channel = await protocol.channel()
 

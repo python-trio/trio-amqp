@@ -1,6 +1,6 @@
 import pytest
 
-from asyncamqp.protocol import OPEN, CLOSED
+from async_amqp.protocol import OPEN, CLOSED
 
 from . import testcase
 

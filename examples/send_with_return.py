@@ -1,5 +1,5 @@
 """
-    Hello world `send.py` example implementation using asyncamqp.
+    Hello world `send.py` example implementation using async_amqp.
     See the documentation for more informations.
 
     If there is no queue listening for the routing key, the message will
@@ -9,7 +9,7 @@
 
 import sys
 import anyio
-import asyncamqp
+import async_amqp
 
 async def handle_return(channel, body, envelope, properties):
     print('Got a returned message with routing key: {}.\n'
@@ -26,7 +26,7 @@ async def get_returns(chan):
 
 
 async def send():
-    async with asyncamqp.connect_amqp() as protocol:
+    async with async_amqp.connect_amqp() as protocol:
         channel = await protocol.channel()
         await protocol.taskgroup.spawn(get_returns, channel)
 

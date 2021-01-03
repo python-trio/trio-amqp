@@ -1,16 +1,16 @@
 API
 ===
 
-.. module:: asyncamqp
-    :synopsis: public asyncamqp API
+.. module:: async_amqp
+    :synopsis: public async_amqp API
 
 
 Basics
 ------
 
-There are two principal objects when using asyncamqp:
+There are two principal objects when using async_amqp:
 
- * The protocol object, used to begin a connection to asyncamqp,
+ * The protocol object, used to begin a connection to async_amqp,
  * The channel object, used when creating a new channel to effectively use an AMQP channel.
 
 
@@ -50,10 +50,10 @@ Starting a connection
 .. code::
 
     import anyio
-    import asyncamqp
+    import async_amqp
 
     async def connect():
-        async with asyncamqp.connect_amqp() as conn: # use default parameters
+        async with async_amqp.connect_amqp() as conn: # use default parameters
             print("connected !")
             await anyio.sleep(1)
 
@@ -79,7 +79,7 @@ Publishing messages
 When you want to produce some content, you declare an exchange, then publish message into it::
 
     await chan.exchange_declare("my_exch","topic")
-    await chan.publish("asyncamqp hello", "my_exch", "hello.there")
+    await chan.publish("async_amqp hello", "my_exch", "hello.there")
 
 Here we're publishing a message to the "my_exch" exchange.
 
@@ -145,7 +145,7 @@ Server Cancellation
 
 RabbitMQ offers an AMQP extension to notify a consumer when a queue is deleted.
 See `Consumer Cancel Notification <https://www.rabbitmq.com/consumer-cancel.html>`_
-for additional details.  ``asyncamqp`` enables the extension for all channels
+for additional details.  ``async_amqp`` enables the extension for all channels
 and terminates the channel's receiver loop when the consumer is cancelled::
 
     async with chan.new_consumer(queue_name="my_queue") as listener:

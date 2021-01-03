@@ -19,9 +19,9 @@ except ImportError:
 import pyrabbit2 as pyrabbit
 
 from . import testcase
-from asyncamqp import exceptions, connect_amqp
-from asyncamqp.channel import Channel
-from asyncamqp.protocol import AmqpProtocol, OPEN
+from async_amqp import exceptions, connect_amqp
+from async_amqp.channel import Channel
+from async_amqp.protocol import AmqpProtocol, OPEN
 
 logger = logging.getLogger(__name__)
 

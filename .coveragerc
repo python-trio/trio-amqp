@@ -1,6 +1,6 @@
 [run]
 branch=True
-source=asyncamqp
+source=async_amqp
 
 [report]
 precision = 1

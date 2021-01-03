@@ -1,6 +1,6 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: asyncamqp
-Source: https://github.com/python-trio/asyncamqp
+Upstream-Name: async_amqp
+Source: https://github.com/python-trio/async_amqp
 
 Files: *
 Copyright: 2014-2018, various authors. See AUTHORS.txt file

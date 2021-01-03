@@ -6,7 +6,7 @@ import anyio
 import pytest
 
 from . import testcase
-from asyncamqp import exceptions
+from async_amqp import exceptions
 
 
 class TestQueueDeclare(testcase.RabbitTestCase):

@@ -13,8 +13,8 @@ AsyncAmqp works only with python >= 3.6 using asyncio, trio or curio.
 Installation
 ------------
 
-You can install the most recent asyncamqp release from pypi using pip or easy_install:
+You can install the most recent async_amqp release from pypi using pip or easy_install:
 
  .. code-block:: shell
 
-    pip install asyncamqp
+    pip install async_amqp

@@ -691,9 +691,9 @@ class Channel:
                 Message:
                     The body of the AMQP message.
                 Envelope:
-                    An instance of :class:`asyncamqp.envelope.Envelope`.
+                    An instance of :class:`async_amqp.envelope.Envelope`.
                 Properties:
-                    An instance of :class:`asyncamqp.properties.Properties`.
+                    An instance of :class:`async_amqp.properties.Properties`.
 
         Unless you have set :param:`no_ack` to ``True``, your code is
         responsible for calling :meth:`basic_client_ack` or

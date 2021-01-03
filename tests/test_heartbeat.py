@@ -5,7 +5,7 @@
 import anyio
 import pytest
 
-from asyncamqp import exceptions
+from async_amqp import exceptions
 
 from . import testcase
 

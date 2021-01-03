@@ -6,14 +6,14 @@
 """
 
 import anyio
-import asyncamqp
+import async_amqp
 
 import sys
 
 
 async def exchange_routing():
     try:
-        async with asyncamqp.connect_amqp() as protocol:
+        async with async_amqp.connect_amqp() as protocol:
 
             channel = await protocol.channel()
             exchange_name = 'direct_logs'
@@ -29,7 +29,7 @@ async def exchange_routing():
         await protocol.aclose()
         transport.close()
 
-    except asyncamqp.AmqpClosedConnection:
+    except async_amqp.AmqpClosedConnection:
         print("closed connections")
         return
 

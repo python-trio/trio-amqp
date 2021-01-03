@@ -11,10 +11,10 @@ Creating a new connection:
  .. code-block:: python
 
     import anyio
-    import asyncamqp
+    import async_amqp
 
     async def connect():
-        async with asyncamqp.connect() as protocol:
+        async with async_amqp.connect() as protocol:
             channel = await protocol.channel()
             # do something interesting here
             pass

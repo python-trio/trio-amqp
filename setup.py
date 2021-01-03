@@ -3,14 +3,14 @@ import setuptools
 description = 'AMQP implementation using anyio'
 
 setuptools.setup(
-    name="asyncamqp",
+    name="async_amqp",
     use_scm_version={"version_scheme": "guess-next-dev", "local_scheme": "dirty-tag"},
     author="Matthias Urlichs",
     author_email='matthias@urlichs.de',
-    url='https://github.com/python-trio/asyncamqp',
+    url='https://github.com/python-trio/async_amqp',
     description=description,
     long_description=open('README.rst').read(),
-    # download_url='https://pypi.python.org/pypi/asyncamqp',
+    # download_url='https://pypi.python.org/pypi/async_amqp',
     setup_requires=[
         'pyrabbit',
     ],
@@ -19,7 +19,7 @@ setuptools.setup(
     ],
     keywords=['asyncio', 'amqp', 'rabbitmq', 'aio'],
     packages=[
-        'asyncamqp',
+        'async_amqp',
     ],
     install_requires=[
         'pamqp>=2.2.0,<3',

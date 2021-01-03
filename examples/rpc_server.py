@@ -1,9 +1,9 @@
 """
-    RPC server, asyncamqp implementation of RPC examples from RabbitMQ tutorial
+    RPC server, async_amqp implementation of RPC examples from RabbitMQ tutorial
 """
 
 import anyio
-import asyncamqp
+import async_amqp
 
 
 def fib(n):
@@ -34,7 +34,7 @@ async def on_request(channel, body, envelope, properties):
 
 
 async def rpc_server():
-    async with asyncamqp.connect_amqp() as protocol:
+    async with async_amqp.connect_amqp() as protocol:
 
         channel = await protocol.channel()
 

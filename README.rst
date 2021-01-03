@@ -3,21 +3,21 @@
    :alt: Join chatroom
 
 .. image:: https://img.shields.io/badge/docs-read%20now-blue.svg
-   :target: https://asyncamqp.readthedocs.io/en/latest/?badge=latest
+   :target: https://async_amqp.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
 
-.. image:: https://travis-ci.org/python-trio/asyncamqp.svg?branch=master
-   :target: https://travis-ci.org/python-trio/asyncamqp
+.. image:: https://travis-ci.org/python-trio/async_amqp.svg?branch=master
+   :target: https://travis-ci.org/python-trio/async_amqp
    :alt: Automated test status
 
-.. image:: https://codecov.io/gh/python-trio/asyncamqp/branch/master/graph/badge.svg
-   :target: https://codecov.io/gh/python-trio/asyncamqp
+.. image:: https://codecov.io/gh/python-trio/async_amqp/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/python-trio/async_amqp
    :alt: Test coverage
 
-asyncamqp
+async_amqp
 =========
 
-The ``asyncamqp`` library is a pure-Python implementation of the `AMQP 0.9.1 protocol`_.
+The ``async_amqp`` library is a pure-Python implementation of the `AMQP 0.9.1 protocol`_.
 
 Built on top of anyio_, it provides an API based on coroutines, making it easy to write highly concurrent applications.
 
@@ -61,5 +61,5 @@ Future work
 .. _AMQP 0.9.1 protocol: https://www.rabbitmq.com/amqp-0-9-1-quickref.html
 .. _Trio: https://github.com/python-trio/trio
 .. _anyio: https://github.com/agronholm/anyio
-.. _issue: https://github.com/python-trio/asyncamqp/issues/new
-.. _pull request: https://github.com/python-trio/asyncamqp/compare/
+.. _issue: https://github.com/python-trio/async_amqp/issues/new
+.. _pull request: https://github.com/python-trio/async_amqp/compare/

@@ -3,11 +3,11 @@
 # need to use python3 sphinx-build
 PATH := /usr/share/sphinx/scripts/python3:${PATH}
 
-PACKAGE = asyncamqp
+PACKAGE = async_amqp
 PYTHON ?= python3
 
 PYTEST ?= env PYTHONPATH=. ${PYTHON} $(shell which pytest-3)
-TEST_OPTIONS ?= -xv --cov=asyncamqp # -vv --full-trace
+TEST_OPTIONS ?= -xv --cov=async_amqp # -vv --full-trace
 PYLINT_RC ?= .pylintrc
 
 BUILD_DIR ?= build

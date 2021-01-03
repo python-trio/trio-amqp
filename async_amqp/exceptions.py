@@ -1,5 +1,5 @@
 """
-    asyncamqp exceptions
+    async_amqp exceptions
 """
 
 

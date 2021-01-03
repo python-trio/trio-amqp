@@ -1,4 +1,4 @@
-asyncamqp was originally created as anyamqp in early 2014 at Polyconseil.
+async_amqp was originally created as anyamqp in early 2014 at Polyconseil.
 
 AUTHORS are (and/or have been)::
 
