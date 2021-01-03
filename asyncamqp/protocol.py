@@ -55,27 +55,6 @@ class ChannelContext:
         raise RuntimeError("This is an async-only context manager.")
 
 
-class BufferedReceiveStream:
-    def __init__(self, stream, buf_size):
-        self._stream = stream
-        self._buf_size = buf_size
-        self._buf = bytearray()
-        self.close = stream.close
-
-    async def receive_some(self, max_bytes):
-        """Buffered read of at most max_bytes characters"""
-        if self._buf == b'':
-            self._buf = await self._stream.receive_some(self._buf_size)
-            if self._buf == b'':
-                return b''
-
-        if len(self._buf) <= max_bytes:
-            read_bytes, self._buf = self._buf, b''
-        else:
-            read_bytes, self._buf = self._buf[:max_bytes], self._buf[max_bytes:]
-        return read_bytes
-
-
 class AmqpProtocol:
     """The AMQP protocol for anyio.
     """
