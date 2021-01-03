@@ -6,6 +6,7 @@ coverage
 pylint
 pytest
 pytest-trio
+pytest-cov>=2.6.0
 Sphinx
 sphinx-rtd-theme
 
