@@ -35,9 +35,6 @@ test:
 	$(PYTEST) $(TEST_OPTIONS) tests
 
 
-update:
-	pip install -r ci/requirements_dev.txt
-
 pylint:
 	pylint aioamqp
 
