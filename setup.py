@@ -16,13 +16,11 @@ setuptools.setup(
     ],
     install_requires=[
         'anyio>=3,<4',
+        'pamqp>=3,<4',
     ],
     keywords=['asyncio', 'amqp', 'rabbitmq', 'aio', 'trio'],
     packages=[
         'async_amqp',
-    ],
-    install_requires=[
-        'pamqp>=3,<4',
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
