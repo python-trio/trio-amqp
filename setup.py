@@ -34,7 +34,6 @@ setuptools.setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Framework :: Trio",
-        "Framework :: Anyio",
     ],
     platforms='all',
     license='BSD'
