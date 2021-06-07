@@ -8,7 +8,7 @@ AsyncAmqp library is a pure-Python implementation of the AMQP 0.9.1 protocol usi
 Prerequisites
 -------------
 
-AsyncAmqp works only with python >= 3.6 using asyncio, trio or curio.
+AsyncAmqp works with python >= 3.7 using asyncio, trio or curio.
 
 Installation
 ------------

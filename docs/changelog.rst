@@ -25,6 +25,10 @@ Trio-amqp 0.1
 Next release
 ------------
 
+ * Add support for Python 3.9.
+ * Drop support for Python 3.5.
+ * Fix annoying auth method warning because of a wrong defined default argument (closes #214).
+
 Aioamqp 0.14.0
 --------------
 
