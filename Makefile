@@ -64,7 +64,9 @@ tagged:
 	test $$(git ls-files -m | wc -l) = 0
 
 pypi:   tagged
-	python3 setup.py sdist upload
+	#python3 setup.py sdist upload
+	python3 setup.py sdist
+	twine upload dist/async_amqp-$(shell git describe --tags --exact-match).tar.gz
 
 upload: pypi
 	git push --tags
