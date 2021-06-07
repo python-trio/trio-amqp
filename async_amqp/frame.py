@@ -48,7 +48,6 @@ from itertools import count
 from decimal import Decimal
 
 import pamqp.encode
-import pamqp.specification
 import pamqp.frame
 
 from . import exceptions
@@ -70,7 +69,7 @@ async def read(reader):
         raise exceptions.AmqpClosedConnection()
     try:
         data = await reader.receive_exactly(7)
-    except (ClosedResourceError, IncompleteRead):
+    except (ClosedResourceError, IncompleteRead) as ex:
         raise exceptions.AmqpClosedConnection() from ex
 
     frame_type, channel, frame_length = pamqp.frame.frame_parts(data)

@@ -10,12 +10,14 @@ from . import testcase
 class TestRecover(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def test_basic_recover_async(self, channel):
-        await channel.basic_recover_async(requeue=True)
+        with pytest.deprecated_call():
+            await channel.basic_recover_async(requeue=True)
 
     @pytest.mark.xfail(msg="server doesn't like that")
     @pytest.mark.trio
     async def test_basic_recover_async_no_requeue(self, channel):
-        await channel.basic_recover_async(requeue=False)
+        with pytest.deprecated_call():
+            await channel.basic_recover_async(requeue=False)
 
     @pytest.mark.trio
     async def test_basic_recover(self, channel):

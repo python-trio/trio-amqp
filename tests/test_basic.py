@@ -127,10 +127,10 @@ class TestBasicDelivery(testcase.RabbitTestCase):
 
         await self.publish(amqp, queue_name, exchange_name, routing_key, b"payload")
 
-        qfuture = anyio.create_event()
+        qfuture = anyio.Event()
 
         async def qcallback(channel, body, envelope, _properties):
-            await qfuture.set()
+            qfuture.set()
             self.test_result = envelope
 
         async with amqp.new_channel() as channel:
@@ -148,7 +148,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
 
         await self.publish(amqp, queue_name, exchange_name, routing_key, b"payload")
 
-        qfuture = anyio.create_event()
+        qfuture = anyio.Event()
 
         async with amqp.new_channel() as channel:
 
@@ -156,7 +156,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
                 await channel.basic_client_nack(
                     envelope.delivery_tag, multiple=True, requeue=False
                 )
-                await qfuture.set()
+                qfuture.set()
 
             await channel.basic_consume(qcallback, queue_name=queue_name)
             await qfuture.wait()
@@ -169,13 +169,13 @@ class TestBasicDelivery(testcase.RabbitTestCase):
 
         await self.publish(amqp, queue_name, exchange_name, routing_key, b"payload")
 
-        qfuture = anyio.create_event()
+        qfuture = anyio.Event()
 
         async with amqp.new_channel() as channel:
 
             async def qcallback(channel, body, envelope, _properties):
                 await channel.basic_client_nack(envelope.delivery_tag, requeue=False)
-                await qfuture.set()
+                qfuture.set()
 
             await channel.basic_consume(qcallback, queue_name=queue_name)
             await qfuture.wait()
@@ -188,7 +188,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
 
         await self.publish(amqp, queue_name, exchange_name, routing_key, b"payload")
 
-        qfuture = anyio.create_event()
+        qfuture = anyio.Event()
         called = False
 
         async with amqp.new_channel() as channel:
@@ -200,7 +200,7 @@ class TestBasicDelivery(testcase.RabbitTestCase):
                     await channel.basic_client_nack(envelope.delivery_tag, requeue=True)
                 else:
                     await channel.basic_client_ack(envelope.delivery_tag)
-                    await qfuture.set()
+                    qfuture.set()
 
             await channel.basic_consume(qcallback, queue_name=queue_name)
             await qfuture.wait()
@@ -212,10 +212,10 @@ class TestBasicDelivery(testcase.RabbitTestCase):
         routing_key = ''
         await self.publish(amqp, queue_name, exchange_name, routing_key, b"payload")
 
-        qfuture = anyio.create_event()
+        qfuture = anyio.Event()
 
         async def qcallback(channel, body, envelope, _properties):
-            await qfuture.set()
+            qfuture.set()
             self.test_result = envelope
 
         async with amqp.new_channel() as channel:

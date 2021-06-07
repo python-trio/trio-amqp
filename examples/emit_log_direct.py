@@ -26,8 +26,6 @@ async def exchange_routing():
                 message, exchange_name=exchange_name, routing_key=severity
             )
             print(" [x] Sent %r" % (message,))
-        await protocol.aclose()
-        transport.close()
 
     except async_amqp.AmqpClosedConnection:
         print("closed connections")

@@ -44,7 +44,7 @@ async def receive_log():
 
             print(' [*] Waiting for logs. To exit press CTRL+C')
 
-            async with anyio.fail_after(10):
+            with anyio.fail_after(10):
                 await channel.basic_consume(callback, queue_name=queue_name)
 
     except async_amqp.AmqpClosedConnection:

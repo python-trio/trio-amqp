@@ -8,7 +8,7 @@ from async_amqp import exceptions
 class TestClose(testcase.RabbitTestCase):
     def setUp(self):
         super().setUp()
-        self.consume_future = anyio.create_event()
+        self.consume_future = anyio.Event()
 
     @pytest.mark.trio
     async def callback(self, body, envelope, properties):
@@ -17,7 +17,7 @@ class TestClose(testcase.RabbitTestCase):
     @pytest.mark.trio
     async def get_callback_result(self):
         await self.consume_future.wait()
-        self.consume_future = anyio.create_event()
+        self.consume_future = anyio.Event()
         return self.consume_result
 
     @pytest.mark.trio

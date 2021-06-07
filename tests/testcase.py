@@ -22,6 +22,7 @@ from . import testcase
 from async_amqp import exceptions, connect_amqp
 from async_amqp.channel import Channel
 from async_amqp.protocol import AmqpProtocol, OPEN
+from anyio._core._compat import DeprecatedAwaitable
 
 logger = logging.getLogger(__name__)
 
@@ -134,16 +135,22 @@ class FakeScope:
     def __init__(self, scope):
         self.scope = scope
 
-    async def cancel(self):
+    def cancel(self):
         self.scope.cancel()
+        return DeprecatedAwaitable(self.cancel)
+
 
 class TaskGroup:
     def __init__(self, nursery) -> None:
         self._nursery = nursery
         self.cancel_scope = FakeScope(nursery.cancel_scope)
              
-    async def spawn(self, func, *args, name=None) -> None:
+    def start_soon(self, func, *args, name=None) -> None:
         self._nursery.start_soon(func, *args, name=name)
+
+    async def start(self, func, *args, name=None) -> None:
+        return await self._nursery.start(func, *args, name=name)
+
 
 
 @pytest.fixture
@@ -219,7 +226,7 @@ class RabbitTestCase:
         reset_vhost()  # global
 
     def server_version(self, amqp):
-        server_version = tuple(int(x) for x in amqp.server_properties['version'].split(b'.'))
+        server_version = tuple(int(x) for x in amqp.server_properties['version'].split('.'))
         return server_version
 
     async def check_exchange_exists(self, exchange_name):

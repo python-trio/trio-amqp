@@ -25,7 +25,8 @@ class TestReplyOld(testcase.RabbitTestCase):
         server_future,
         exchange_name,
         routing_key,
-        done,
+        *,
+        task_status,
     ):
         """Consume messages and reply to them by publishing messages back
         to the client using routing key set to the reply_to property
@@ -43,12 +44,12 @@ class TestReplyOld(testcase.RabbitTestCase):
                     b'reply message', exchange_name, properties.reply_to, publish_properties
                 )
                 server_future.test_result = (body, envelope, properties)
-                await server_future.set()
+                server_future.set()
                 logger.debug('Server replied')
 
             await channel.basic_consume(server_callback, queue_name=server_queue_name)
             logger.debug('Server consuming messages')
-            await done.set()
+            task_status.started()
             await server_future.wait()
 
     async def _client(
@@ -59,7 +60,8 @@ class TestReplyOld(testcase.RabbitTestCase):
         server_routing_key,
         correlation_id,
         client_routing_key,
-        done,
+        *,
+        task_status,
     ):
         """Declare a queue, bind client_routing_key to it, and publish a
         message to the server with the reply_to property set to that
@@ -74,11 +76,11 @@ class TestReplyOld(testcase.RabbitTestCase):
             async def client_callback(channel, body, envelope, properties):
                 logger.debug('Client received message')
                 client_future.test_result = (body, envelope, properties)
-                await client_future.set()
+                client_future.set()
 
             await client_channel.basic_consume(client_callback, queue_name=client_queue_name)
             logger.debug('Client consuming messages')
-            await done.set()
+            task_status.started()
 
             await client_channel.publish(
                 b'client message', exchange_name, server_routing_key, {
@@ -91,22 +93,18 @@ class TestReplyOld(testcase.RabbitTestCase):
 
     @pytest.mark.trio
     async def test_reply_to(self, amqp):
-        server_future = anyio.create_event()
+        server_future = anyio.Event()
         async with anyio.create_task_group() as n:
-            done_here = anyio.create_event()
-            await n.spawn(self._server, amqp, server_future, exchange_name, server_routing_key, done_here)
-            await done_here.wait()
+            await n.start(self._server, amqp, server_future, exchange_name, server_routing_key)
 
             correlation_id = 'secret correlation id'
             client_routing_key = 'secret_client_key'
 
-            client_future = anyio.create_event()
-            done_here = anyio.create_event()
-            await n.spawn(
+            client_future = anyio.Event()
+            await n.start(
                 self._client, amqp, client_future, exchange_name, server_routing_key,
-                correlation_id, client_routing_key, done_here
+                correlation_id, client_routing_key
             )
-            await done_here.wait()
 
             logger.debug('Waiting for server to receive message')
             await server_future.wait()
@@ -124,7 +122,7 @@ class TestReplyOld(testcase.RabbitTestCase):
             assert client_body == b'reply message'
             assert client_properties.correlation_id == correlation_id
             assert client_envelope.routing_key == client_routing_key
-            await n.cancel_scope.cancel()
+            n.cancel_scope.cancel()
 
 
 class TestReplyNew(testcase.RabbitTestCase):
@@ -136,7 +134,8 @@ class TestReplyNew(testcase.RabbitTestCase):
         server_future,
         exchange_name,
         routing_key,
-        done,
+        *,
+        task_status,
     ):
         """Consume messages and reply to them by publishing messages back
         to the client using routing key set to the reply_to property
@@ -147,20 +146,18 @@ class TestReplyNew(testcase.RabbitTestCase):
             await channel.queue_bind(server_queue_name, exchange_name, routing_key=routing_key)
 
             async with anyio.create_task_group() as n:
-                done_here = anyio.create_event()
-                await n.spawn(self._server_consumer, channel, server_future, done_here)
-                await done_here.wait()
-                await done.set()
+                await n.start(self._server_consumer, channel, server_future)
+                task_status.started()
                 await server_future.wait()
-                await self._server_scope.cancel()
+                self._server_scope.cancel()
 
-    async def _server_consumer(self, channel, server_future, done):
-        async with anyio.open_cancel_scope() as scope:
+    async def _server_consumer(self, channel, server_future, *, task_status):
+        with anyio.CancelScope() as scope:
             self._server_scope = scope
             async with channel.new_consumer(queue_name=server_queue_name) \
                     as data:
                 logger.debug('Server consuming messages')
-                await done.set()
+                task_status.started()
                 async for body, envelope, properties in data:
 
                     logger.debug('Server received message')
@@ -170,7 +167,7 @@ class TestReplyNew(testcase.RabbitTestCase):
                         b'reply message', exchange_name, properties.reply_to, publish_properties
                     )
                     server_future.test_result = (body, envelope, properties)
-                    await server_future.set()
+                    server_future.set()
                     logger.debug('Server replied')
 
     async def _client(
@@ -181,7 +178,8 @@ class TestReplyNew(testcase.RabbitTestCase):
         server_routing_key,
         correlation_id,
         client_routing_key,
-        done,
+        *,
+        task_status,
     ):
         """Declare a queue, bind client_routing_key to it, and publish a
         message to the server with the reply_to property set to that
@@ -194,10 +192,8 @@ class TestReplyNew(testcase.RabbitTestCase):
             )
 
             async with anyio.create_task_group() as n:
-                done_here = anyio.create_event()
-                await n.spawn(self._client_consumer, client_channel, client_future, done_here)
-                await done_here.wait()
-                await done.set()
+                await n.start(self._client_consumer, client_channel, client_future)
+                task_status.started()
 
                 await client_channel.publish(
                     b'client message', exchange_name, server_routing_key, {
@@ -207,39 +203,35 @@ class TestReplyNew(testcase.RabbitTestCase):
                 )
                 logger.debug('Client published message')
                 await client_future.wait()
-                await self._client_scope.cancel()
+                self._client_scope.cancel()
 
-    async def _client_consumer(self, channel, client_future, done):
-        async with anyio.open_cancel_scope() as scope:
+    async def _client_consumer(self, channel, client_future, *, task_status):
+        with anyio.CancelScope() as scope:
             self._client_scope = scope
             async with channel.new_consumer(queue_name=client_queue_name) \
                     as data:
-                await done.set()
+                task_status.started()
                 logger.debug('Client consuming messages')
 
                 async for body, envelope, properties in data:
                     logger.debug('Client received message')
                     client_future.test_result = (body, envelope, properties)
-                    await client_future.set()
+                    client_future.set()
 
     @pytest.mark.trio
     async def test_reply_to(self, amqp):
-        server_future = anyio.create_event()
+        server_future = anyio.Event()
         async with anyio.create_task_group() as n:
-            done_here = anyio.create_event()
-            await n.spawn(self._server, amqp, server_future, exchange_name, server_routing_key, done_here)
-            await done_here.wait()
+            await n.start(self._server, amqp, server_future, exchange_name, server_routing_key)
 
             correlation_id = 'secret correlation id'
             client_routing_key = 'secret_client_key'
 
-            client_future = anyio.create_event()
-            done_here = anyio.create_event()
-            await n.spawn(
+            client_future = anyio.Event()
+            await n.start(
                 self._client, amqp, client_future, exchange_name, server_routing_key,
-                correlation_id, client_routing_key, done_here
+                correlation_id, client_routing_key
             )
-            await done_here.wait()
 
             logger.debug('Waiting for server to receive message')
             await server_future.wait()
@@ -257,4 +249,4 @@ class TestReplyNew(testcase.RabbitTestCase):
             assert client_body == b'reply message'
             assert client_properties.correlation_id == correlation_id
             assert client_envelope.routing_key == client_routing_key
-            await n.cancel_scope.cancel()
+            n.cancel_scope.cancel()

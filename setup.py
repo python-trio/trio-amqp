@@ -15,14 +15,14 @@ setuptools.setup(
         'pyrabbit',
     ],
     install_requires=[
-        'anyio>=2',
+        'anyio>=3,<4',
     ],
-    keywords=['asyncio', 'amqp', 'rabbitmq', 'aio'],
+    keywords=['asyncio', 'amqp', 'rabbitmq', 'aio', 'trio'],
     packages=[
         'async_amqp',
     ],
     install_requires=[
-        'pamqp>=2.2.0,<3',
+        'pamqp>=3,<4',
     ],
     classifiers=[
         "Development Status :: 4 - Beta",

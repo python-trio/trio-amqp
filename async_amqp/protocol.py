@@ -13,6 +13,7 @@ try:
 except ImportError:
     from async_generator import asynccontextmanager
 import pamqp
+import pamqp.commands
 from anyio.abc import SocketAttribute
 
 from . import channel as amqp_channel
@@ -43,7 +44,7 @@ class ChannelContext:
     async def __aexit__(self, *tb):
         if not self.channel.is_open:
             return
-        async with anyio.move_on_after(2,shield=True):
+        with anyio.move_on_after(2,shield=True):
             try:
                 await self.channel.close()
             except exceptions.AmqpClosedConnection:
@@ -79,7 +80,7 @@ class AmqpProtocol:
         frame_max=None,
         heartbeat=None,
         client_properties=None,
-        login_method='AMQPLAIN',
+        login_method='PLAIN',
         insist=False
     ):
         """Defines our new protocol instance
@@ -137,9 +138,8 @@ class AmqpProtocol:
         if heartbeat is not None:
             self.connection_tunning['heartbeat'] = heartbeat
 
-        if login_method != 'AMQPLAIN':
-            # TODO
-            logger.warning('only AMQPLAIN login_method is supported, ' 'falling back to AMQPLAIN')
+        if login_method != 'PLAIN':
+            logger.warning('login_method %s is not supported, falling back to PLAIN', login_method)
 
         self._host = host
         self._port = port
@@ -190,17 +190,17 @@ class AmqpProtocol:
         data = pamqp.frame.marshal(request, channel_id)
         await self._send_queue_w.send(data)
 
-    async def _writer_loop(self, done):
-        async with anyio.open_cancel_scope(shield=True) as scope:
+    async def _writer_loop(self, *, task_status):
+        with anyio.CancelScope(shield=True) as scope:
             self._writer_scope = scope
-            await done.set()
+            task_status.started()
             while self.state != CLOSED:
                 if self.server_heartbeat:
                     timeout = self.server_heartbeat / 2
                 else:
                     timeout = inf
 
-                async with anyio.move_on_after(timeout) as timeout_scope:
+                with anyio.move_on_after(timeout) as timeout_scope:
                     data = await self._send_queue_r.receive()
                 if timeout_scope.cancel_called:
                     await self.send_heartbeat()
@@ -225,12 +225,12 @@ class AmqpProtocol:
         try:
             self.state = CLOSING
             got_close = self.connection_closed.is_set()
-            await self.connection_closed.set()
+            self.connection_closed.set()
             if not got_close:
                 await self._close_channels()
 
                 # If the closing handshake is in progress, let it complete.
-                request = pamqp.specification.Connection.Close(
+                request = pamqp.commands.Connection.Close(
                     reply_code=0,
                     reply_text='',
                     class_id=0,
@@ -244,18 +244,18 @@ class AmqpProtocol:
                     logger.exception("Error while closing")
                 else:
                     if not no_wait and self.server_heartbeat:
-                        async with anyio.move_on_after(self.server_heartbeat / 2):
+                        with anyio.move_on_after(self.server_heartbeat / 2):
                             await self.wait_closed()
 
         except BaseException as exc:
-            async with anyio.fail_after(2, shield=True):
+            with anyio.fail_after(2, shield=True):
                 await self._close_channels(exception=exc)
             raise
 
         finally:
-            async with anyio.fail_after(2, shield=True):
+            with anyio.fail_after(2, shield=True):
                 try:
-                    await self._cancel_all()
+                    self._cancel_all()
                     await self._stream.aclose()
                 finally:
                     self._nursery = None
@@ -275,7 +275,7 @@ class AmqpProtocol:
         raise TypeError("You need to use an async context")
 
     async def __aenter__(self):
-        self.connection_closed = anyio.create_event()
+        self.connection_closed = anyio.Event()
         self.state = CONNECTING
         self.version_major = None
         self.version_minor = None
@@ -314,10 +314,8 @@ class AmqpProtocol:
         self._stream = stream
         self._rstream = BufferedByteReceiveStream(stream)
 
-        # the writer loop needs to run since the beginning
-        done_here = anyio.create_event()
-        await self._nursery.spawn(self._writer_loop, done_here)
-        await done_here.wait()
+        # the writer loop needs to run from the beginning
+        await self._nursery.start(self._writer_loop)
 
         try:
             await self._stream.send(amqp_constants.PROTOCOL_HEADER)
@@ -371,19 +369,17 @@ class AmqpProtocol:
                     raise exceptions.AmqpClosedConnection()
 
             # read the other server's responses asynchronously
-            done_here = anyio.create_event()
-            await self._nursery.spawn(self._reader_loop, done_here)
-            await done_here.wait()
+            await self._nursery.start(self._reader_loop)
 
         except BaseException as exc:
-            async with anyio.fail_after(2, shield=True):
+            with anyio.fail_after(2, shield=True):
                 await self.close(no_wait=True)
             raise
 
         return self
 
     async def __aexit__(self, typ, exc, tb):
-        async with anyio.move_on_after(2, shield=True):
+        with anyio.move_on_after(2, shield=True):
             await self.close()
 
     async def get_frame(self):
@@ -407,11 +403,11 @@ class AmqpProtocol:
         """Dispatch the received frame to the corresponding handler"""
 
         method_dispatch = {
-            pamqp.specification.Connection.Close.name: self.server_close,
-            pamqp.specification.Connection.CloseOk.name: self.close_ok,
-            pamqp.specification.Connection.Tune.name: self.tune,
-            pamqp.specification.Connection.Start.name: self.start,
-            pamqp.specification.Connection.OpenOk.name: self.open_ok,
+            pamqp.commands.Connection.Close.name: self.server_close,
+            pamqp.commands.Connection.CloseOk.name: self.close_ok,
+            pamqp.commands.Connection.Tune.name: self.tune,
+            pamqp.commands.Connection.Start.name: self.start,
+            pamqp.commands.Connection.OpenOk.name: self.open_ok,
         }
         if frame is None:
             frame_channel, frame = await self.get_frame()
@@ -457,11 +453,11 @@ class AmqpProtocol:
         for channel in self.channels.values():
             await channel.connection_closed(reply_code, reply_text, exception)
 
-    async def _reader_loop(self, done):
-        async with anyio.open_cancel_scope(shield=True) as scope:
+    async def _reader_loop(self, *, task_status):
+        with anyio.CancelScope(shield=True) as scope:
             self._reader_scope = scope
             try:
-                await done.set()
+                task_status.started()
                 while True:
                     try:
                         if self._stream is None:
@@ -472,7 +468,7 @@ class AmqpProtocol:
                         else:
                             timeout = inf
 
-                        async with anyio.fail_after(timeout):
+                        with anyio.fail_after(timeout):
                             try:
                                 channel, frame = await self.get_frame()
                             except anyio.ClosedResourceError:
@@ -493,11 +489,11 @@ class AmqpProtocol:
                                 await anyio.sleep(0.01)
                                 raise exc
 
-                            logger.error("Queue",repr(exc))
-                            await self._nursery.spawn(owch, exc)
+                            logger.error("Queue %r", exc)
+                            self._nursery.start_soon(owch, exc)
 
                     except TimeoutError:
-                        await self.connection_closed.set()
+                        self.connection_closed.set()
                         raise exceptions.HeartbeatTimeoutError(self) from None
                     except exceptions.AmqpClosedConnection as exc:
                         logger.debug("Remote closed connection")
@@ -506,8 +502,7 @@ class AmqpProtocol:
                         raise
             finally:
                 self._reader_scope = None
-                async with anyio.fail_after(2, shield=True):
-                    await self.connection_closed.set()
+                self.connection_closed.set()
 
     async def send_heartbeat(self):
         """Sends an heartbeat message.
@@ -527,7 +522,7 @@ class AmqpProtocol:
         self.server_locales = frame.locales
 
     async def start_ok(self, client_properties, mechanism, auth, locale):
-        class StartOk(pamqp.specification.Connection.StartOk):
+        class StartOk(pamqp.commands.Connection.StartOk):
             _response = 'table'
 
         request = StartOk(
@@ -554,19 +549,19 @@ class AmqpProtocol:
         await self._close_ok()
 
     async def _close_ok(self):
-        request = pamqp.specification.Connection.CloseOk()
+        request = pamqp.commands.Connection.CloseOk()
         await self._write_frame(0, request)
         await anyio.sleep(0)  # give the write task one shot to send the frame
         if self._nursery is not None:
-            await self._cancel_all()
+            self._cancel_all()
 
-    async def _cancel_all(self):
+    def _cancel_all(self):
         if self._reader_scope is not None:
-            await self._reader_scope.cancel()
+            self._reader_scope.cancel()
         if self._writer_scope is not None:
-            await self._writer_scope.cancel()
+            self._writer_scope.cancel()
         if self._nursery is not None:
-            await self._nursery.cancel_scope.cancel()
+            self._nursery.cancel_scope.cancel()
 
     async def tune(self, frame):
         self.server_channel_max = frame.channel_max
@@ -574,7 +569,7 @@ class AmqpProtocol:
         self.server_heartbeat = frame.heartbeat
 
     async def tune_ok(self, channel_max, frame_max, heartbeat):
-        request = pamqp.specification.Connection.TuneOk(
+        request = pamqp.commands.Connection.TuneOk(
             channel_max, frame_max, heartbeat
         )
         await self._write_frame(0, request)
@@ -584,7 +579,7 @@ class AmqpProtocol:
 
     async def open(self, virtual_host, capabilities='', insist=False):
         """Open connection to virtual host."""
-        request = pamqp.specification.Connection.Open(
+        request = pamqp.commands.Connection.Open(
             virtual_host, capabilities, insist
         )
         await self._write_frame(0, request)
@@ -629,7 +624,9 @@ async def connect_amqp(*args, protocol=AmqpProtocol, **kwargs):
         try:
             async with amqp:
                 yield amqp
+        except anyio.BrokenResourceError as ex:
+            raise exceptions.AmqpClosedConnection from ex
         finally:
-            async with anyio.fail_after(2, shield=True):
-                await amqp._cancel_all()
+            with anyio.fail_after(2, shield=True):
+                amqp._cancel_all()
 

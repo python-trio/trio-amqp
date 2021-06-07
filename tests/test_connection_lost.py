@@ -19,7 +19,7 @@ class TestConnectionLost(testcase.RabbitTestCase):
             # this should have the same effect as the tcp connection being lost
             await amqp._stream.aclose()
 
-            async with anyio.fail_after(1):
+            with anyio.fail_after(1):
                 await amqp.connection_closed.wait()
             assert amqp.state == CLOSED
             assert not channel.is_open

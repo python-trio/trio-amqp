@@ -15,7 +15,7 @@ class FibonacciRpcClient(object):
         self.protocol = None
         self.channel = None
         self.callback_queue = None
-        self.waiter = anyio.create_event()
+        self.waiter = anyio.Event()
 
     async def connect(self, channel):
         """ an `__init__` method can't be a coroutine"""
