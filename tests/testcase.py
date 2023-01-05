@@ -137,7 +137,6 @@ class FakeScope:
 
     def cancel(self):
         self.scope.cancel()
-        return DeprecatedAwaitable(self.cancel)
 
 
 class TaskGroup:
@@ -212,7 +211,7 @@ class RabbitTestCase:
             if amqp.state != OPEN:
                 continue
             logger.debug('Kill off amqp %s', amqp)
-            await amqp._nursery.cancel_scope.cancel()
+            amqp._nursery.cancel_scope.cancel()
             await amqp.close()
 
     def teardown(self):
