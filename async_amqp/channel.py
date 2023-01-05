@@ -493,7 +493,8 @@ class Channel:
             routing_key=routing_key,
             arguments=arguments
         )
-        return await self._write_frame_awaiting_response('queue_unbind', self.channel_id, request, no_wait=False)
+        async with self._queue_bind_lock:
+            return await self._write_frame_awaiting_response('queue_unbind', self.channel_id, request, no_wait=False)
 
     async def queue_unbind_ok(self, frame):
         future = self._get_waiter('queue_unbind')
