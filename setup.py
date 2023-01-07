@@ -7,7 +7,7 @@ setuptools.setup(
     use_scm_version={"version_scheme": "guess-next-dev", "local_scheme": "dirty-tag"},
     author="Matthias Urlichs",
     author_email='matthias@urlichs.de',
-    url='https://github.com/python-trio/async_amqp',
+    url='https://github.com/python-trio/trio-amqp',
     description=description,
     long_description=open('README.rst').read(),
     # download_url='https://pypi.python.org/pypi/async_amqp',
