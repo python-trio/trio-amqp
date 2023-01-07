@@ -67,5 +67,5 @@ Future work
 .. _AMQP 0.9.1 protocol: https://www.rabbitmq.com/amqp-0-9-1-quickref.html
 .. _Trio: https://github.com/python-trio/trio
 .. _anyio: https://github.com/agronholm/anyio
-.. _issue: https://github.com/python-trio/async_amqp/issues/new
-.. _pull request: https://github.com/python-trio/async_amqp/compare/
+.. _issue: https://github.com/python-trio/trio-amqp/issues/new
+.. _pull request: https://github.com/python-trio/trio-amqp/compare/
