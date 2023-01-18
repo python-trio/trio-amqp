@@ -1,4 +1,4 @@
-async-amqp (0.2.14-1) unstable; urgency=medium
+async-amqp (0.5.4-1) unstable; urgency=medium
 
   * error handling
 
