@@ -18,7 +18,7 @@ from . import exceptions
 from . import properties as amqp_properties
 from .envelope import Envelope, ReturnEnvelope
 from .future import Future
-from .exceptions import AmqpClosedConnection, SynchronizationError
+from .exceptions import AmqpClosedConnection, ChannelClosed, SynchronizationError
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class BasicListener:
         with anyio.CancelScope(shield=True):
             try:
                 await self.channel.basic_cancel(self.consumer_tag)
-            except AmqpClosedConnection:
+            except (AmqpClosedConnection,ChannelClosed):
                 pass
         await self._q_w.aclose()
         await self._q_r.aclose()

@@ -1,3 +1,9 @@
+async-amqp (0.2.14-1) unstable; urgency=medium
+
+  * error handling
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Wed, 18 Jan 2023 19:33:39 +0100
+
 async-amqp (0.2.13-1) unstable; urgency=medium
 
   * Buffer incoming data
