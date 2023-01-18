@@ -1,103 +1,103 @@
-async_amqp (0.2.13-1) unstable; urgency=medium
+async-amqp (0.2.13-1) unstable; urgency=medium
 
   * Buffer incoming data
   * Fix tests
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 04 Sep 2018 19:36:02 +0200
 
-async_amqp (0.2.12-1) unstable; urgency=medium
+async-amqp (0.2.12-1) unstable; urgency=medium
 
   * Fix reading returned messages
 
  -- Matthias Urlichs <matthias@urlichs.de>  Mon, 16 Jul 2018 20:06:59 +0200
 
-async_amqp (0.2.11-1) unstable; urgency=medium
+async-amqp (0.2.11-1) unstable; urgency=medium
 
   * Don't raise AmqpClosedConnection when terminating (mostly-)cleanly
 
  -- Matthias Urlichs <matthias@urlichs.de>  Wed, 04 Jul 2018 05:43:27 +0200
 
-async_amqp (0.2.9-1) unstable; urgency=medium
+async-amqp (0.2.9-1) unstable; urgency=medium
 
   * Merged
 
  -- Matthias Urlichs <matthias@urlichs.de>  Thu, 21 Jun 2018 20:54:53 +0200
 
-async_amqp (0.2.8-1) unstable; urgency=medium
+async-amqp (0.2.8-1) unstable; urgency=medium
 
   * Allow for Py3.5
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 05 Jun 2018 15:20:43 +0200
 
-async_amqp (0.2.7-4) unstable; urgency=medium
+async-amqp (0.2.7-4) unstable; urgency=medium
 
   * Dependency error
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 05 Jun 2018 15:07:58 +0200
 
-async_amqp (0.2.7-2) unstable; urgency=medium
+async-amqp (0.2.7-2) unstable; urgency=medium
 
   * ignore .eggs subdir
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 05 Jun 2018 15:06:53 +0200
 
-async_amqp (0.2.7-1) unstable; urgency=medium
+async-amqp (0.2.7-1) unstable; urgency=medium
 
   * Merge Upstream
     * implements returned messages
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 29 May 2018 11:55:18 +0200
 
-async_amqp (0.2.6-1) unstable; urgency=medium
+async-amqp (0.2.6-1) unstable; urgency=medium
 
   * Don't throw an error when closing the connection, take two.
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 21:37:14 +0100
 
-async_amqp (0.2.5-1) unstable; urgency=medium
+async-amqp (0.2.5-1) unstable; urgency=medium
 
   * Don't throw an error when closing the connection.
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 17:19:42 +0100
 
-async_amqp (0.2.4-3) unstable; urgency=medium
+async-amqp (0.2.4-3) unstable; urgency=medium
 
   * improved descriptions in debian/control
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 17:07:05 +0100
 
-async_amqp (0.2.4-2) unstable; urgency=medium
+async-amqp (0.2.4-2) unstable; urgency=medium
 
   * added debian/copyright file
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 17:05:53 +0100
 
-async_amqp (0.2.4-1) unstable; urgency=medium
+async-amqp (0.2.4-1) unstable; urgency=medium
 
   * Notify consumers when the server closes a channel.
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 17:00:58 +0100
 
-async_amqp (0.2.3-1) unstable; urgency=medium
+async-amqp (0.2.3-1) unstable; urgency=medium
 
   * Set .connection_closed when the server closes us.
 
  -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 16:02:12 +0100
 
-async_amqp (0.2.2-1) unstable; urgency=medium
+async-amqp (0.2.2-1) unstable; urgency=medium
 
   * Closing the connection cleanly and completely 
     might be a good idea.
 
  -- Matthias Urlichs <matthias@urlichs.de>  Fri, 23 Feb 2018 09:00:22 +0100
 
-async_amqp (0.2.1-1) unstable; urgency=medium
+async-amqp (0.2.1-1) unstable; urgency=medium
 
   * Export the Trio nursery.
 
  -- Matthias Urlichs <matthias@urlichs.de>  Mon, 19 Feb 2018 13:38:23 +0100
 
-async_amqp (0.2.0-1) unstable; urgency=medium
+async-amqp (0.2.0-1) unstable; urgency=medium
 
   * Initial release.
 
